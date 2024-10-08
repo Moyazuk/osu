@@ -61,8 +61,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 flashlightRating *= 0.7;
             }
 
-            double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);
-            double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating);
+            double baseAimPerformance = Math.Pow(5.0 * Math.Max(1.0, aimRating / 0.0675) - 4.0, 3.0) / 100000.0;
+            double baseSpeedPerformance = Math.Pow(5.0 * Math.Max(1.0, speedRating / 0.0675) - 4.0, 3.0) / 100000.0;
             double baseFlashlightPerformance = 0.0;
 
             if (mods.Any(h => h is OsuModFlashlight))
