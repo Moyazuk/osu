@@ -135,11 +135,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private double computeAimValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            double aimValue = OsuStrainSkill.DifficultyToPerformance(attributes.AimDifficulty);
-
-            double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
-                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-            aimValue *= lengthBonus;
+            double aimValue = Math.Pow(5.0 * Math.Max(1.0, attributes.AimDifficulty / 0.0675) - 4.0, 3.0) / 100000.0;
 
             if (effectiveMissCount > 0)
                 aimValue *= calculateMissPenalty(effectiveMissCount, attributes.AimDifficultStrainCount);
@@ -153,7 +149,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (score.Mods.Any(h => h is OsuModRelax))
                 approachRateFactor = 0.0;
 
-            aimValue *= 1.0 + approachRateFactor * lengthBonus; // Buff for longer maps with high AR.
+            aimValue *= 1.0 + approachRateFactor; // Buff for longer maps with high AR.
 
             if (score.Mods.Any(m => m is OsuModBlinds))
                 aimValue *= 1.3 + (totalHits * (0.0016 / (1 + 2 * effectiveMissCount)) * Math.Pow(accuracy, 16)) * (1 - 0.003 * attributes.DrainRate * attributes.DrainRate);
@@ -199,11 +195,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (score.Mods.Any(h => h is OsuModRelax))
                 return 0.0;
 
-            double speedValue = OsuStrainSkill.DifficultyToPerformance(attributes.SpeedDifficulty);
-
-            double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
-                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-            speedValue *= lengthBonus;
+            double speedValue = Math.Pow(5.0 * Math.Max(1.0, attributes.SpeedDifficulty / 0.0675) - 4.0, 3.0) / 100000.0;
 
             if (effectiveMissCount > 0)
                 speedValue *= calculateMissPenalty(effectiveMissCount, attributes.SpeedDifficultStrainCount);
@@ -212,7 +204,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (attributes.ApproachRate > 10.33)
                 approachRateFactor = 0.3 * (attributes.ApproachRate - 10.33);
 
-            speedValue *= 1.0 + approachRateFactor * lengthBonus; // Buff for longer maps with high AR.
+            speedValue *= 1.0 + approachRateFactor; // Buff for longer maps with high AR.
 
             if (score.Mods.Any(m => m is OsuModBlinds))
             {
