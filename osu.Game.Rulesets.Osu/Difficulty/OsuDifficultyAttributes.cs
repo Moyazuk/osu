@@ -46,6 +46,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("slider_factor")]
         public double SliderFactor { get; set; }
 
+        [JsonProperty("aim_strain_integral")]
+        public double AimStrainIntegral { get; set; }
+
+        [JsonProperty("speed_strain_integral")]
+        public double SpeedStrainIntegral { get; set; }
+
         /// <summary>
         /// The perceived approach rate inclusive of rate-adjusting mods (DT/HT/etc).
         /// </summary>
@@ -99,6 +105,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 yield return (ATTRIB_ID_FLASHLIGHT, FlashlightDifficulty);
 
             yield return (ATTRIB_ID_SLIDER_FACTOR, SliderFactor);
+
+            yield return (ATTRIB_ID_AIM_STRAIN_INTEGRAL, AimStrainIntegral);
+            yield return (ATTRIB_ID_SPEED_STRAIN_INTERVAL, SpeedStrainIntegral);
             yield return (ATTRIB_ID_SPEED_NOTE_COUNT, SpeedNoteCount);
         }
 
@@ -113,8 +122,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             StarRating = values[ATTRIB_ID_DIFFICULTY];
             FlashlightDifficulty = values.GetValueOrDefault(ATTRIB_ID_FLASHLIGHT);
             SliderFactor = values[ATTRIB_ID_SLIDER_FACTOR];
+            AimStrainIntegral = values[ATTRIB_ID_AIM_STRAIN_INTEGRAL];
+            SpeedStrainIntegral = values[ATTRIB_ID_SPEED_STRAIN_INTERVAL];
             SpeedNoteCount = values[ATTRIB_ID_SPEED_NOTE_COUNT];
-
             DrainRate = onlineInfo.DrainRate;
             HitCircleCount = onlineInfo.CircleCount;
             SliderCount = onlineInfo.SliderCount;
