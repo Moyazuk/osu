@@ -1,5 +1,7 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
+
+#nullable disable
 
 using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
@@ -16,15 +18,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Speed : ContinuousStrainSkill
     {
-        private double skillMultiplier => 1.730;
-        protected override double StrainDecayBase => 0.30;
+        private double skillMultiplier => 2575;
+        protected override double StrainDecayBase => 0.10;
 
         private double currentStrain;
         private double currentRhythm;
 
         protected override double DifficultyMultiplier => 1.04;
-
-        private readonly List<double> objectStrains = new List<double>();
 
         private readonly List<double> objectStrains = new List<double>();
 
