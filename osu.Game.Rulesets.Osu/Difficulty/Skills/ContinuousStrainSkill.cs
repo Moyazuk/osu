@@ -75,10 +75,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
             var sortedStrains = strains.OrderByDescending(x => (x.Strain, x.StrainCountChange)).ToList();
 
+            Console.WriteLine($"Total number of strains: {sortedStrains.Count}");
+
             double strainDecayRate = Math.Log(StrainDecayBase) / 1000;
             double sumDecayRate = Math.Log(DecayWeight) / SectionLength;
 
             double strainIntegral = 0.0;
+            double rectangleArea = 0.0;
+            double strainRatio = 0.0;
 
             if (sortedStrains.Count == 0)
                 return 0.0; // Return 0 if no strains
@@ -100,15 +104,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 double normalizedNextStrain = next.Strain * normalizationFactor;
 
                 double averageStrain = (normalizedCurrentStrain + normalizedNextStrain) / 2;
-                double deltaTime = next.StrainCountChange;
+                double deltaTime = Math.Abs(next.StrainCountChange);
                 strainIntegral += averageStrain * deltaTime;
             }
-
+            rectangleArea += 10 * sortedStrains.Count;
             var last = sortedStrains.Last();
             double normalizedLastStrain = last.Strain * normalizationFactor;
             strainIntegral += normalizedLastStrain * last.StrainCountChange;
-            Console.WriteLine($"StrainIntegral: {strainIntegral}");
-            return strainIntegral;
+            strainRatio = strainIntegral / rectangleArea;
+            Console.WriteLine($"StrainRatio: {strainRatio}");
+            return strainRatio;
         }
 
 

@@ -93,11 +93,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (effectiveMissCount > 0)
                 aimValue *= calculateMissPenalty(effectiveMissCount, attributes.AimStrainIntegral);
 
-            double oldLengthBonus = 0.95 + 0.42 * Math.Min(1.0, totalHits / 2000.0) +
+            double oldLengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
                                  (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
                                  Console.WriteLine($"oldLengthBonus: {oldLengthBonus}");
 
-            double lengthBonus = Math.Max(1, 0.16 * Math.Log(attributes.AimStrainIntegral));
+            double lengthBonus = 0.85 + 0.4 * Math.Sqrt(attributes.AimStrainIntegral) * Math.Min(1.0, totalHits / 2000.0) +
+                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
+
             Console.WriteLine($"AimLengthBonus: {lengthBonus}");
 
             aimValue *= lengthBonus;
@@ -150,7 +152,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (effectiveMissCount > 0)
                 speedValue *= calculateMissPenalty(effectiveMissCount, attributes.SpeedStrainIntegral);
 
-            double lengthBonus = Math.Max(1, 0.16 * Math.Log(attributes.SpeedStrainIntegral));
+            double lengthBonus = 0.95 + 0.4 * Math.Sqrt(attributes.SpeedStrainIntegral) * Math.Min(1.0, attributes.SpeedNoteCount / 2000.0) +
+                                 (attributes.SpeedNoteCount > 2000 ? Math.Log10(attributes.SpeedNoteCount / 2000.0) * 0.5 : 0.0);
             Console.WriteLine($"speedLengthBonus: {lengthBonus}");           
 
             speedValue *= lengthBonus;
@@ -267,7 +270,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             return Math.Max(countMiss, comboBasedMissCount);
         }
-        private double calculateMissPenalty(double missCount, double strainIntegral) => 0.96 / ((missCount / (5 * Math.Pow(Math.Log(strainIntegral), 0.94))) + 1);
+        private double calculateMissPenalty(double missCount, double strainIntegral) => 0.96 / ((missCount / (5 * Math.Pow(Math.Log(totalHits * strainIntegral), 0.94))) + 1);
         private double getComboScalingFactor(OsuDifficultyAttributes attributes) => attributes.MaxCombo <= 0 ? 1.0 : Math.Min(Math.Pow(scoreMaxCombo, 0.8) / Math.Pow(attributes.MaxCombo, 0.8), 1.0);
         private int totalHits => countGreat + countOk + countMeh + countMiss;
     }
