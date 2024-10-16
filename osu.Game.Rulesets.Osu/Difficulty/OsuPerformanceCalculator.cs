@@ -98,7 +98,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                                  Console.WriteLine($"oldLengthBonus: {oldLengthBonus}");
 
             double lengthBonus = 0.85 + 0.4 * Math.Sqrt(attributes.AimStrainIntegral) * Math.Min(1.0, totalHits / 2000.0) +
-                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
+                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.2 : 0.0);
 
             Console.WriteLine($"AimLengthBonus: {lengthBonus}");
 
@@ -152,8 +152,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (effectiveMissCount > 0)
                 speedValue *= calculateMissPenalty(effectiveMissCount, attributes.SpeedStrainIntegral);
 
-            double lengthBonus = 0.95 + 0.4 * Math.Sqrt(attributes.SpeedStrainIntegral) * Math.Min(1.0, attributes.SpeedNoteCount / 2000.0) +
-                                 (attributes.SpeedNoteCount > 2000 ? Math.Log10(attributes.SpeedNoteCount / 2000.0) * 0.5 : 0.0);
+            double lengthBonus = 0.85 + 0.4 * Math.Sqrt(attributes.SpeedStrainIntegral) * Math.Min(1.0, totalHits / 2000.0) +
+                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.2 : 0.0);
             Console.WriteLine($"speedLengthBonus: {lengthBonus}");           
 
             speedValue *= lengthBonus;
