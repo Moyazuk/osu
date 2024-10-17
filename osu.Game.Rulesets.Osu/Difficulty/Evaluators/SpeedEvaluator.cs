@@ -1,4 +1,4 @@
-﻿﻿﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -13,7 +13,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         private const double single_spacing_threshold = 125; // 1.25 circles distance between centers
         private const double min_speed_bonus = 75; // ~200BPM
         private const double speed_balancing_factor = 40;
-        private const double distance_multiplier = 0.98;
+        private const double distance_multiplier = 0.94;
 
         /// <summary>
         /// Evaluates the difficulty of tapping the current object, based on:
@@ -44,7 +44,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             // Add additional scaling bonus for streams/bursts higher than 200bpm
             if (strainTime < min_speed_bonus)
-                speedBonus = 0.95 * Math.Pow((min_speed_bonus - strainTime) / speed_balancing_factor, 2);
+                speedBonus = 0.75 * Math.Pow((min_speed_bonus - strainTime) / speed_balancing_factor, 2);
 
             double travelDistance = osuPrevObj?.TravelDistance ?? 0;
             double distance = travelDistance + osuCurrObj.MinimumJumpDistance;
