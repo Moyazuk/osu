@@ -85,15 +85,39 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double strainRatio = 0.0;
 
             if (sortedStrains.Count == 0)
-                return 0.0; // Return 0 if no strains
-
-
-            double maxStrain = sortedStrains.Max(x => x.Strain);
-
-            if (maxStrain == 0)
                 return 0.0;
 
-            double normalizationFactor = 10 / maxStrain;
+            double sumOfSquares = 0.0;
+
+            for (int i = 0; i < sortedStrains.Count - 1; ++i)
+            {
+                double strain = sortedStrains[i].Strain;
+                double squaredStrain = Math.Pow(strain, 2);
+                sumOfSquares += squaredStrain;
+            }
+            double strainRms = Math.Sqrt(sumOfSquares / sortedStrains.Count);
+            Console.WriteLine($"strainRms: {strainRms}");
+            double rawConsistencyScore = 0.0;
+            for (int i = 0; i < sortedStrains.Count; ++i)
+            {
+                var strainValue = sortedStrains[i];
+                strainValue.Strain = strainValue.Strain - strainRms;
+                rawConsistencyScore += strainValue.Strain;
+                sortedStrains[i] = strainValue;
+            }
+            Console.WriteLine($"Raw Consistency Score: {rawConsistencyScore}");
+            // take top 20% strains
+            int topPercentageCount = (int)Math.Ceiling(sortedStrains.Count * 0.20);
+            var topStrains = sortedStrains.Take(topPercentageCount).Select(x => x.Strain).ToList();
+
+            // average 'em
+            double averageTopStrain = topStrains.Average();
+
+            if (averageTopStrain == 0)
+                return 0.0;
+
+            // normalize them to 10 (arbitrary) to keep behavior consistent across different difficulties
+            double normalizationFactor = 10 / averageTopStrain;
 
             for (int i = 0; i < sortedStrains.Count - 1; ++i)
             {
@@ -111,7 +135,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             var last = sortedStrains.Last();
             double normalizedLastStrain = last.Strain * normalizationFactor;
             strainIntegral += normalizedLastStrain * last.StrainCountChange;
-            strainRatio = strainIntegral / rectangleArea;
+            strainRatio = 1 + rawConsistencyScore * 0.0000011;
             Console.WriteLine($"StrainRatio: {strainRatio}");
             return strainRatio;
         }
