@@ -52,6 +52,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             ExpPolynomial aimMissPenaltyCurve = ((Aim)skills[0]).GetMissPenaltyCurve();
             double speedDifficultyStrainCount = ((OsuStrainSkill)skills[2]).CountDifficultStrains();
+            double speedConsistencyScore = ((OsuStrainSkill)skills[2]).ConsistencyScore();
 
             if (mods.Any(m => m is OsuModTouchDevice))
             {
@@ -107,6 +108,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 SliderFactor = sliderFactor,
                 AimMissPenaltyCurve = aimMissPenaltyCurve,
                 SpeedDifficultStrainCount = speedDifficultyStrainCount,
+                SpeedConsistencyScore = speedConsistencyScore,
                 ApproachRate = preempt > 1200 ? (1800 - preempt) / 120 : (1200 - preempt) / 150 + 5,
                 OverallDifficulty = (80 - hitWindowGreat) / 6,
                 DrainRate = drainRate,

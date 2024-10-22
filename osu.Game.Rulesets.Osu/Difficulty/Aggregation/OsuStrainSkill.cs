@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -58,6 +58,40 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
             }
 
             return Difficulty;
+        }
+
+        /// <summary>
+        /// Used to measure a map's strain consistency by comparing the area under the map's strain curve to a rectangle
+        ///  where the top strain is the height and the number of strains is the length
+        /// </summary>
+        public double ConsistencyScore()
+        {
+            var peaks = GetCurrentStrainPeaks().Where(p => p > 0);
+            List<double> strains = peaks.OrderByDescending(p => p).ToList();  // Ensure strains are sorted descending
+
+            Console.WriteLine($"Total number of strains: {strains.Count}");
+            double rawConsistencyScore = 0.0;
+            double consistencyScore = 0.0;
+
+            if (strains.Count == 0)
+                return 0.0; // Return 0 if no strains
+
+            int topPercentageCount = (int)Math.Ceiling(strains.Count * 0.20);
+            var topStrains = strains.Take(topPercentageCount).ToList();
+
+            double averageTopStrain = topStrains.Average(); 
+
+            if (averageTopStrain == 0)
+                return 0.0;
+
+
+            foreach (var strain in strains)
+            {
+                rawConsistencyScore += strain / averageTopStrain;
+            }
+            consistencyScore = rawConsistencyScore / strains.Count;
+            Console.WriteLine($"Consistency Score: {consistencyScore}");
+            return consistencyScore;
         }
 
         /// <summary>

@@ -59,6 +59,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("speed_difficult_strain_count")]
         public double SpeedDifficultStrainCount { get; set; }
 
+        [JsonProperty("speed_consistency_score")]
+        public double SpeedConsistencyScore { get; set; }
+
+
         /// <summary>
         /// The perceived approach rate inclusive of rate-adjusting mods (DT/HT/etc).
         /// </summary>
@@ -115,6 +119,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             yield return (ATTRIB_ID_AIM_DIFFICULT_STRAIN_COUNT, AimDifficultStrainCount);
             yield return (ATTRIB_ID_SPEED_DIFFICULT_STRAIN_COUNT, SpeedDifficultStrainCount);
+            yield return (ATTRIB_ID_SPEED_CONSISTENCY_SCORE, SpeedConsistencyScore);
             yield return (ATTRIB_ID_SPEED_NOTE_COUNT, SpeedNoteCount);
         }
 
@@ -131,6 +136,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             SliderFactor = values[ATTRIB_ID_SLIDER_FACTOR];
             AimDifficultStrainCount = values[ATTRIB_ID_AIM_DIFFICULT_STRAIN_COUNT];
             SpeedDifficultStrainCount = values[ATTRIB_ID_SPEED_DIFFICULT_STRAIN_COUNT];
+            SpeedConsistencyScore = values[ATTRIB_ID_SPEED_CONSISTENCY_SCORE];
             SpeedNoteCount = values[ATTRIB_ID_SPEED_NOTE_COUNT];
             DrainRate = onlineInfo.DrainRate;
             HitCircleCount = onlineInfo.CircleCount;
