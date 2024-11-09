@@ -13,26 +13,24 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to press keys with regards to keeping up with the speed at which objects need to be hit.
     /// </summary>
-    public class Speed : ContinuousStrainSkill
+    public class Speed : OsuStrainSkill
     {
-        private double skillMultiplier => 1.730;
-        protected override double StrainDecayBase => 0.30;
+        private double skillMultiplier => 1.430;
+        private double strainDecayBase => 0.3;
 
         private double currentStrain;
         private double currentRhythm;
 
-        protected override double DifficultyMultiplier => 1.04;
-
-        private readonly List<double> objectStrains = new List<double>();
+        protected override int ReducedSectionCount => 5;
 
         public Speed(Mod[] mods)
             : base(mods)
         {
         }
 
-        private double strainDecay(double ms) => Math.Pow(StrainDecayBase, ms / 1000);
+        private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
 
-        // protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => (currentStrain * currentRhythm) * strainDecay(time - current.Previous(0).StartTime);
+        protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => (currentStrain * currentRhythm) * strainDecay(time - current.Previous(0).StartTime);
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
