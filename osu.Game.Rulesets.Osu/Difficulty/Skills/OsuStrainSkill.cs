@@ -23,7 +23,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         /// </summary>
         protected virtual double ReducedStrainBaseline => 0.75;
 
-        protected List<double> ObjectStrains = new List<double>();
+        public List<double> ObjectStrains = new List<double>();
+        public List<MathNet.Numerics.LinearAlgebra.Vector<double>> StrainHistory = new List<MathNet.Numerics.LinearAlgebra.Vector<double>>();
+
         protected double Difficulty;
 
         protected OsuStrainSkill(Mod[] mods)

@@ -14,6 +14,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         [JsonProperty("speed")]
         public double Speed { get; set; }
+        
+        [JsonProperty("fingercontrol")]
+        public double FingerControl { get; set; }
 
         [JsonProperty("accuracy")]
         public double Accuracy { get; set; }
@@ -24,6 +27,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("effective_miss_count")]
         public double EffectiveMissCount { get; set; }
 
+        [JsonProperty("deviation")]
+        public double? Deviation { get; set; }
+
+        [JsonProperty("speed_deviation")]
+        public double SpeedDeviation { get; set; }
+
         public override IEnumerable<PerformanceDisplayAttribute> GetAttributesForDisplay()
         {
             foreach (var attribute in base.GetAttributesForDisplay())
@@ -31,6 +40,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             yield return new PerformanceDisplayAttribute(nameof(Aim), "Aim", Aim);
             yield return new PerformanceDisplayAttribute(nameof(Speed), "Speed", Speed);
+            yield return new PerformanceDisplayAttribute(nameof(FingerControl), "FingerControl", FingerControl);
             yield return new PerformanceDisplayAttribute(nameof(Accuracy), "Accuracy", Accuracy);
             yield return new PerformanceDisplayAttribute(nameof(Flashlight), "Flashlight Bonus", Flashlight);
         }

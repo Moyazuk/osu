@@ -26,6 +26,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public double SpeedDifficulty { get; set; }
 
         /// <summary>
+        /// The difficulty corresponding to the finger control skill.
+        /// </summary>
+        [JsonProperty("finger_control_difficulty")]
+        public double FingerControlDifficulty { get; set; }
+
+        /// <summary>
         /// The number of clickable objects weighted by difficulty.
         /// Related to <see cref="SpeedDifficulty"/>
         /// </summary>
@@ -97,6 +103,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             yield return (ATTRIB_ID_AIM, AimDifficulty);
             yield return (ATTRIB_ID_SPEED, SpeedDifficulty);
+            yield return (ATTRIB_ID_FINGER_CONTROL, FingerControlDifficulty);
             yield return (ATTRIB_ID_OVERALL_DIFFICULTY, OverallDifficulty);
             yield return (ATTRIB_ID_APPROACH_RATE, ApproachRate);
             yield return (ATTRIB_ID_DIFFICULTY, StarRating);
@@ -117,6 +124,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             AimDifficulty = values[ATTRIB_ID_AIM];
             SpeedDifficulty = values[ATTRIB_ID_SPEED];
+            FingerControlDifficulty = values[ATTRIB_ID_FINGER_CONTROL];
             OverallDifficulty = values[ATTRIB_ID_OVERALL_DIFFICULTY];
             ApproachRate = values[ATTRIB_ID_APPROACH_RATE];
             StarRating = values[ATTRIB_ID_DIFFICULTY];

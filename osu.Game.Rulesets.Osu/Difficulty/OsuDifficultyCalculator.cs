@@ -35,11 +35,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         {
             if (beatmap.HitObjects.Count == 0)
                 return new OsuDifficultyAttributes { Mods = mods };
+            var hitObjects = beatmap.HitObjects as List<OsuHitObject>;
 
             double aimRating = Math.Sqrt(skills[0].DifficultyValue()) * difficulty_multiplier;
             double aimRatingNoSliders = Math.Sqrt(skills[1].DifficultyValue()) * difficulty_multiplier;
             double speedRating = Math.Sqrt(skills[2].DifficultyValue()) * difficulty_multiplier;
             double speedNotes = ((Speed)skills[2]).RelevantNoteCount();
+
+            HitWindows hitWindows = new OsuHitWindows();
+            hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
+
+            double hitWindowGreat = hitWindows.WindowFor(HitResult.Great) / clockRate;
+
+            var fingerAttributes = new FingerControl().CalculateFingerControlDiff(hitObjects, clockRate, ((Speed)skills[2]).StrainHistory, hitWindowGreat);
 
             double flashlightRating = 0.0;
 
@@ -89,17 +97,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             int sliderCount = beatmap.HitObjects.Count(h => h is Slider);
             int spinnerCount = beatmap.HitObjects.Count(h => h is Spinner);
 
-            HitWindows hitWindows = new OsuHitWindows();
-            hitWindows.SetDifficulty(beatmap.Difficulty.OverallDifficulty);
-
-            double hitWindowGreat = hitWindows.WindowFor(HitResult.Great) / clockRate;
-
             OsuDifficultyAttributes attributes = new OsuDifficultyAttributes
             {
                 StarRating = starRating,
                 Mods = mods,
                 AimDifficulty = aimRating,
                 SpeedDifficulty = speedRating,
+                FingerControlDifficulty = fingerAttributes.FingerDifficulty,
                 SpeedNoteCount = speedNotes,
                 FlashlightDifficulty = flashlightRating,
                 SliderFactor = sliderFactor,
