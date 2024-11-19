@@ -279,7 +279,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double rhythmFactor =  (fingerControlDiff * fingerControlDifficultStrainCount);
 
 
-            double accuracyValue = (140 + 0.0017 * Math.Pow(rhythmFactor, 1.5))  * Math.Pow(7.5 / deviation, 2);
+            double accuracyValue = (170 + 0.0045 * Math.Pow(rhythmFactor, 1.4))  * Math.Pow(7.5 / deviation, 2);
 
             // Bonus for many hitcircles - it's harder to keep good accuracy up for longer.
             accuracyValue *= Math.Min(1.15, Math.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.3));
