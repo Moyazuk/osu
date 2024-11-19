@@ -58,6 +58,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("speed_difficult_strain_count")]
         public double SpeedDifficultStrainCount { get; set; }
 
+        [JsonProperty("finger_control_difficult_strain_count")]
+        public double FingerControlDifficultStrainCount { get; set; }
+
         /// <summary>
         /// The perceived approach rate inclusive of rate-adjusting mods (DT/HT/etc).
         /// </summary>

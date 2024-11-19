@@ -23,6 +23,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
     public class OsuDifficultyCalculator : DifficultyCalculator
     {
         private const double difficulty_multiplier = 0.0675;
+        private const double finger_control_multiplier = 54.8;
 
         public override int Version => 20241007;
 
@@ -74,6 +75,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);
             double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating);
+            double baseFingerControlPerformance = fingerAttributes.FingerDifficulty * finger_control_multiplier;
+            Console.WriteLine($"baseFingerControlPerformance = {baseFingerControlPerformance} ");
             double baseFlashlightPerformance = 0.0;
 
             if (mods.Any(h => h is OsuModFlashlight))
@@ -83,8 +86,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 Math.Pow(
                     Math.Pow(baseAimPerformance, 1.1) +
                     Math.Pow(baseSpeedPerformance, 1.1) +
+                    Math.Pow(baseFingerControlPerformance, 1.1) +
                     Math.Pow(baseFlashlightPerformance, 1.1), 1.0 / 1.1
                 );
+
+            Console.WriteLine($"basePerformance = {basePerformance} ");
 
             double starRating = basePerformance > 0.00001
                 ? Math.Cbrt(OsuPerformanceCalculator.PERFORMANCE_BASE_MULTIPLIER) * 0.027 * (Math.Cbrt(100000 / Math.Pow(2, 1 / 1.1) * basePerformance) + 4)
@@ -109,6 +115,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 SliderFactor = sliderFactor,
                 AimDifficultStrainCount = aimDifficultyStrainCount,
                 SpeedDifficultStrainCount = speedDifficultyStrainCount,
+                FingerControlDifficultStrainCount = fingerAttributes.HardStrainAmount,
                 ApproachRate = preempt > 1200 ? (1800 - preempt) / 120 : (1200 - preempt) / 150 + 5,
                 OverallDifficulty = (80 - hitWindowGreat) / 6,
                 DrainRate = drainRate,

@@ -269,10 +269,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (score.Mods.Any(h => h is OsuModRelax))
                 return 0.0;
 
-            double fingerControlDiff = attributes.FingerControlDifficulty;
-            Console.WriteLine($"Finger Control Difficulty = {fingerControlDiff}");
+            int amountHitObjectsWithAccuracy = attributes.HitCircleCount;
+            
+            if (!usingClassicSliderAccuracy)
+                amountHitObjectsWithAccuracy += attributes.SliderCount;
 
-            double accuracyValue = 40 + 100 * fingerControlDiff * Math.Pow(7.5 / deviation, 2);
+            double fingerControlDiff = attributes.FingerControlDifficulty;
+            double fingerControlDifficultStrainCount = attributes.FingerControlDifficultStrainCount;
+            double rhythmFactor =  (fingerControlDiff * fingerControlDifficultStrainCount);
+
+
+            double accuracyValue = (140 + 0.0017 * Math.Pow(rhythmFactor, 1.5))  * Math.Pow(7.5 / deviation, 2);
+
+            // Bonus for many hitcircles - it's harder to keep good accuracy up for longer.
+            accuracyValue *= Math.Min(1.15, Math.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.3));
+
+            // double accuracyValue = 120 + 240 * Math.Pow(fingerControlDiff / 1.2, 0.4) *
+                          //  (1.0 - SpecialFunctions.Logistic((0.5 - attributes.FingerControlDifficultStrainCount / deviation) / 0.1) * 0.1);
 
             // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
             if (score.Mods.Any(m => m is OsuModBlinds))
@@ -285,6 +298,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             
             return accuracyValue;
         }
+
 
         private double computeFlashlightValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
@@ -323,6 +337,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             int accuracyObjectCount = attributes.HitCircleCount;
 
+            double fingerControlDiff = attributes.FingerControlDifficulty;
+
             // Assume worst case: all mistakes was on accuracy objects
             int relevantCountMiss = Math.Min(countMiss, accuracyObjectCount);
             int relevantCountMeh = Math.Min(countMeh, accuracyObjectCount - relevantCountMiss);
@@ -330,7 +346,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             int relevantCountGreat = Math.Max(0, accuracyObjectCount - relevantCountMiss - relevantCountMeh - relevantCountOk);
 
             // Calculate deviation on accuracy objects
-            double deviation = calculateDeviation(relevantCountGreat, relevantCountOk, relevantCountMeh, relevantCountMiss);
+            double deviation = calculateDeviation(relevantCountGreat, relevantCountOk, relevantCountMeh, relevantCountMiss, fingerControlDiff);
 
             // If score was set without slider accuracy - also compute deviation with sliders
             // Assume that all hits was 50s
@@ -367,6 +383,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             // Calculate accuracy assuming the worst case scenario
             double speedNoteCount = attributes.SpeedNoteCount;
+            double fingerControlDiff = attributes.FingerControlDifficulty;
 
             // Assume worst case: all mistakes was on speed notes
             double relevantCountMiss = Math.Min(countMiss, speedNoteCount);
@@ -375,7 +392,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double relevantCountGreat = Math.Max(0, speedNoteCount - relevantCountMiss - relevantCountMeh - relevantCountOk);
 
             // Calculate and return deviation on speed notes
-            return calculateDeviation(relevantCountGreat, relevantCountOk, relevantCountMeh, relevantCountMiss);
+            return calculateDeviation(relevantCountGreat, relevantCountOk, relevantCountMeh, relevantCountMiss, fingerControlDiff);
         }
 
         /// <summary>
@@ -384,7 +401,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         /// will always return the same deviation. Misses are ignored because they are usually due to misaiming.
         /// 300s and 100s are assumed to follow a normal distribution, whereas 50s are assumed to follow a uniform distribution.
         /// </summary>
-        private double calculateDeviation(double relevantCountGreat, double relevantCountOk, double relevantCountMeh, double relevantCountMiss)
+        private double calculateDeviation(double relevantCountGreat, double relevantCountOk, double relevantCountMeh, double relevantCountMiss, double fingerControlDiff)
         {
             if (relevantCountGreat + relevantCountOk + relevantCountMeh <= 0)
                 return double.PositiveInfinity;
