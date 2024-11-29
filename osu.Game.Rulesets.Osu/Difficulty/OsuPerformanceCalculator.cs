@@ -167,14 +167,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double approachRateFactor = 0.0;
             if (attributes.ApproachRate > 10.33)
-                approachRateFactor = 0.3 * (attributes.ApproachRate - 10.33);
+                approachRateFactor = 0.2 * (attributes.ApproachRate - 10.33);
             else if (attributes.ApproachRate < 8.0)
                 approachRateFactor = 0.05 * (8.0 - attributes.ApproachRate);
 
             if (score.Mods.Any(h => h is OsuModRelax))
                 approachRateFactor = 0.0;
 
-            aimValue *= 1.0 + approachRateFactor * lengthBonus; // Buff for longer maps with high AR.
+            double fingerControlDiff = attributes.FingerControlDifficulty;
+
+            aimValue *= 1.0 + approachRateFactor + approachRateFactor * Math.Log(1 + Math.Pow(fingerControlDiff, 2)) * lengthBonus; // Buff for longer maps with high AR.
 
             if (score.Mods.Any(m => m is OsuModBlinds))
                 aimValue *= 1.3 + (totalHits * (0.0016 / (1 + 2 * effectiveMissCount)) * Math.Pow(accuracy, 16)) * (1 - 0.003 * attributes.DrainRate * attributes.DrainRate);
@@ -238,9 +240,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double approachRateFactor = 0.0;
             if (attributes.ApproachRate > 10.33)
-                approachRateFactor = 0.3 * (attributes.ApproachRate - 10.33);
+                approachRateFactor = 0.2 * (attributes.ApproachRate - 10.33);
 
-            speedValue *= 1.0 + approachRateFactor * lengthBonus; // Buff for longer maps with high AR.
+            double fingerControlDiff = attributes.FingerControlDifficulty;
+
+            speedValue *= 1.0 + approachRateFactor + approachRateFactor * Math.Log(1 + Math.Pow(fingerControlDiff, 2)) * lengthBonus; // Buff for longer maps with high AR.
 
             if (score.Mods.Any(m => m is OsuModBlinds))
             {
@@ -276,10 +280,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double fingerControlDiff = attributes.FingerControlDifficulty;
             double fingerControlDifficultStrainCount = attributes.FingerControlDifficultStrainCount;
-            double rhythmFactor =  (fingerControlDiff * (fingerControlDifficultStrainCount / amountHitObjectsWithAccuracy));
+            double rhythmFactor =  (Math.Log(1 + Math.Pow(fingerControlDiff, 2)) * ((Math.Pow(fingerControlDifficultStrainCount, 1.1) * 0.2 )/ amountHitObjectsWithAccuracy));
 
 
-            double accuracyValue = (170 + 30 * Math.Pow(rhythmFactor, 1.4))  * Math.Pow(7.5 / deviation, 2);
+            double accuracyValue = (170 + 40 * Math.Pow(rhythmFactor, 1.1))  * Math.Pow(7.5 / deviation, 2);
 
             // Bonus for many hitcircles - it's harder to keep good accuracy up for longer.
             accuracyValue *= Math.Min(1.15, Math.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.3));

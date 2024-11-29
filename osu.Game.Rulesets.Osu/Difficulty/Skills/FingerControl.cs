@@ -352,7 +352,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 
                 currStrain += strain;
 
-                if (currStrain > hard_strain_threshold)
+                if (currStrain > 1.1)
                     hardStrainsAmount++;
 
                 sw.WriteLine($"{currTime} {currStrain} {strain}");
