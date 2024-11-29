@@ -175,8 +175,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 approachRateFactor = 0.0;
 
             double fingerControlDiff = attributes.FingerControlDifficulty;
+            double fingerControlDifficultRatio = attributes.FingerControlDifficultStrainCount / totalHits;
 
-            aimValue *= 1.0 + approachRateFactor + approachRateFactor * Math.Log(1 + Math.Pow(fingerControlDiff, 2)) * lengthBonus; // Buff for longer maps with high AR.
+            aimValue *= 1.0 + approachRateFactor * lengthBonus; // Buff for longer maps with high AR.
 
             if (score.Mods.Any(m => m is OsuModBlinds))
                 aimValue *= 1.3 + (totalHits * (0.0016 / (1 + 2 * effectiveMissCount)) * Math.Pow(accuracy, 16)) * (1 - 0.003 * attributes.DrainRate * attributes.DrainRate);
@@ -243,8 +244,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 approachRateFactor = 0.2 * (attributes.ApproachRate - 10.33);
 
             double fingerControlDiff = attributes.FingerControlDifficulty;
+            double fingerControlDifficultRatio = Math.Pow(attributes.FingerControlDifficultStrainCount, 1.2) / totalHits;
 
-            speedValue *= 1.0 + approachRateFactor + approachRateFactor * Math.Log(1 + Math.Pow(fingerControlDiff, 2)) * lengthBonus; // Buff for longer maps with high AR.
+            speedValue *= 1.0 + approachRateFactor + approachRateFactor * Math.Log(1 + Math.Pow(fingerControlDiff * fingerControlDifficultRatio, 2)) * lengthBonus; // Buff for longer maps with high AR.
 
             if (score.Mods.Any(m => m is OsuModBlinds))
             {
