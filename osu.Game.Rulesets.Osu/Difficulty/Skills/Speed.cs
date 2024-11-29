@@ -19,6 +19,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double strainDecayBase => 0.30;
 
         private double currentStrain;
+        private double currentRhythm;
 
         protected override int ReducedSectionCount => 5;
 
@@ -29,7 +30,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
 
-        protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => currentStrain * strainDecay(time - current.Previous(0).StartTime);
+        protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => currentStrain * currentRhythm * strainDecay(time - current.Previous(0).StartTime);
 
         private void DebugDumpStrainHistory()
         {
@@ -47,11 +48,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             currentStrain *= strainDecay(((OsuDifficultyHitObject)current).StrainTime);
             currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
 
+            currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
+
 
             double totalStrain = currentStrain;
+            double totalStrainWithRhythm = currentStrain * currentRhythm;
             ObjectStrains.Add(totalStrain);
             StrainHistory.Add(MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray(new[] {totalStrain}));
-            return totalStrain;
+            return totalStrainWithRhythm;
         }
 
         public double RelevantNoteCount()
