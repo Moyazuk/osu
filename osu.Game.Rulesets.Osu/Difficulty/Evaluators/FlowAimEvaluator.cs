@@ -10,7 +10,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class FlowAimEvaluator
     {
-        private static double multiplier => 45.5;
+        private static double multiplier => 50.5;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {

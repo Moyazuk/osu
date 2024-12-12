@@ -35,12 +35,25 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         /// </summary>
         protected abstract double StrainValueAt(DifficultyHitObject current);
 
+        // used to send timestamps to osu!tools
+        private double totalElapsedTime = 0;
+        private readonly List<double> timestamps = new List<double>();
+
         public override void Process(DifficultyHitObject current)
         {
+            //used to send timestamps to osu!tools
+            timestamps.Add(totalElapsedTime);
             difficulties.Add(StrainValueAt(current));
+            totalElapsedTime += current.DeltaTime;
         }
 
         protected abstract double HitProbability(double skill, double difficulty);
+
+        // used to send timestamps and difficulty information to osu!tools
+        public IEnumerable<(double Timestamp, double Value)> GetCurrentStrainPeaks()
+        {
+            return timestamps.Zip(difficulties, (timestamp, value) => (timestamp, value));
+        }
 
         private double difficultyValueExact()
         {
