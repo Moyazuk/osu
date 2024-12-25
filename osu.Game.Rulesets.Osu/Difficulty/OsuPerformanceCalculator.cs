@@ -276,16 +276,25 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double fingerControlDiff = attributes.FingerControlDifficulty;
             double fingerControlDifficultStrainCount = attributes.FingerControlDifficultStrainCount;
-            double rhythmFactor =  (fingerControlDiff * (fingerControlDifficultStrainCount / amountHitObjectsWithAccuracy));
+            double rhythmFactor =  Math.Log(1 + Math.Pow(fingerControlDiff, 1.5));
+            double speedFactor = Math.Log(1 + attributes.SpeedDifficulty);
+            
+
+            double accuracyValue = (50 * (1 + speedFactor)) * Math.Pow(7.5 / deviation, 2);
 
 
-            double accuracyValue = (170 + 30 * Math.Pow(rhythmFactor, 1.4))  * Math.Pow(7.5 / deviation, 2);
+            var mistimes = countOk + countMeh + (countMiss / 2) + 1.0;
+
+            accuracyValue *= 1.0 + Math.Pow(fingerControlDiff / 2.8, 0.4) *
+                (1.0 - SpecialFunctions.Logistic((0.5 - fingerControlDifficultStrainCount / mistimes) / 0.1) * 0.1) *
+                (1.0 + SpecialFunctions.Logistic((20.0 - hitWindow300) / 1.3) * 0.2);
+
+
+            // double accuracyValue = (80 * speedFactor + 20 * Math.Pow(fingerControlDiff / 3, 2.6)) *
+                        //(1.0 - 1 / (1 + Math.Pow(Math.E, -1 * (deviation - (12)))));
 
             // Bonus for many hitcircles - it's harder to keep good accuracy up for longer.
             accuracyValue *= Math.Min(1.15, Math.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.3));
-
-            // double accuracyValue = 120 + 240 * Math.Pow(fingerControlDiff / 1.2, 0.4) *
-                          //  (1.0 - SpecialFunctions.Logistic((0.5 - attributes.FingerControlDifficultStrainCount / deviation) / 0.1) * 0.1);
 
             // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
             if (score.Mods.Any(m => m is OsuModBlinds))
