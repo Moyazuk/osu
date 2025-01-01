@@ -275,7 +275,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 amountHitObjectsWithAccuracy += attributes.SliderCount;
 
 
-            double accuracyValue = 120  * Math.Pow(7.5 / deviation, 2);
+            double accuracyValue = 120 * Math.Pow(7.5 / deviation, 2);
 
             // Bonus for many hitcircles - it's harder to keep good accuracy up for longer.
             accuracyValue *= Math.Min(1.15, Math.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.3));

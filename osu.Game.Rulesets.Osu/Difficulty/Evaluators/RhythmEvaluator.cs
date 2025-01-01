@@ -15,7 +15,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     public static class RhythmEvaluator
     {
         private const double strain_multiplier = 1.3;
-        private const double repetition_weight = 0.0;
+        private const double repetition_weight = 0.7;
         private const double hard_strain_threshold = 1.1;
         private static double identicalStrainTolerance;
 
@@ -31,9 +31,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             new double[] { 0.05, 1.0    , 0.75, 1.0 , 0.5, 0.0, 0.0 }
         );
 
-        static double prevStrainTime = 0;
-        static double prevVirtualStrainTime = 0;
-
         /// <summary>
         /// Evaluates the difficulty of tapping the current object.
         /// </summary>
@@ -44,19 +41,54 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (current.BaseObject is Spinner)
                 return 0;
 
-            var osuCurrent = (OsuDifficultyHitObject)current;
-            identicalStrainTolerance = osuCurrent.HitWindowGreat / 1000;
+            OsuDifficultyHitObject osuCurrent = (OsuDifficultyHitObject)current;
+            OsuDifficultyHitObject osuPrev = (OsuDifficultyHitObject)current.Previous(1);
+
+            noteHistory.Clear();
+            noteHistoryVirtual.Clear();
+
             double strainTime = osuCurrent.StrainTime / 1000;
+            double prevStrainTime = osuPrev != null ? osuPrev.StrainTime / 1000 : 0;
+            double prevVirtualStrainTime = osuPrev != null ? CalculateVirtualStrainTime(osuPrev) : 0;
             double virtualStrainTime = CalculateVirtualStrainTime(osuCurrent);
+            identicalStrainTolerance = osuCurrent.HitWindowGreat / 1000;
 
-            noteHistory.Add(strainTime);
-            noteHistoryVirtual.Add(virtualStrainTime);
+            int rhythmStart = 0;
 
-            while (noteHistory.Sum() > 4 || noteHistory.Count > 32)
-                noteHistory.RemoveAt(0);
+            int index = -1; // Start from current
 
-            while (noteHistory.Count < noteHistoryVirtual.Count)
-                noteHistoryVirtual.RemoveAt(0);
+            while (true)
+            {
+                // Get the previous object
+                DifficultyHitObject previousObj = current.Previous(index++);
+                if (previousObj == null)
+                    break; // Exit if there are no more previous objects
+
+                // Safely cast the previous object to OsuDifficultyHitObject
+                if (previousObj is not OsuDifficultyHitObject currObj)
+                    continue; // Skip if the object is not of the expected type
+
+                // Add to note histories
+                noteHistory.Add(currObj.StrainTime / 1000);
+                noteHistoryVirtual.Add(CalculateVirtualStrainTime(currObj));
+
+                // Break if the sum of noteHistory exceeds 4 seconds or the list grows too large
+                if (noteHistory.Sum() > 4 || noteHistory.Count > 32)
+                    break;
+
+                // Break if the virtual history is mismatched
+                if (noteHistory.Count < noteHistoryVirtual.Count)
+                    break;
+            }
+
+            noteHistory.Reverse();
+            noteHistoryVirtual.Reverse();
+
+            Console.WriteLine("Reversed NoteHistory:");
+            foreach (var value in noteHistory)
+            {
+                Console.WriteLine(value);
+            }
 
             double repetitionVal = 0;
             double downtimeScale = 1;
@@ -90,11 +122,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 multiplier /= 2;
             }
 
-            prevStrainTime = strainTime;
-            prevVirtualStrainTime = virtualStrainTime;
-
             Console.WriteLine($"Val:{repetitionVal * multiplier * downtimeScale * appearanceScale * uniqueScale / strainTime} = {repetitionVal}*{multiplier}*{downtimeScale}*{appearanceScale}*{uniqueScale}/{strainTime}");
-            
             return repetitionVal * multiplier * downtimeScale * appearanceScale * uniqueScale / strainTime;
         }
 
@@ -109,6 +137,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double longNoteFraction = Math.Max(0.5, (double)longNoteCount / (double)refNoteHistory.Count);
 
+            Console.WriteLine($" LNC = {Math.Pow(Math.Sin(Math.PI * (longNoteFraction - 1.0)), 2.0)}");
             return Math.Pow(Math.Sin(Math.PI * (longNoteFraction - 1.0)), 2.0);
         }
 
@@ -295,8 +324,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                     closestStrain = uniqueStrains[j];
                 }
             }
-            
-
             return ((double)uniqueStrains.Count, !unique);
         }
 
