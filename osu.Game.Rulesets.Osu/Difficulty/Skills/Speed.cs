@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -15,11 +15,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Speed : OsuStrainSkill
     {
-        private double skillMultiplier => 1.430;
-        private double strainDecayBase => 0.3;
+        private double skillMultiplier => 1.330;
+        private double strainDecayBase => 0.1;
+        private double strainDecayDecayBase => 0.8;
 
         private double currentStrain;
         private double currentRhythm;
+        private double currentTapStrain;
+        private double previousTapStrain;
 
         protected override int ReducedSectionCount => 5;
 
@@ -28,16 +31,45 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
         }
 
+        
+
+        private double strainDecayWithStrainDecayDecay(double ms) 
+        {
+
+            double isItStillHard = 0;
+
+            if (previousTapStrain != 0)
+            {
+                isItStillHard = Math.Max(((previousTapStrain - currentTapStrain) / previousTapStrain) * strainDecayDecayBase, 0);
+            }
+
+            double strainDecayDecay = Math.Pow(
+                Math.Max(strainDecayDecayBase - isItStillHard, 0),
+                Math.Sqrt(ms) / 1.35
+            );
+
+            return Math.Pow(strainDecayBase + strainDecayDecay, ms / 1000);
+        }
+
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
 
         protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => (currentStrain * currentRhythm) * strainDecay(time - current.Previous(0).StartTime);
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            currentStrain *= strainDecay(((OsuDifficultyHitObject)current).StrainTime);
-            currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+            double previousTapStrainCopy = currentTapStrain;
+
+            // Apply strain decay and update currentStrain
+            currentStrain *= strainDecayWithStrainDecayDecay(((OsuDifficultyHitObject)current).StrainTime);
+            currentTapStrain*=strainDecay(((OsuDifficultyHitObject)current).StrainTime);
+            var (difficulty, tapDifficulty) = SpeedEvaluator.EvaluateDifficultyOf(current);
 
             currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
+
+            currentStrain += difficulty * currentRhythm * skillMultiplier;
+            currentTapStrain += tapDifficulty * skillMultiplier * currentRhythm;
+
+            previousTapStrain = previousTapStrainCopy;
 
             double totalStrain = currentStrain * currentRhythm;
             ObjectStrains.Add(totalStrain);

@@ -23,10 +23,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         /// <item><description>and how easily they can be cheesed.</description></item>
         /// </list>
         /// </summary>
-        public static double EvaluateDifficultyOf(DifficultyHitObject current)
+        public static (double difficulty, double TapDifficulty) EvaluateDifficultyOf(DifficultyHitObject current)
         {
             if (current.BaseObject is Spinner)
-                return 0;
+                return (0.0, 0.0);
 
             // derive strainTime for calculation
             var osuCurrObj = (OsuDifficultyHitObject)current;
@@ -55,11 +55,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Max distance bonus is 1 * `distance_multiplier` at single_spacing_threshold
             double distanceBonus = Math.Pow(distance / single_spacing_threshold, 3.95) * distance_multiplier;
 
+            double tapDifficulty = (1 + speedBonus) * 1000 / strainTime;
+
             // Base difficulty with all bonuses
             double difficulty = (1 + speedBonus + distanceBonus) * 1000 / strainTime;
 
             // Apply penalty if there's doubletappable doubles
-            return difficulty * doubletapness;
+            return (difficulty * doubletapness, tapDifficulty);
         }
     }
 }
