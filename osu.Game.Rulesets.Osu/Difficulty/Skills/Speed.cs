@@ -17,7 +17,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     {
         private double skillMultiplier => 1.430;
         private double strainDecayBase => 0.30;
-
+        private double currentRhythm;
         private double currentStrain;
 
         protected override int ReducedSectionCount => 5;
@@ -46,9 +46,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
             currentStrain *= strainDecay(((OsuDifficultyHitObject)current).StrainTime);
             currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+            currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
 
 
-            double totalStrain = currentStrain;
+            double totalStrain = currentStrain * 1 + currentRhythm * 1300;
             ObjectStrains.Add(totalStrain);
             StrainHistory.Add(MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray(new[] {totalStrain}));
             return totalStrain;
