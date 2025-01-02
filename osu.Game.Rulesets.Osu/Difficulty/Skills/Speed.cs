@@ -15,7 +15,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Speed : OsuStrainSkill
     {
-        private double skillMultiplier => 1.430;
+        private double skillMultiplier => 1.375;
         private double strainDecayBase => 0.30;
         private double currentRhythm;
         private double currentStrain;
@@ -48,8 +48,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
             currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
 
+            Console.WriteLine($" {currentRhythm}");
 
-            double totalStrain = currentStrain + currentRhythm;
+
+            double totalStrain = currentStrain * currentRhythm;
             ObjectStrains.Add(totalStrain);
             StrainHistory.Add(MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray(new[] {totalStrain}));
             return totalStrain;

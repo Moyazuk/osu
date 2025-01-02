@@ -84,12 +84,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             noteHistory.Reverse();
             noteHistoryVirtual.Reverse();
 
-            Console.WriteLine("Reversed NoteHistory:");
-            foreach (var value in noteHistory)
-            {
-                Console.WriteLine(value);
-            }
-
             double repetitionVal = 0;
             double downtimeScale = 1;
             double appearanceScale = 1;
@@ -122,8 +116,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 multiplier /= 2;
             }
 
-            Console.WriteLine($"Val:{repetitionVal * multiplier * downtimeScale * appearanceScale * uniqueScale / strainTime} = {repetitionVal}*{multiplier}*{downtimeScale}*{appearanceScale}*{uniqueScale}/{strainTime}");
-            return repetitionVal * multiplier * downtimeScale * appearanceScale * uniqueScale / strainTime;
+            // Console.WriteLine($"Val:{repetitionVal * multiplier * downtimeScale * appearanceScale * uniqueScale / strainTime} = {repetitionVal}*{multiplier}*{downtimeScale}*{appearanceScale}*{uniqueScale}/{strainTime}");
+            // return repetitionVal * multiplier * downtimeScale * appearanceScale * uniqueScale / strainTime;
+
+            return Math.Sqrt(4 + (repetitionVal * multiplier * downtimeScale * appearanceScale * uniqueScale / strainTime) * 2.4) / 2.0;
         }
 
         private static double calculateDowntime(double strainTime, List<double> refNoteHistory)
@@ -137,7 +133,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double longNoteFraction = Math.Max(0.5, (double)longNoteCount / (double)refNoteHistory.Count);
 
-            Console.WriteLine($" LNC = {Math.Pow(Math.Sin(Math.PI * (longNoteFraction - 1.0)), 2.0)}");
+            //Console.WriteLine($" LNC = {longNoteFraction}");
             return Math.Pow(Math.Sin(Math.PI * (longNoteFraction - 1.0)), 2.0);
         }
 
@@ -157,8 +153,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
         private static double CalculateVirtualStrainTime(OsuDifficultyHitObject current)
         {
-            if (current.BaseObject is Slider slider)
-                return Math.Max((current.StartTime - slider.EndTime) / 1000, 0.035);
+            if (current.LastObject is Slider prevSlider)
+            
+                return Math.Max((current.StartTime - prevSlider.EndTime) / 1000, 0.035);
+
 
             return current.StrainTime / 1000;
         }
