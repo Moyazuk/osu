@@ -1,13 +1,12 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System;
+using System.ComponentModel;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Sprites;
 using osu.Game.Graphics;
 using osu.Game.Online.Rooms;
-using osu.Game.Online.Rooms.RoomStatuses;
 
 namespace osu.Game.Screens.OnlinePlay.Lounge.Components
 {
@@ -21,33 +20,47 @@ namespace osu.Game.Screens.OnlinePlay.Lounge.Components
 
         protected override FontUsage Font => base.Font.With(weight: FontWeight.SemiBold);
 
+        private readonly Room room;
+
+        public RoomStatusPill(Room room)
+        {
+            this.room = room;
+        }
+
         protected override void LoadComplete()
         {
             base.LoadComplete();
 
-            EndDate.BindValueChanged(_ => updateDisplay());
-            Status.BindValueChanged(_ => updateDisplay(), true);
-
-            FinishTransforms(true);
-
             TextFlow.Colour = Colour4.Black;
             Pill.Background.Alpha = 1;
+
+            room.PropertyChanged += onRoomPropertyChanged;
+            updateDisplay();
+
+            FinishTransforms(true);
+        }
+
+        private void onRoomPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(Room.Status):
+                case nameof(Room.EndDate):
+                    updateDisplay();
+                    break;
+            }
         }
 
         private void updateDisplay()
         {
-            RoomStatus status = getDisplayStatus();
-
-            Pill.Background.FadeColour(status.GetAppropriateColour(colours), 100);
-            TextFlow.Text = status.Message;
+            Pill.Background.FadeColour(room.Status.GetAppropriateColour(colours), 100);
+            TextFlow.Text = room.Status.Message;
         }
 
-        private RoomStatus getDisplayStatus()
+        protected override void Dispose(bool isDisposing)
         {
-            if (EndDate.Value < DateTimeOffset.Now)
-                return new RoomStatusEnded();
-
-            return Status.Value;
+            base.Dispose(isDisposing);
+            room.PropertyChanged -= onRoomPropertyChanged;
         }
     }
 }

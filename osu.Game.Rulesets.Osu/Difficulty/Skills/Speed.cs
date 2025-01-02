@@ -6,8 +6,8 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
-using System.Collections.Generic;
 using System.Linq;
+using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
@@ -16,15 +16,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Speed : OsuStrainSkill
     {
-        private double skillMultiplier => 1375;
+        private double skillMultiplier => 1.430;
         private double strainDecayBase => 0.3;
 
         private double currentStrain;
 
         protected override int ReducedSectionCount => 5;
-        protected override double DifficultyMultiplier => 1.04;
-
-        private readonly List<double> objectStrains = new List<double>();
 
         public Speed(Mod[] mods)
             : base(mods)
@@ -47,15 +44,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         public double RelevantNoteCount()
         {
-            if (objectStrains.Count == 0)
+            if (ObjectStrains.Count == 0)
                 return 0;
 
-            double maxStrain = objectStrains.Max();
-
+            double maxStrain = ObjectStrains.Max();
             if (maxStrain == 0)
                 return 0;
 
-            return objectStrains.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / maxStrain * 12.0 - 6.0))));
+            return ObjectStrains.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / maxStrain * 12.0 - 6.0))));
         }
     }
 }
