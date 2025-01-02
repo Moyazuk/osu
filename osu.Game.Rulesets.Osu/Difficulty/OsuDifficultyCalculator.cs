@@ -9,12 +9,11 @@ using System.Linq;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
-using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Skills;
-using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Osu.Scoring;
@@ -26,7 +25,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
     {
         private const double difficulty_multiplier = 0.0675;
 
-        public override int Version => 20241007;
+        public override int Version => 20220902;
 
         public OsuDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
             : base(ruleset, beatmap)
@@ -51,8 +50,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double sliderFactor = aimRating > 0 ? aimRatingNoSliders / aimRating : 1;
 
-            ExpPolynomial aimMissPenaltyCurve = ((OsuProbabilitySkill)skills[0]).GetMissPenaltyCurve();
-            double speedDifficultyStrainCount = ((OsuStrainSkill)skills[2]).CountTopWeightedStrains();
+            double aimDifficultyStrainCount = ((OsuStrainSkill)skills[0]).CountDifficultStrains();
+            double speedDifficultyStrainCount = ((OsuStrainSkill)skills[2]).CountDifficultStrains();
+
 
             if (mods.Any(m => m is OsuModTouchDevice))
             {
@@ -73,7 +73,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double baseFlashlightPerformance = 0.0;
 
             if (mods.Any(h => h is OsuModFlashlight))
-                baseFlashlightPerformance = Flashlight.DifficultyToPerformance(flashlightRating);
+                baseFlashlightPerformance = Math.Pow(flashlightRating, 2.0) * 25.0;
 
             double basePerformance =
                 Math.Pow(
@@ -89,6 +89,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double preempt = IBeatmapDifficultyInfo.DifficultyRange(beatmap.Difficulty.ApproachRate, 1800, 1200, 450) / clockRate;
             double drainRate = beatmap.Difficulty.DrainRate;
+            int maxCombo = beatmap.GetMaxCombo();
 
             int hitCirclesCount = beatmap.HitObjects.Count(h => h is HitCircle);
             int sliderCount = beatmap.HitObjects.Count(h => h is Slider);
@@ -109,12 +110,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 RhythmDifficulty = rhythmRating,
                 FlashlightDifficulty = flashlightRating,
                 SliderFactor = sliderFactor,
-                AimMissPenaltyCurve = aimMissPenaltyCurve,
+                AimDifficultStrainCount = aimDifficultyStrainCount,
                 SpeedDifficultStrainCount = speedDifficultyStrainCount,
                 ApproachRate = preempt > 1200 ? (1800 - preempt) / 120 : (1200 - preempt) / 150 + 5,
                 OverallDifficulty = (80 - hitWindowGreat) / 6,
                 DrainRate = drainRate,
-                MaxCombo = beatmap.GetMaxCombo(),
+                MaxCombo = maxCombo,
                 HitCircleCount = hitCirclesCount,
                 SliderCount = sliderCount,
                 SpinnerCount = spinnerCount,

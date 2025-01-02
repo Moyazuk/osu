@@ -28,20 +28,32 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         // The number of difficulties there must be before we can be sure that binning difficulties would not change the output significantly.
         private double binThreshold => 2 * bin_count;
 
-        private readonly List<double> difficulties = new List<double>();
-
         /// <summary>
         /// Returns the strain value at <see cref="DifficultyHitObject"/>. This value is calculated with or without respect to previous objects.
         /// </summary>
         protected abstract double StrainValueAt(DifficultyHitObject current);
 
+        private readonly List<double> difficulties = new List<double>();
+
+        // used to send timestamps to osu!tools
+        private double totalElapsedTime = 0;
+        private readonly List<double> timestamps = new List<double>();
+
         public override void Process(DifficultyHitObject current)
         {
+            //used to send timestamps to osu!tools
+            timestamps.Add(totalElapsedTime);
             difficulties.Add(StrainValueAt(current));
+            totalElapsedTime += current.DeltaTime;
         }
 
         protected abstract double HitProbability(double skill, double difficulty);
 
+        // used to send timestamps and difficulty information to osu!tools
+        public IEnumerable<(double Timestamp, double Value)> GetCurrentStrainPeaks()
+        {
+            return timestamps.Zip(difficulties, (timestamp, value) => (timestamp, value));
+        }
         private double difficultyValueExact()
         {
             double maxDiff = difficulties.Max();

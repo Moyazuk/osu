@@ -3,19 +3,20 @@
 
 using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
-    public class Rhythm : OsuProbSkill
+    public class Rhythm : OsuProbabilitySkill
     {
         private double strainDecayBase => 0.3;
 
         private double currentStrain;
 
-        private double skillMultiplier => 2.5;
+        private double skillMultiplier => 8;
 
         public Rhythm(Mod[] mods)
             : base(mods)

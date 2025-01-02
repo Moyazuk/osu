@@ -5,9 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty;
-using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Skills;
-using osu.Game.Rulesets.Osu.Difficulty.Utils;
+using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
@@ -144,9 +143,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
                                  (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
+            aimValue *= lengthBonus;
 
             if (effectiveMissCount > 0)
-                aimValue *= calculateCurveFittedMissPenalty(effectiveMissCount, attributes.AimMissPenaltyCurve);
+                aimValue *= calculateMissPenalty(effectiveMissCount, attributes.AimDifficultStrainCount);
 
             double approachRateFactor = 0.0;
             if (attributes.ApproachRate > 10.33)
@@ -184,7 +184,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 {
                     // We add tick misses here since they too mean that the player didn't follow the slider properly
                     // We however aren't adding misses here because missing slider heads has a harsh penalty by itself and doesn't mean that the rest of the slider wasn't followed properly
-                    estimateImproperlyFollowedDifficultSliders = Math.Clamp(countSliderEndsDropped + countSliderTickMiss, 0, estimateDifficultSliders);
+                    estimateImproperlyFollowedDifficultSliders = Math.Min(countSliderEndsDropped + countSliderTickMiss, estimateDifficultSliders);
                 }
 
                 double sliderNerfFactor = (1 - attributes.SliderFactor) * Math.Pow(1 - estimateImproperlyFollowedDifficultSliders / estimateDifficultSliders, 3) + attributes.SliderFactor;
@@ -210,7 +210,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             speedValue *= lengthBonus;
 
             if (effectiveMissCount > 0)
-                speedValue *= calculateStrainCountMissPenalty(effectiveMissCount, attributes.SpeedDifficultStrainCount);
+                speedValue *= calculateMissPenalty(effectiveMissCount, attributes.SpeedDifficultStrainCount);
 
             double approachRateFactor = 0.0;
             if (attributes.ApproachRate > 10.33)
@@ -249,24 +249,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         {
             if (score.Mods.Any(h => h is OsuModRelax))
                 return 0.0;
-
             double rhythmValue = Math.Pow(5.0 * Math.Max(1.0, attributes.RhythmDifficulty / 0.0675) - 4.0, 3.0) / 100000.0;
-
             double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
                                  (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-
             // Penalize misses by assessing # of misses relative to the total # of objects. Default a 3% reduction for any # of misses.
             if (effectiveMissCount > 0)
                 rhythmValue *= 0.97 * Math.Pow(1 - Math.Pow(effectiveMissCount / totalHits, 0.775), Math.Pow(effectiveMissCount, .875));
-
             rhythmValue *= getComboScalingFactor(attributes);
-
             double approachRateFactor = 0.0;
             if (attributes.ApproachRate > 10.33)
                 approachRateFactor = 0.3 * (attributes.ApproachRate - 10.33);
-
             rhythmValue *= 1.0 + approachRateFactor * lengthBonus; // Buff for longer maps with high AR.
-
             if (score.Mods.Any(m => m is OsuModBlinds))
             {
                 // Increasing the speed value by object count for Blinds isn't ideal, so the minimum buff is given.
@@ -277,22 +270,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 // We want to give more reward for lower AR when it comes to aim and HD. This nerfs high AR and buffs lower AR.
                 rhythmValue *= 1.0 + 0.04 * (12.0 - attributes.ApproachRate);
             }
-
             // Calculate accuracy assuming the worst case scenario
             double relevantTotalDiff = totalHits - attributes.SpeedNoteCount;
             double relevantCountGreat = Math.Max(0, countGreat - relevantTotalDiff);
             double relevantCountOk = Math.Max(0, countOk - Math.Max(0, relevantTotalDiff - countGreat));
             double relevantCountMeh = Math.Max(0, countMeh - Math.Max(0, relevantTotalDiff - countGreat - countOk));
             double relevantAccuracy = attributes.SpeedNoteCount == 0 ? 0 : (relevantCountGreat * 6.0 + relevantCountOk * 2.0 + relevantCountMeh) / (attributes.SpeedNoteCount * 6.0);
-
             // Scale the speed value with accuracy and OD.
             rhythmValue *= (0.95 + Math.Pow(attributes.OverallDifficulty, 2) / 750) * Math.Pow((accuracy + relevantAccuracy) / 2.0, (14.5 - Math.Max(attributes.OverallDifficulty, 8)) / 2);
-
             // Scale the speed value with # of 50s to punish doubletapping.
             rhythmValue *= Math.Pow(0.99, countMeh < totalHits / 500.0 ? 0 : countMeh - totalHits / 500.0);
-
             return rhythmValue;
         }
+
 
         private double computeAccuracyValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
@@ -358,17 +348,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return flashlightValue;
         }
 
-        // Due to the unavailability of miss location in PP, the following formulas assume that a player will miss on the hardest parts of a map.
-
-        // With the curve fitted miss penalty, we use a pre-computed curve of skill levels for each miss count, raised to the power of 1.5 as
-        // the multiple of the exponents on star rating and PP. This power should be changed if either SR or PP begin to use a different exponent.
-        // As a result, this exponent is not subject to balance.
-        private double calculateCurveFittedMissPenalty(double missCount, ExpPolynomial curve) => Math.Pow(1 - curve.GetPenaltyAt(missCount), 1.5);
-
-        // With the strain count miss penalty, we use the amount of relatively difficult sections to adjust the miss penalty,
-        // to make it more punishing on maps with lower amount of hard sections. This formula is subject to balance.
-        private double calculateStrainCountMissPenalty(double missCount, double difficultStrainCount) => 0.96 / (missCount / (4 * Math.Pow(Math.Log(difficultStrainCount), 0.94)) + 1);
-
+        // Miss penalty assumes that a player will miss on the hardest parts of a map,
+        // so we use the amount of relatively difficult sections to adjust miss penalty
+        // to make it more punishing on maps with lower amount of hard sections.
+        private double calculateMissPenalty(double missCount, double difficultStrainCount) => 0.96 / ((missCount / (4 * Math.Pow(Math.Log(difficultStrainCount), 0.94))) + 1);
         private double getComboScalingFactor(OsuDifficultyAttributes attributes) => attributes.MaxCombo <= 0 ? 1.0 : Math.Min(Math.Pow(scoreMaxCombo, 0.8) / Math.Pow(attributes.MaxCombo, 0.8), 1.0);
         private int totalHits => countGreat + countOk + countMeh + countMiss;
         private int totalImperfectHits => countOk + countMeh + countMiss;
