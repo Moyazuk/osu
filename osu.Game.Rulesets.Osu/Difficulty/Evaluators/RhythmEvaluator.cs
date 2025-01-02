@@ -1,11 +1,10 @@
 ﻿using System;
-using System.IO;
 using System.Linq;
 using System.Collections.Generic;
 using osu.Game.Rulesets.Osu.Objects;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
-using osu.Game.Rulesets.Osu.Difficulty.MathUtil;
 using MathNet.Numerics;
 using MathNet.Numerics.Interpolation;
 using MathNet.Numerics.LinearAlgebra;
@@ -14,9 +13,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class RhythmEvaluator
     {
-        private const double strain_multiplier = 1.3;
-        private const double repetition_weight = 0.7;
-        private const double hard_strain_threshold = 1.1;
+        private const double rhythm_overall_multiplier = 0.95;
         private static double identicalStrainTolerance;
 
         private static List<double> noteHistory = new List<double>();
@@ -51,7 +48,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double prevStrainTime = osuPrev != null ? osuPrev.StrainTime / 1000 : 0;
             double prevVirtualStrainTime = osuPrev != null ? CalculateVirtualStrainTime(osuPrev) : 0;
             double virtualStrainTime = CalculateVirtualStrainTime(osuCurrent);
-            identicalStrainTolerance = osuCurrent.HitWindowGreat / 1000;
+            identicalStrainTolerance = osuCurrent.HitWindowGreat / 2000;
 
             int rhythmStart = 0;
 
@@ -92,7 +89,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             {
                 double repetition = 1.0 - calculateExpectancy(noteHistory);
                 double virtualRepetition = 1.0 - calculateExpectancy(noteHistoryVirtual);
-                double repetitionExponent = Math.Min(2.0, 48.75 * Math.Min(strainTime, virtualStrainTime) - 1.65625);
+                double repetitionExponent = Math.Min(2.0, 66.25 * Math.Min(strainTime, virtualStrainTime) - 1.65625);
                 repetitionVal = Math.Pow(Math.Min(repetition, virtualRepetition), repetitionExponent);
 
                 // When there is major downtime / not much actually happening
@@ -104,7 +101,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 // When there's a ton of unique strains that means that it's a wild BPM area
                 (double uniqueVal, _) = checkAnomaly(noteHistory);
                 (double virtualUniqueVal, _) = checkAnomaly(noteHistoryVirtual);
-                uniqueScale = 1.0 + Math.Pow((Math.Min(uniqueVal, virtualUniqueVal) - 1.0) / 11.0, 4.0);
+                uniqueScale = 1.0 + Math.Pow((Math.Min(uniqueVal, virtualUniqueVal) - 1.0) / 4.0, 2.0);
             }
 
             double multiplier = Math.Min(
@@ -116,10 +113,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 multiplier /= 2;
             }
 
-            // Console.WriteLine($"Val:{repetitionVal * multiplier * downtimeScale * appearanceScale * uniqueScale / strainTime} = {repetitionVal}*{multiplier}*{downtimeScale}*{appearanceScale}*{uniqueScale}/{strainTime}");
-            // return repetitionVal * multiplier * downtimeScale * appearanceScale * uniqueScale / strainTime;
+            // Console.WriteLine($"repetitionVal: {repetitionVal}, multiplier: {multiplier}, downtimeScale: {downtimeScale}, appearanceScale {appearanceScale}, uniqueScale, {uniqueScale}");
+            double rhythmResult = repetitionVal * multiplier * downtimeScale * appearanceScale * uniqueScale / strainTime;
 
-            return Math.Sqrt(4 + (repetitionVal * multiplier * downtimeScale * appearanceScale * uniqueScale / strainTime) * 2.4) / 2.0;
+            //Console.WriteLine($"Final = {Math.Sqrt(4 + rhythmResult * 0.8) / 2.0}");
+
+            return Math.Sqrt(4 + rhythmResult * 0.80) / 2.0;
         }
 
         private static double calculateDowntime(double strainTime, List<double> refNoteHistory)
@@ -133,8 +132,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double longNoteFraction = Math.Max(0.5, (double)longNoteCount / (double)refNoteHistory.Count);
 
-            //Console.WriteLine($" LNC = {longNoteFraction}");
-            return Math.Pow(Math.Sin(Math.PI * (longNoteFraction - 1.0)), 2.0);
+            double result = Math.Pow(Math.Sin(Math.PI * (longNoteFraction - 1.0)), 2.0);
+            return result;
         }
 
         private static double strainAppearance(double strainTime, List<double> refNoteHistory)
@@ -148,14 +147,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double strainAppearanceFraction = Math.Max(0.5, (double)strainApperance / (double)refNoteHistory.Count);
 
-            return Math.Pow(Math.Sin(Math.PI * (strainAppearanceFraction - 1.0)), 2.0);
+            double result = Math.Pow(Math.Sin(Math.PI * (strainAppearanceFraction - 1.0)), 2.0);
+            return result;
         }
 
         private static double CalculateVirtualStrainTime(OsuDifficultyHitObject current)
         {
             if (current.LastObject is Slider prevSlider)
             
-                return Math.Max((current.StartTime - prevSlider.EndTime) / 1000, 0.035);
+                return Math.Max((current.StartTime - prevSlider.EndTime) / 1000, 0.025);
 
 
             return current.StrainTime / 1000;
