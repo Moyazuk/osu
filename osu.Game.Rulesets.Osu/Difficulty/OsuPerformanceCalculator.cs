@@ -114,8 +114,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (effectiveMissCount > 0)
                 aimValue *= 0.97 * Math.Pow(1 - Math.Pow(effectiveMissCount / totalHits, 0.775), effectiveMissCount);
 
-            aimValue *= getComboScalingFactor(attributes);
-
             double approachRateFactor = 0.0;
             if (attributes.ApproachRate > 31 / 3.0)
                 approachRateFactor = 0.05 * (attributes.ApproachRate - 31 / 3.0);
@@ -166,8 +164,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             // Penalize misses by assessing # of misses relative to the total # of objects. Default a 3% reduction for any # of misses.
             if (effectiveMissCount > 0)
                 speedValue *= 0.97 * Math.Pow(1 - Math.Pow(effectiveMissCount / totalHits, 0.775), Math.Pow(effectiveMissCount, .875));
-
-            speedValue *= getComboScalingFactor(attributes);
 
             double approachRateFactor = 0.0;
             if (attributes.ApproachRate > 31 / 3.0)
