@@ -101,7 +101,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 // When there's a ton of unique strains that means that it's a wild BPM area
                 (double uniqueVal, _) = checkAnomaly(noteHistory);
                 (double virtualUniqueVal, _) = checkAnomaly(noteHistoryVirtual);
-                uniqueScale = 1.0 + Math.Pow((Math.Min(uniqueVal, virtualUniqueVal) - 1.0) / 4.0, 2.0);
+                uniqueScale = 1.0 + Math.Pow((Math.Min(uniqueVal, virtualUniqueVal) - 1.0) / 3.0, 2.0);
             }
 
             double multiplier = Math.Min(
@@ -118,7 +118,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             //Console.WriteLine($"Final = {Math.Sqrt(4 + rhythmResult * 0.8) / 2.0}");
 
-            return Math.Sqrt(4 + rhythmResult * 8000) / 2.0;
+            return rhythmResult * 0.4;
         }
 
         private static double calculateDowntime(double strainTime, List<double> refNoteHistory)

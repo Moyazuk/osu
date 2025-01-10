@@ -36,7 +36,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         {
             if (beatmap.HitObjects.Count == 0)
                 return new OsuDifficultyAttributes { Mods = mods };
-            var hitObjects = beatmap.HitObjects as List<OsuHitObject>;
+            var difficultyHitObjects = CreateDifficultyHitObjects(beatmap, clockRate).ToList();
 
             double aimRating = Math.Sqrt(skills[0].DifficultyValue()) * difficulty_multiplier;
             double aimRatingNoSliders = Math.Sqrt(skills[1].DifficultyValue()) * difficulty_multiplier;
@@ -48,7 +48,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double hitWindowGreat = hitWindows.WindowFor(HitResult.Great) / clockRate;
 
-            var fingerAttributes = new FingerControl().CalculateFingerControlDiff(hitObjects, clockRate, ((Speed)skills[2]).StrainHistory, hitWindowGreat);
+            var fingerAttributes = new FingerControl().CalculateFingerControlDiff(difficultyHitObjects, clockRate, hitWindowGreat);
 
             double flashlightRating = 0.0;
 
