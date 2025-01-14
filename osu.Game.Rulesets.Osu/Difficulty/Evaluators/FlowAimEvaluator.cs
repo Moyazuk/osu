@@ -10,7 +10,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class FlowAimEvaluator
     {
-        private static double multiplier => 45.5;
+        private static double multiplier => 88.4;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
@@ -30,7 +30,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currTime = osuCurrObj.StrainTime;
 
             // Base flow difficulty is distance / time, with a bit of time subtracted to buff speed flow.
-            double difficulty = Math.Pow(currMovement.Length, 1.2) / (currTime - 12.5);
+            double difficulty = Math.Pow(currMovement.Length, 1) / (currTime);
 
             double currVelocity = currMovement.Length / osuCurrObj.StrainTime;
             double prevVelocity = prevMovement.Length / osuPrevObj.StrainTime;

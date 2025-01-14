@@ -8,17 +8,16 @@ using osu.Game.Rulesets.Osu.Objects;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
-    public static class SnapAimEvaluator
+    public static class AgilityEvaluator
     {
-        private static double multiplier => 6.4;
+        private static double multiplier => 450000;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
             if (current.Index <= 2 ||
                 current.BaseObject is Spinner ||
                 current.Previous(0).BaseObject is Spinner ||
-                current.Previous(1).BaseObject is Spinner ||
-                current.Previous(2).BaseObject is Spinner)
+                current.Previous(1).BaseObject is Spinner)
                 return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
@@ -35,9 +34,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double prevVelocity = prevMovement.Length / prevTime;
             double minVelocity = Math.Min(currVelocity, prevVelocity);
 
-            // Base snap difficulty is velocity.
-            double difficulty = currVelocity;
 
+            // Add a bonus for agility.
+            double difficulty = multiplier / (Math.Max(1, Math.Max(currTime, prevTime) - 50) * Math.Max(currTime, prevTime));
             double angleBonus = 0;
 
             if (osuCurrObj.Angle != null && osuPrevObj0.Angle != null && osuPrevObj1.Angle != null)
@@ -53,16 +52,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 angleBonus *= 1 - 0.25 * calculateAngleSpline(Math.Abs(lastAngle), true) * calculateAngleSpline(Math.Abs(lastLastAngle), false);
             }
 
+            angleBonus *= 0;
+
             double velChangeBonus = Math.Max(0, Math.Min(Math.Abs(prevMovement.Length / prevTime - currMovement.Length / currTime) - minVelocity, Math.Max(50 / Math.Max(osuCurrObj.StrainTime, osuPrevObj0.StrainTime), minVelocity)));
 
-            angleBonus *= 1;
-            velChangeBonus *= 1;
-
-            double agibonus = 5500 / (Math.Max(currTime, prevTime) - 50) * Math.Max(currTime, prevTime);
-
-            difficulty +=  angleBonus + velChangeBonus;
-
-            return difficulty * multiplier;
+            return difficulty * (1 + angleBonus + velChangeBonus);
         }
 
         private static double calculateAngleSpline(double angle, bool reversed)
