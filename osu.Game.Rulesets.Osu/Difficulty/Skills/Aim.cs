@@ -33,14 +33,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double strainDecayBase => 0.15;
         private double strainIncreaseRate => 10;
         private double strainDecreaseRate => 3;
-        private double strainInfluence => 16 / 1;
+        private double strainInfluence => 3 / 1;
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
         protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => currentStrain * strainDecay(time - current.Previous(0).StartTime);
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, withSliders) * 4.1;
+            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, withSliders) * 15.25;
 
             double priorDifficulty = highestPreviousStrain(current, current.DeltaTime);
 
@@ -52,7 +52,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 sliderStrains.Add(currentStrain);
             }
 
-            // Strain contributing at most 1/4th the difficulty for consistent strain awards around 1 extra star for consistent 7-star gameplay.
             return currentDifficulty + currentStrain * strainInfluence;
         }
 
