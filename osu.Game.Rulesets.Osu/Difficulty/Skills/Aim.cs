@@ -24,30 +24,64 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private readonly bool withSliders;
 
-        private double currentStrain;
-
-        private double skillMultiplier => 25.6;
-        private double strainDecayBase => 0.15;
-
         private readonly List<double> sliderStrains = new List<double>();
 
-        private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
+        private readonly List<double> previousStrains = new List<double>();
 
+        private double currentStrain;
+
+        private double strainDecayBase => 0.15;
+        private double strainIncreaseRate => 10;
+        private double strainDecreaseRate => 3;
+        private double strainInfluence => 16 / 1;
+
+        private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
         protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => currentStrain * strainDecay(time - current.Previous(0).StartTime);
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            currentStrain *= strainDecay(current.DeltaTime);
-            currentStrain += AimEvaluator.EvaluateDifficultyOf(current, withSliders) * skillMultiplier;
+            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, withSliders) * 4.1;
+
+            double priorDifficulty = highestPreviousStrain(current, current.DeltaTime);
+
+            currentStrain = getStrainValueOf(currentDifficulty, priorDifficulty);
+            previousStrains.Add(currentStrain);
 
             if (current.BaseObject is Slider)
             {
                 sliderStrains.Add(currentStrain);
             }
 
-            return currentStrain;
+            // Strain contributing at most 1/4th the difficulty for consistent strain awards around 1 extra star for consistent 7-star gameplay.
+            return currentDifficulty + currentStrain * strainInfluence;
         }
 
+        private double getStrainValueOf(double currentDifficulty, double priorDifficulty) => currentDifficulty > priorDifficulty
+            ? (priorDifficulty * strainIncreaseRate + currentDifficulty) / (strainIncreaseRate + 1)
+            : (priorDifficulty * strainDecreaseRate + currentDifficulty) / (strainDecreaseRate + 1);
+
+        private double highestPreviousStrain(DifficultyHitObject current, double time)
+        {
+            double hardestPreviousDifficulty = 0;
+            double cumulativeDeltaTime = time;
+
+            double timeDecay(double ms) => Math.Pow(strainDecayBase, Math.Pow(ms / 400, 7));
+
+            for (int i = 0; i < previousStrains.Count; i++)
+            {
+                if (cumulativeDeltaTime > 1200)
+                {
+                    previousStrains.RemoveRange(0, i);
+                    break;
+                }
+
+                hardestPreviousDifficulty = Math.Max(hardestPreviousDifficulty, previousStrains[^(i + 1)] * timeDecay(cumulativeDeltaTime));
+
+                cumulativeDeltaTime += current.Previous(i).DeltaTime;
+            }
+
+            return hardestPreviousDifficulty;
+        }
         public double GetDifficultSliders()
         {
             if (sliderStrains.Count == 0)
