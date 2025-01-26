@@ -33,14 +33,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double strainDecayBase => 0.15;
         private double strainIncreaseRate => 10;
         private double strainDecreaseRate => 3;
-        private double strainInfluence => 3 / 1;
+        private double strainInfluence => 4 / 1;
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
         protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => currentStrain * strainDecay(time - current.Previous(0).StartTime);
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, withSliders) * 15.25;
+            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, withSliders) * 9.3;
 
             double priorDifficulty = highestPreviousStrain(current, current.DeltaTime);
 
