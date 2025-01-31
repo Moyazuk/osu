@@ -29,21 +29,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private readonly List<double> previousStrains = new List<double>();
 
         private double currentStrain;
-        private double currentAgiStrain;
+        private double currentAngleStrain;
 
         private double strainDecayBase => 0.15;
+        private double strainDecayBaseAngle => 0.45;
         private double strainIncreaseRate => 10;
         private double strainDecreaseRate => 3;
         private double strainInfluence => 1 / 3.0;
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
+        private double strainDecayAngle(double ms) => Math.Pow(strainDecayBaseAngle, ms / 1000);
         protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => currentStrain * strainDecay(time - current.Previous(0).StartTime);
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, withSliders) * 34.1;
-            currentAgiStrain *= strainDecay(current.DeltaTime);
-            currentAgiStrain += AngleEvaluator.EvaluateDifficultyOf(current);
+            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, withSliders) * 36.9;
+            currentAngleStrain *= strainDecayAngle(current.DeltaTime);
+            currentAngleStrain += AngleEvaluator.EvaluateDifficultyOf(current);
 
             double priorDifficulty = highestPreviousStrain(current, current.DeltaTime);
 
@@ -55,7 +57,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 sliderStrains.Add(currentStrain);
             }
 
-            return currentDifficulty + currentAgiStrain + currentStrain * strainInfluence;
+            return currentDifficulty + currentAngleStrain + currentStrain * strainInfluence;
         }
 
         private double getStrainValueOf(double currentDifficulty, double priorDifficulty) => currentDifficulty > priorDifficulty

@@ -75,7 +75,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
 
 
-            return Math.Max(acuteAngleBonus * 4.2, wideAngleBonus * 1.5 + velocityChangeBonus * 0.75);
+            return Math.Max(acuteAngleBonus * 2.6, wideAngleBonus * 6.5 + velocityChangeBonus * 1.5);
         }
 
         private static double calcAcuteAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(140), double.DegreesToRadians(40));
