@@ -58,7 +58,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             distance = Math.Min(distance, single_spacing_threshold);
 
             // Max distance bonus is 1 * `distance_multiplier` at single_spacing_threshold
-            double distanceBonus = Math.Pow(distance / single_spacing_threshold, 3.95) * 1.25;
+            double distanceBonus = Math.Pow(distance / single_spacing_threshold, 3) * 1.1;
 
             if (mods.OfType<OsuModAutopilot>().Any())
                 distanceBonus = 0;

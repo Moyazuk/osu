@@ -43,7 +43,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, withSliders) * 36.9;
+            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, withSliders) * 35.9;
             currentAngleStrain *= strainDecayAngle(current.DeltaTime);
             currentAngleStrain += AngleEvaluator.EvaluateDifficultyOf(current);
 
