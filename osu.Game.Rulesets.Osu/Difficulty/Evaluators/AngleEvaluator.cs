@@ -44,7 +44,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 acuteAngleBonus = calcAcuteAngleBonus(currAngle);
 
                 // Penalize angle repetition.
-                wideAngleBonus *= 1 - Math.Min(wideAngleBonus, Math.Pow(calcWideAngleBonus(lastAngle), 3));
+                wideAngleBonus *= 0.5 + 0.5 * (1 - Math.Min(wideAngleBonus, Math.Pow(calcWideAngleBonus(lastAngle), 3)));
+                wideAngleBonus *= 0.4 + 0.6 * (DifficultyCalculationUtils.Smootherstep(Math.Abs(currAngle - lastAngle), double.DegreesToRadians(0), double.DegreesToRadians(30)));
+                acuteAngleBonus *= 0.22 + 0.78 * (1 - Math.Min(acuteAngleBonus, Math.Pow(calcAcuteAngleBonus(lastAngle), 3)));
 
                 // Apply full wide angle bonus for distance more than one diameter
                 wideAngleBonus *= angleBonus * DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, 0, diameter);
@@ -73,7 +75,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 velocityChangeBonus *= Math.Pow(Math.Min(osuCurrObj.StrainTime, osuPrevObj0.StrainTime) / Math.Max(osuCurrObj.StrainTime, osuPrevObj0.StrainTime), 2);
             }
 
-            return Math.Max(acuteAngleBonus * 2.2, wideAngleBonus * 6.5 + velocityChangeBonus * 1.5);
+            return Math.Max(acuteAngleBonus * 1.25, wideAngleBonus * 2.4 + velocityChangeBonus * 0.2);
         }
 
         private static double calcAcuteAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(140), double.DegreesToRadians(40));

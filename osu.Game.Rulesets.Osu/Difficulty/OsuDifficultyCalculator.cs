@@ -36,8 +36,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (beatmap.HitObjects.Count == 0)
                 return new OsuDifficultyAttributes { Mods = mods };
 
-            double aimRating = Math.Pow(skills[0].DifficultyValue(), 0.55) * difficulty_multiplier;
-            double aimRatingNoSliders = Math.Pow(skills[1].DifficultyValue(), 0.55) * difficulty_multiplier;
+            double aimRating = Math.Pow(skills[0].DifficultyValue(), 0.7) * difficulty_multiplier;
+            double aimRatingNoSliders = Math.Pow(skills[1].DifficultyValue(), 0.7) * difficulty_multiplier;
             double speedRating = Math.Sqrt(skills[2].DifficultyValue()) * difficulty_multiplier;
             double speedNotes = ((Speed)skills[2]).RelevantNoteCount();
             double difficultSliders = ((Aim)skills[0]).GetDifficultSliders();
