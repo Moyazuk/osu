@@ -24,6 +24,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuPrevObj0 = (OsuDifficultyHitObject)current.Previous(0);
             var osuPrevObj1 = (OsuDifficultyHitObject)current.Previous(1);
+            var osuLast2Obj = (OsuDifficultyHitObject)current.Previous(2);
 
             double currVelocity = osuCurrObj.LazyJumpDistance / osuCurrObj.StrainTime;
             double prevVelocity = osuPrevObj0.LazyJumpDistance / (osuPrevObj0.StrainTime);
@@ -44,8 +45,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 acuteAngleBonus = calcAcuteAngleBonus(currAngle);
 
                 // Penalize angle repetition.
-                wideAngleBonus *= 0.5 + 0.5 * (1 - Math.Min(wideAngleBonus, Math.Pow(calcWideAngleBonus(lastAngle), 3)));
-                wideAngleBonus *= 0.4 + 0.6 * (DifficultyCalculationUtils.Smootherstep(Math.Abs(currAngle - lastAngle), double.DegreesToRadians(0), double.DegreesToRadians(30)));
+                wideAngleBonus *= 0.45 + 0.55 * (1 - Math.Min(wideAngleBonus, Math.Pow(calcWideAngleBonus(lastAngle), 3)));
+                wideAngleBonus *= 0.77 + 0.23 * (DifficultyCalculationUtils.Smootherstep(Math.Abs(currAngle - lastAngle), double.DegreesToRadians(0), double.DegreesToRadians(30)));
                 acuteAngleBonus *= 0.15 + 0.85 * (1 - Math.Min(acuteAngleBonus, Math.Pow(calcAcuteAngleBonus(lastAngle), 3)));
 
                 // Apply full wide angle bonus for distance more than one diameter
@@ -55,6 +56,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 acuteAngleBonus *= angleBonus *
                                    DifficultyCalculationUtils.Smootherstep(DifficultyCalculationUtils.MillisecondsToBPM(osuCurrObj.StrainTime, 2), 200, 400) *
                                    DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, diameter, diameter * 2);
+            }
+
+            if (osuLast2Obj != null)
+            {
+                // If objects just go back and forth through a middle point - don't give as much wide bonus
+                // Use Previous(2) and Previous(0) because angles calculation is done prevprev-prev-curr, so any object's angle's center point is always the previous object
+                var lastBaseObject = (OsuHitObject)osuPrevObj0.BaseObject;
+                var last2BaseObject = (OsuHitObject)osuLast2Obj.BaseObject;
+
+                float distance = (last2BaseObject.StackedPosition - lastBaseObject.StackedPosition).Length;
+
+                if (distance < 1)
+                {
+                    wideAngleBonus *= 1 - 0.25 * (1 - distance);
+                }
             }
 
             if (Math.Max(prevVelocity, currVelocity) != 0)
@@ -75,7 +91,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 velocityChangeBonus *= Math.Pow(Math.Min(osuCurrObj.StrainTime, osuPrevObj0.StrainTime) / Math.Max(osuCurrObj.StrainTime, osuPrevObj0.StrainTime), 2);
             }
 
-            return Math.Max(acuteAngleBonus * 6.5, wideAngleBonus * 7.1 + velocityChangeBonus * 1.7);
+            return Math.Max(acuteAngleBonus * 5.7, wideAngleBonus * 4.7 + velocityChangeBonus * 2.1);
         }
 
         private static double calcAcuteAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(140), double.DegreesToRadians(40));
