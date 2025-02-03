@@ -35,7 +35,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double strainDecayBaseAngle => 0.45;
         private double strainIncreaseRate => 10;
         private double strainDecreaseRate => 3;
-        private double strainInfluence => 1 / 3.0;
+        private double strainInfluence => 1 / 1.5;
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
         private double strainDecayAngle(double ms) => Math.Pow(strainDecayBaseAngle, ms / 1000);
@@ -43,7 +43,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, withSliders) * 19.9;
+            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, withSliders) * 17.1;
             currentAngleStrain *= strainDecayAngle(current.DeltaTime);
             currentAngleStrain += AngleEvaluator.EvaluateDifficultyOf(current);
 

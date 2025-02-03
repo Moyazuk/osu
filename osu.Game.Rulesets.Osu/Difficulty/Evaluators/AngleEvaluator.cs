@@ -91,7 +91,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 velocityChangeBonus *= Math.Pow(Math.Min(osuCurrObj.StrainTime, osuPrevObj0.StrainTime) / Math.Max(osuCurrObj.StrainTime, osuPrevObj0.StrainTime), 2);
             }
 
-            return Math.Max(acuteAngleBonus * 5.7, wideAngleBonus * 4.7 + velocityChangeBonus * 2.1);
+            return Math.Max(acuteAngleBonus * 5.4, wideAngleBonus * 4.7 + velocityChangeBonus * 2.1);
         }
 
         private static double calcAcuteAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(140), double.DegreesToRadians(40));
