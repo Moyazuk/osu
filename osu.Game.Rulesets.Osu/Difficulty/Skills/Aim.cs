@@ -17,7 +17,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     {
         public readonly bool IncludeSliders;
 
-        public Aim(Mod[] mods, bool includeSliders)
+        protected Aim(Mod[] mods, bool includeSliders)
             : base(mods)
         {
             IncludeSliders = includeSliders;
@@ -25,7 +25,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
-        private double skillMultiplier => 26.6 * OsuDifficultyCalculator.MechanicsMultiplier * 0.89;
+        private double skillMultiplier => 22.14;
         private double strainDecayBase => 0.15;
 
         private readonly List<double> sliderStrains = new List<double>();

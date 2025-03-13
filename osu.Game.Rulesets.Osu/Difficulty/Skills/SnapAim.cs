@@ -10,7 +10,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
     public class SnapAim : Aim
     {
-        public SnapAim(Mod[] mods) : base(mods, false)
+        public SnapAim(Mod[] mods)
+            : base(mods, false)
         {
         }
 
@@ -20,7 +21,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double flow = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
 
             if (flow < snap)
-                return flow * Math.Max(Math.Pow(flow / snap, 1.5), 0.1);
+                return flow * Math.Pow(flow / snap, 1.5);
 
             return snap;
         }
