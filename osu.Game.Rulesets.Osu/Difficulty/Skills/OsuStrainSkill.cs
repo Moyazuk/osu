@@ -13,6 +13,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public abstract class OsuStrainSkill : StrainSkill
     {
         /// <summary>
+        /// The number of sections with the highest strains, which the peak strain reductions will apply to.
+        /// This is done in order to decrease their impact on the overall difficulty of the map for this skill.
+        /// </summary>
+        protected virtual int ReducedSectionCount => 10;
+
+        /// <summary>
         /// The duration strain reduction will apply to.
         /// We assume that the first seconds of the map are always easier than calculated difficulty due to them being free to retry.
         /// </summary>
@@ -21,7 +27,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         /// <summary>
         /// The baseline multiplier applied to the section with the biggest strain.
         /// </summary>
-        protected virtual double ReducedStrainBaseline => 0.8;
+        protected virtual double ReducedStrainBaseline => useNormalDiffspikeNerf ? 0.9 : 0.8;
+
+        private bool useNormalDiffspikeNerf => true;
 
         protected OsuStrainSkill(Mod[] mods)
             : base(mods)
@@ -43,8 +51,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             for (int i = 0; i < Math.Min(strains.Count, reducedSectionCount); i++)
             {
-                double scale = Math.Log10(Interpolation.Lerp(1, 10, Math.Clamp((float)i / reducedSectionCount, 0, 1)));
+                double scale = Math.Log10(Interpolation.Lerp(1, 10, Math.Clamp(i / reducedSectionCount, 0, 1)));
                 strains[i] *= Interpolation.Lerp(ReducedStrainBaseline, 1.0, scale);
+            }
+
+            if (useNormalDiffspikeNerf)
+            {
+                strains = strains.OrderDescending().ToList();
+
+                // We are reducing the highest strains first to account for extreme difficulty spikes
+                for (int i = 0; i < Math.Min(strains.Count, ReducedSectionCount); i++)
+                {
+                    double scale = Math.Log10(Interpolation.Lerp(1, 10, Math.Clamp((float)i / ReducedSectionCount, 0, 1)));
+                    strains[i] *= Interpolation.Lerp(ReducedStrainBaseline, 1.0, scale);
+                }
             }
 
             // Difficulty is the weighted sum of the highest strains from every section.
