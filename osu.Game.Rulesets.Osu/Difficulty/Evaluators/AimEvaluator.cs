@@ -13,7 +13,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     {
         private const double wide_angle_multiplier = 1.5;
         private const double acute_angle_multiplier = 2.5; // 2.25
-        private const double velocity_change_multiplier = 0.75;
+        private const double velocity_change_multiplier = 0.74;
         private const double wiggle_multiplier = 1.02;
 
         public const double SLIDER_MULTIPLIER = 1.27;
@@ -119,7 +119,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 {
                     double currAngle = osuCurrObj.Angle.Value;
                     double lastAngle = osuLastObj.Angle.Value;
-                    double lastLastAngle = osuLast1Obj.Angle ?? Math.PI;
+                    double last1Angle = osuLast1Obj.Angle ?? Math.PI;
 
                     // Rewarding angles, take the smaller velocity as base.
                     double acuteVelocityBase = Math.Min(currVelocity, prevVelocity);
@@ -136,7 +136,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                     acuteAngleBonus = CalcAcuteAngleBonus(currAngle);
 
                     // Penalize angle repetition. Ideally this thing should be removed, but it breaks balance so I've just make it weaker by taking min between angles
-                    double wideAngleRepetitionNerf = Math.Min(wideAngleBonus, Math.Pow(CalcWideAngleBonus(Math.Min(lastAngle, lastLastAngle)), 3));
+                    double wideAngleRepetitionNerf = Math.Min(wideAngleBonus, Math.Pow(CalcWideAngleBonus(Math.Min(lastAngle, last1Angle)), 3));
                     wideAngleBonus *= 1 - wideAngleRepetitionNerf;
 
                     double acuteAngleRepetitionNerf = Math.Pow(CalcAcuteAngleBonus(lastAngle), 3);
@@ -176,7 +176,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 velocityChangeBonus = overlapVelocityBuff * distRatio;
 
                 // Penalize for rhythm changes.
-                velocityChangeBonus *= Math.Pow(Math.Min(osuCurrObj.StrainTime, osuLastObj.StrainTime) / Math.Max(osuCurrObj.StrainTime, osuLastObj.StrainTime), 2);
+                double rhythmPenalty = Math.Pow(Math.Min(osuCurrObj.StrainTime, osuLastObj.StrainTime) / Math.Max(osuCurrObj.StrainTime, osuLastObj.StrainTime), 2);
+                velocityChangeBonus *= rhythmPenalty;
 
                 var osuLast2Obj = (OsuDifficultyHitObject)current.Previous(2);
                 double prev1Distance = osuLast1Obj.LazyJumpDistance;
@@ -190,12 +191,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 // We don't nerf more snappy patterns with this as it's much more difficult to snap faster compared to flow faster
                 double angleFactor = DifficultyCalculationUtils.Smoothstep(Math.Max(osuLast1Obj.Angle ?? 0, osuLast2Obj?.Angle ?? 0), Math.PI * 0.55, Math.PI * 0.75);
 
-                velocityChangeBonus *= 1 - distanceSimilarityFactor * distanceFactor * angleFactor;
+                velocityChangeBonus *= 1 - distanceSimilarityFactor * distanceFactor * angleFactor * rhythmPenalty;
 
                 // Decrease buff large jumps leading into very small jumps to compensate the fact that smaller jumps are buffed by minimal snap distance
-                double doublesNerf = DifficultyCalculationUtils.ReverseLerp(osuCurrObj.LazyJumpDistance, diameter, diameter * 3) * DifficultyCalculationUtils.ReverseLerp(osuLastObj.LazyJumpDistance, diameter, radius);
-                double cheesableJumpsNerf = DifficultyCalculationUtils.ReverseLerp(osuCurrObj.LazyJumpDistance, diameter * 2, diameter * 4) * DifficultyCalculationUtils.ReverseLerp(osuLastObj.LazyJumpDistance, diameter * 1.5, diameter);
-                velocityChangeBonus *= 1 - 0.8 * Math.Max(doublesNerf, cheesableJumpsNerf);
+                double doublesNerf = 0.8 * DifficultyCalculationUtils.ReverseLerp(osuCurrObj.LazyJumpDistance, diameter, diameter * 3) * DifficultyCalculationUtils.ReverseLerp(osuLastObj.LazyJumpDistance, diameter, radius);
+                double cheesableJumpsNerf = 0.75 * DifficultyCalculationUtils.ReverseLerp(osuCurrObj.LazyJumpDistance, diameter * 2.5, diameter * 5) * DifficultyCalculationUtils.ReverseLerp(osuLastObj.LazyJumpDistance, diameter * 2, diameter);
+                velocityChangeBonus *= 1 - Math.Max(doublesNerf, cheesableJumpsNerf) * rhythmPenalty;
             }
 
             if (osuLastObj.BaseObject is Slider)
