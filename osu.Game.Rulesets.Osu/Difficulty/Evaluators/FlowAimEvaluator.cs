@@ -4,66 +4,361 @@
 using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
-using static osu.Game.Rulesets.Osu.Difficulty.Preprocessing.OsuDifficultyHitObject;
-using static osu.Game.Rulesets.Difficulty.Utils.DifficultyCalculationUtils;
+using osu.Game.Rulesets.Difficulty.Utils;
+using osu.Game.Rulesets.Osu.Objects;
+using osuTK;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class FlowAimEvaluator
     {
+        // The reason why this exist in evaluator instead of FlowAim skill - it's because it's very important to keep flowaim in the same scaling as snapaim on evaluator level
+        private static double flowMultiplier => 479.147;
+
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
-            double difficulty = EvaluateDistanceBonus(current) * 210;
-            difficulty += EvaluateTappingBonus(current) * 150;
-            difficulty += EvaluateAngleBonus(current) * 120;
 
-            return difficulty;
-        }
-
-        public static double EvaluateDistanceBonus(DifficultyHitObject current)
-        {
             var osuCurrObj = (OsuDifficultyHitObject)current;
+            var osuLast0Obj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
 
-            // Distance scales harder on flow aim, up until an arbitrary point.
-            // VERY incorrect, but I just want to see my family again.
-            double distanceBonus = Math.Min(Math.Pow(osuCurrObj.Movement.Length / osuCurrObj.StrainTime, 2), osuCurrObj.Movement.Length / osuCurrObj.StrainTime * 1.3);
+            const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
 
-            return distanceBonus;
+            // Start with velocity
+            double velocity = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
+
+            double flowDifficulty = velocity;
+
+            // Rescale the distance to make it closer d/t
+            if (osuCurrObj.Movement.Length > diameter)
+            {
+                // Decrease spacing if patterns are comfy
+                double comfyness = IdentifyComfyFlow(current);
+
+                // Change those 2 power coeficients to control amount of buff high spaced flow aim has for comfy/uncomfy patterns
+                flowDifficulty *= Math.Pow(osuCurrObj.Movement.Length / diameter, 0.75 - 0.55 * comfyness);
+            }
+            else
+            {
+                // Decrease power here if you want to buff low-spaced flow aim
+                flowDifficulty *= Math.Pow(osuCurrObj.Movement.Length / diameter, 0.8);
+            }
+
+            // Flow aim is harder on High BPM
+            // Increase multiplier in the beginning to buff all the scaling
+            // Increase power to increase buff for spaced speedflow
+            // Increase number in the divisor to make steeper scaling with bpm
+            flowDifficulty += 2.2 * (Math.Pow(osuCurrObj.Movement.Length, 0.7) / osuCurrObj.StrainTime) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 12) - 1);
+
+            double angleBonus = 0;
+
+            if (osuCurrObj.Angle != null && osuLast0Obj.Angle != null && osuLast1Obj.Angle != null)
+            {
+                double angleChangeBonus = CalculateFlowAngleChangeBonus(current);
+                double acuteAngleBonus = CalculateFlowAcuteAngleBonus(current);
+
+                double overlappedNotesWeight = 1;
+
+                if (current.Index > 2)
+                {
+                    double o1 = getOverlapness(osuCurrObj, osuLast0Obj);
+                    double o2 = getOverlapness(osuCurrObj, osuLast1Obj);
+                    double o3 = getOverlapness(osuLast0Obj, osuLast1Obj);
+
+                    overlappedNotesWeight = 1 - o1 * o2 * o3;
+                }
+
+                // IMPORTANT INFORMATION: summing those bonuses instead of taking max singificantly buffs many alt maps
+                // BUT it also buffs ReLief. So it's should be explored how to keep this buff for actually hard patterns but not for ReLief
+                angleBonus = Math.Max(angleChangeBonus, acuteAngleBonus) * overlappedNotesWeight;
+            }
+
+            double velocityChangeBonus = CalculateFlowVelocityChangeBonus(current);
+
+            flowDifficulty += angleBonus + velocityChangeBonus;
+            flowDifficulty *= flowMultiplier;
+
+            return flowDifficulty;
         }
 
-        public static double EvaluateTappingBonus(DifficultyHitObject current)
+        private static double getOverlapness(OsuDifficultyHitObject odho1, OsuDifficultyHitObject odho2)
         {
-            if (!IsValid(current, 2))
+            OsuHitObject o1 = (OsuHitObject)odho1.BaseObject, o2 = (OsuHitObject)odho2.BaseObject;
+
+            double distance = Vector2.Distance(o1.StackedPosition, o2.StackedPosition);
+            double radius = o1.Radius;
+
+            return Math.Clamp(1 - Math.Pow(Math.Max(distance - radius, 0) / radius, 2), 0, 1);
+        }
+
+        // This bonus accounts for the fact that flow is circular movement, therefore flowing on sharp angles is harder.
+        public static double CalculateFlowAcuteAngleBonus(DifficultyHitObject current)
+        {
+
+            var osuCurrObj = (OsuDifficultyHitObject)current;
+            var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
+            var osuLast2Obj = (OsuDifficultyHitObject)current.Previous(2);
+
+            if (osuCurrObj.Angle == null)
+                return 0;
+
+            double currAngle = (double)osuCurrObj.Angle;
+            double last1Angle = osuLast1Obj.Angle ?? 0;
+            double last2Angle = osuLast2Obj?.Angle ?? 0;
+
+            double currAngleBonus = CalcAcuteAngleBonus(currAngle);
+            double prevAngleBonus = CalcAcuteAngleBonus(last2Angle);
+
+            double result = currAngleBonus;
+
+            result *= Math.Min(osuCurrObj.Movement.Length, osuLastObj.Movement.Length) / Math.Max(osuCurrObj.StrainTime, osuLastObj.StrainTime);
+
+            // Nerf acute angle if previous notes were slower
+            // IMPORTANT INFORMATION: removing this limitation buffs many alt maps
+            // BUT it also  buffs ReLief. So it's should be explored how to keep this buff for actually hard patterns but not for ReLief
+            result *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLastObj.StrainTime * 0.55, osuLastObj.StrainTime * 0.75);
+
+            // Decrease angle bonus if angle changes are slower than 1 in 4 notes
+            double deltaAngle = Math.Abs(last1Angle - last2Angle);
+            double isSameAngle = DifficultyCalculationUtils.Smoothstep(deltaAngle, 0.25, 0.15); // =1 if there's no angle change
+
+            double angleBonusDifference = currAngleBonus > 0 ? Math.Clamp(prevAngleBonus / currAngleBonus, 0, 1) : 1;
+
+            // Decrease buffs from angle bonus if it's not repeating too often
+            // Multiply nerf by difference in bonus to not nerf repeating high angle bonuse
+            result *= 1 - 0.5 * isSameAngle * (1 - angleBonusDifference);
+
+            return result;
+        }
+
+        // This bonus accounts for flow aim being harder when angle is changing. There's extra bonus for changes occuring more often than once in 4 notes.
+        public static double CalculateFlowAngleChangeBonus(DifficultyHitObject current)
+        {
+            if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj0 = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
+            var osuLast2Obj = (OsuDifficultyHitObject)current.Previous(2);
 
-            double currTime = osuCurrObj.StrainTime;
-            double prevTime = osuPrevObj0.StrainTime;
+            if (osuCurrObj.Angle == null || osuLastObj.Angle == null)
+                return 0;
 
-            // Tapping bonus of 1 at 330 BPM.
-            double tappingBonus = Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime)) / 330, 2) * (osuCurrObj.Movement.Length / osuCurrObj.StrainTime);
-            tappingBonus *= osuCurrObj.Movement.Length / (osuCurrObj.Radius * 2);
-            return tappingBonus;
+            double currVelocity = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
+            double prevVelocity = osuLastObj.Movement.Length / osuLastObj.StrainTime;
+
+            double currAngle = osuCurrObj.Angle.Value;
+            double lastAngle = osuLastObj.Angle.Value;
+
+            double minVelocity = Math.Min(currVelocity, prevVelocity);
+            double angleChangeBonus = Math.Pow(Math.Sin((currAngle - lastAngle) / 2), 2) * minVelocity;
+
+            // Remove angle change if previous notes were slower
+            // IMPORTANT INFORMATION: removing this limitation significantly buffs almost all tech, alt, underweight maps in general
+            // BUT it also very significantly buffs ReLief. So it's should be explored how to keep this buff for actually hard patterns but not for ReLief
+            angleChangeBonus *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLastObj.StrainTime * 0.55, osuLastObj.StrainTime * 0.75);
+            angleChangeBonus *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLast1Obj.StrainTime * 0.55, osuLast1Obj.StrainTime * 0.75);
+
+            double last1Angle = osuLast1Obj.Angle ?? 0;
+            double last2Angle = osuLast2Obj?.Angle ?? 0;
+
+            double deltaAngle = Math.Abs(last1Angle - last2Angle);
+            double isSameAngle = DifficultyCalculationUtils.Smoothstep(deltaAngle, 0.25, 0.15); // =1 if there's no angle change
+
+            double prevAngleBonus = CalcAcuteAngleBonus(last2Angle);
+
+            // Decrease buffs from angle bonus if it's not repeating too often
+            // Multiply nerf by difference in bonus to not nerf repeating high angle bonuse
+            angleChangeBonus *= 1 - 0.5 * isSameAngle * (1 - prevAngleBonus);
+
+            return angleChangeBonus;
         }
 
-        public static double EvaluateAngleBonus(DifficultyHitObject current)
+        // This bonus accounts for the fact that changing velocity makes flow aim harder.
+        public static double CalculateFlowVelocityChangeBonus(DifficultyHitObject current)
         {
-            if (!IsValid(current, 3, 1))
-                return 1;
+            if (current.BaseObject is Spinner || current.Index <= 2 || current.Previous(0).BaseObject is Spinner)
+                return 0;
 
-            OsuDifficultyHitObject osuCurrObj = (OsuDifficultyHitObject)current;
-            OsuDifficultyHitObject osuPrev0Obj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuCurrObj = (OsuDifficultyHitObject)current;
+            var osuLast0Obj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
+            var osuLast2Obj = (OsuDifficultyHitObject)current.Previous(2);
+            var osuLast3Obj = (OsuDifficultyHitObject)current.Previous(3);
 
-            double currAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
+            const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
+            const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
 
-            double prevDistanceRatio = osuPrev0Obj.Movement.Length / osuPrev0Obj.Radius;
+            double currVelocity = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
+            double prevVelocity = osuLast0Obj.Movement.Length / osuLast0Obj.StrainTime;
+            double prev1Velocity = osuLast1Obj.Movement.Length / osuLast1Obj.StrainTime;
 
-            // Provisional angle bonus
-            double angleBonus = Smootherstep(currAngle, 0, 180) * (osuCurrObj.Movement.Length / osuCurrObj.StrainTime) * Smootherstep(prevDistanceRatio, 0.5, 1);
+            double minVelocity = Math.Min(currVelocity, prevVelocity);
+            double maxVelocity = Math.Max(currVelocity, prevVelocity);
 
-            return angleBonus;
+            double deltaVelocity = maxVelocity - minVelocity;
+            double deltaPrevVelocity = Math.Abs(prevVelocity - prev1Velocity);
+
+            // Don't buff slight consistent changes
+            if (minVelocity > 0)
+                deltaVelocity -= Math.Min(deltaVelocity, deltaPrevVelocity) * DifficultyCalculationUtils.ReverseLerp(Math.Max(deltaVelocity, deltaPrevVelocity), minVelocity * 0.3, minVelocity * 0.2);
+
+            // Don't buff velocity increase if previous note was slower
+            if (currVelocity > prevVelocity)
+                deltaVelocity *= DifficultyCalculationUtils.Smoothstep(osuCurrObj.StrainTime, osuLast0Obj.StrainTime * 0.55, osuLast0Obj.StrainTime * 0.75);
+
+            double currDistance = osuCurrObj.Movement.Length;
+            double prevDistance = osuLast0Obj.Movement.Length;
+            double prev1Distance = osuLast1Obj.Movement.Length;
+            double prev2Distance = osuLast2Obj?.Movement.Length ?? 0;
+
+            // If previously there was slow flow pattern - sudden velocity change is much easier because you could flow faster to give yourself more time
+            // Add radius to account for distance potenitally being very small
+            double distanceSimilarityFactor = DifficultyCalculationUtils.ReverseLerp(prev1Distance + radius, (prev2Distance + radius) * 0.8, (prev2Distance + radius) * 0.95);
+            double distanceFactor = 0.5 + 0.5 * DifficultyCalculationUtils.ReverseLerp(Math.Max(prev1Distance, prev2Distance), diameter * 1.5, diameter * 0.75);
+            // There also should be smth like angleFactor, because if it has aim-control difficulty - you can't really speed-up flow aim that easily
+
+            deltaVelocity *= 1 - 0.65 * distanceSimilarityFactor * distanceFactor;
+
+            // Decrease buff on doubles that go back and forth, because in this case angle change bonuses account for all added difficulty
+            // Add radius to account for distance potenitally being very small
+            double distanceSimilarity1 = DifficultyCalculationUtils.ReverseLerpTwoDirectional(currDistance + radius, prev1Distance + radius, 0.7, 0.9);
+            double distanceSimilarity2 = DifficultyCalculationUtils.ReverseLerpTwoDirectional(prevDistance + radius, prev2Distance + radius, 0.7, 0.9);
+
+            // Check the direction of doubles
+            double directionFactor = 1.0;
+
+            if (osuLast3Obj != null)
+            {
+                Vector2 p1 = ((OsuHitObject)osuCurrObj.BaseObject).StackedPosition;
+                Vector2 p2 = ((OsuHitObject)osuLast1Obj.BaseObject).StackedPosition;
+                Vector2 p3 = ((OsuHitObject)osuLast3Obj.BaseObject).StackedPosition;
+
+                Vector2 v1 = p3 - p2;
+                Vector2 v2 = p1 - p2;
+
+                float dot = Vector2.Dot(v1, v2);
+                float det = v1.X * v2.Y - v1.Y * v2.X;
+
+                double angle = Math.Abs(Math.Atan2(det, dot));
+
+                directionFactor = DifficultyCalculationUtils.ReverseLerp(angle, 3 * Math.PI / 2, Math.PI / 2);
+            }
+
+            deltaVelocity *= 1 - distanceSimilarity1 * distanceSimilarity2 * directionFactor;
+
+            // Don't reward very big differences too much
+            if (deltaVelocity > minVelocity * 2)
+            {
+                double rescaledBonus = deltaVelocity - minVelocity * 2;
+                return minVelocity * 2 + Math.Sqrt(2 * rescaledBonus + 1) - 1;
+            }
+
+            return deltaVelocity;
         }
+
+        // This function is used to reward high spacing on uncomfy flow outside of direct bonuses.
+        public static double IdentifyComfyFlow(DifficultyHitObject current)
+        {
+            // Check starts from this note before current and ends with current notes
+            // Previous 3 notes before are still checked for some adjustments but not relevenat to main check
+            const int starting_index = 4;
+
+            if (current.BaseObject is Spinner || current.Index < starting_index || current.Previous(0).BaseObject is Spinner)
+                return 0;
+
+            double totalComfyness = 1.0;
+
+            OsuDifficultyHitObject osuLast1Obj = (OsuDifficultyHitObject)current.Previous(starting_index - 1);
+            OsuDifficultyHitObject? osuLast2Obj = (OsuDifficultyHitObject)current.Previous(starting_index);
+            OsuDifficultyHitObject? osuLast3Obj = (OsuDifficultyHitObject)current.Previous(starting_index + 1);
+
+            double prevAngle = osuLast1Obj.Angle ?? 0;
+            double prevAngleChange = 0;
+
+            double prev2Velocity = osuLast3Obj != null ? osuLast3Obj.Movement.Length / osuLast3Obj.StrainTime : double.NaN;
+            double prev1Velocity = osuLast2Obj != null ? osuLast2Obj.Movement.Length / osuLast2Obj.StrainTime : double.NaN;
+            double prevVelocity = osuLast1Obj.Movement.Length / osuLast1Obj.StrainTime;
+
+            double prevVelocityChange = prevVelocity / prev1Velocity;
+            double prev1VelocityChange = prev1Velocity / prev2Velocity;
+            double prev2VelocityChange = double.NaN;
+
+            // It's allowed to get two angle change without stream to be considered comfy
+
+            // First one is normal Y type direction change
+            double angleLeniency = 1.0;
+
+            // Second one is the S type of movement where clockwise is changing to counterclockwise
+            double angleChangeLeniency = 1.0;
+
+            for (int i = starting_index - 2; i >= -1; i--)
+            {
+                var relevantObj = (OsuDifficultyHitObject)current.Previous(i);
+
+                double currAngle = relevantObj.Angle?? 0;
+
+                if (angleLeniency > 0)
+                {
+                    double currAngleAbs = Math.Abs(currAngle);
+                    double prevAngleAbs = Math.Abs(prevAngle);
+
+                    double potentialLeniency = Math.Max(currAngleAbs, prevAngleAbs) - currAngleAbs;
+
+                    double usedLeniency = Math.Min(angleLeniency * Math.PI, potentialLeniency);
+                    currAngle = (currAngleAbs + usedLeniency) * Math.Sign(currAngle);
+                    angleLeniency -= Math.Min(usedLeniency, 1);
+                }
+
+                double currAngleChange = Math.Pow(Math.Sin((currAngle - prevAngle) / 2), 2);
+                double relevantAngleChange = currAngleChange;
+
+                if (angleChangeLeniency > 0)
+                {
+                    double potentialLeniency = currAngleChange - Math.Min(currAngleChange, prevAngleChange);
+
+                    double usedLeniency = Math.Min(angleChangeLeniency, potentialLeniency);
+                    relevantAngleChange = relevantAngleChange * (1 - usedLeniency);
+                    angleChangeLeniency -= usedLeniency;
+                }
+
+                double currVelocity = relevantObj.Movement.Length / relevantObj.StrainTime;
+                double currVelocityChange = currVelocity / prevVelocity;
+                double normalizedVelocityChange = normalizeVelocityChange(currVelocityChange);
+                double accelerationChange = Math.Abs(currVelocityChange - prevVelocityChange);
+
+                double angleFactor = DifficultyCalculationUtils.Smoothstep(Math.Abs(currAngle), Math.PI * 0.55, Math.PI * 0.75);
+                double angleChangeFactor = DifficultyCalculationUtils.Smoothstep(relevantAngleChange, 0.3, 0.2);
+
+                // Adjust coefs for velocity change factors if velocity wasn't changing before
+                // It's using very old velocity change stats because accelaration change is using 3 objects beforehand, so to check previos state it need at least objects 4th and 5th
+                double normalVelocityChangeAdjust = 0.15 * DifficultyCalculationUtils.Smoothstep(normalizeVelocityChange(prev1VelocityChange) * normalizeVelocityChange(prev2VelocityChange), 1.2, 1.05);
+
+                double velocityChangeFactor = DifficultyCalculationUtils.Smoothstep(normalizedVelocityChange, 1.25 + normalVelocityChangeAdjust, 1.1 + normalVelocityChangeAdjust);
+                double accelerationChangeFactor = double.IsNaN(accelerationChange) ? 1.0 : DifficultyCalculationUtils.Smoothstep(accelerationChange, 0.25 + normalVelocityChangeAdjust, 0.15 + normalVelocityChangeAdjust);
+
+                // Don't look on accelerationChangeFactor on first iteration because it looks for one object behind than other bonuses, and we don't want it
+                double instantComfyness = angleFactor * angleChangeFactor * velocityChangeFactor * (i == starting_index - 2 ? 1.0 : accelerationChangeFactor);
+                totalComfyness *= instantComfyness;
+
+                prevVelocity = currVelocity;
+
+                prev2VelocityChange = prev1VelocityChange;
+                prev1VelocityChange = prevVelocityChange;
+                prevVelocityChange = currVelocityChange;
+
+                prevAngle = currAngle;
+                prevAngleChange = currAngleChange;
+            }
+
+            return totalComfyness;
+        }
+
+        private static double normalizeVelocityChange(double velocityChange) => double.IsNaN(velocityChange) ? 1.0 : velocityChange >= 1 ? velocityChange : 1.0 / velocityChange;
+        public static double CalcWideAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(40), double.DegreesToRadians(140));
+        public static double CalcAcuteAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(140), double.DegreesToRadians(40));
     }
+
 }

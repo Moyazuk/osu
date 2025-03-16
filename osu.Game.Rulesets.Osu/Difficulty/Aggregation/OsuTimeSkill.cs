@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         }
 
         // Assume players spend 12 minutes retrying a map before they FC
-        private const double time_threshold = 12;
+        private static double time_threshold => 30;
 
         // The width of each dimension of the bins. Since the array of bins is 2 dimensional, the number of bins is equal to these values multiplied together.
         private const int difficulty_bin_count = 8;
