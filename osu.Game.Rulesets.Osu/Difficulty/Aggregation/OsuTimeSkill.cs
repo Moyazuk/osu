@@ -11,7 +11,7 @@ using osu.Game.Rulesets.Osu.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 {
-    public abstract class OsuTimeSkill : Skill
+    public abstract class OsuTimeSkill : OsuStrainSkill
     {
         protected OsuTimeSkill(Mod[] mods)
             : base(mods)
@@ -29,35 +29,25 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         private double totalElapsedTime = 0;
         private readonly List<double> timestamps = new List<double>();
 
-        private readonly List<double> difficulties = new List<double>();
-        private readonly List<double> times = new List<double>();
-
         /// <summary>
         /// Returns the strain value at <see cref="DifficultyHitObject"/>. This value is calculated with or without respect to previous objects.
         /// </summary>
-        protected abstract double StrainValueAt(DifficultyHitObject current);
+        //protected abstract double StrainValueAt(DifficultyHitObject current);
 
-        public override void Process(DifficultyHitObject current)
-        {
+        //public override void Process(DifficultyHitObject current)
+        //{
             //used to send timestamps to osu!tools
-            timestamps.Add(totalElapsedTime);
-            difficulties.Add(StrainValueAt(current));
-            totalElapsedTime += current.DeltaTime;
+            //timestamps.Add(totalElapsedTime);
+            //difficulties.Add(StrainValueAt(current));
+            //totalElapsedTime += current.DeltaTime;
             // Cap the delta time of a given note at 5 seconds to not reward absurdly long breaks
-            times.Add(times.LastOrDefault() + Math.Min(current.DeltaTime, 5000));
-        }
+       // }
 
         protected abstract double HitProbability(double skill, double difficulty);
 
-        // used to send timestamps and difficulty information to osu!tools
-        public IEnumerable<(double Timestamp, double Value)> GetCurrentStrainPeaks()
-        {
-            return timestamps.Zip(difficulties, (timestamp, value) => (timestamp, value));
-        }
-
         public double DifficultyValueExact()
         {
-            double maxDiff = difficulties.Max();
+            double maxDiff = Difficulties.Max();
             if (maxDiff <= 1e-10) return 0;
 
             const double lower_bound_estimate = 0;
@@ -77,11 +67,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
                 double t = 0;
                 double prodOfHitProbabilities = 1;
 
-                for (int n = difficulties.Count - 1; n >= 0; n--)
+                for (int n = Difficulties.Count - 1; n >= 0; n--)
                 {
-                    double deltaTime = n > 0 ? times[n] - times[n - 1] : times[n];
+                    double deltaTime = n > 0 ? Times[n] - Times[n - 1] : Times[n];
 
-                    prodOfHitProbabilities *= HitProbability(s, difficulties[n]);
+                    prodOfHitProbabilities *= HitProbability(s, Difficulties[n]);
                     t += deltaTime / prodOfHitProbabilities - deltaTime;
                 }
 
@@ -91,10 +81,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 
         public double DifficultyValueBinned()
         {
-            double maxDiff = difficulties.Max();
+            double maxDiff = Difficulties.Max();
             if (maxDiff <= 1e-10) return 0;
 
-            var bins = Bin.CreateBins(difficulties, times, difficulty_bin_count, time_bin_count);
+            var bins = Bin.CreateBins(Difficulties, Times, difficulty_bin_count, time_bin_count);
 
             const double lower_bound_estimate = 0;
             double upperBoundEstimate = 3.0 * maxDiff;
@@ -115,7 +105,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 
                 for (int timeIndex = time_bin_count - 1; timeIndex >= 0; timeIndex--)
                 {
-                    double deltaTime = times.LastOrDefault() / time_bin_count;
+                    double deltaTime = Times.LastOrDefault() / time_bin_count;
 
                     for (int difficultyIndex = 0; difficultyIndex < difficulty_bin_count; difficultyIndex++)
                     {
@@ -133,9 +123,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 
         public override double DifficultyValue()
         {
-            if (difficulties.Count == 0) return 0;
+            if (Difficulties.Count == 0) return 0;
 
-            return difficulties.Count > time_bin_count * difficulty_bin_count ? DifficultyValueBinned() : DifficultyValueExact();
+            return Difficulties.Count > time_bin_count * difficulty_bin_count ? DifficultyValueBinned() : DifficultyValueExact();
         }
 
         /// <summary>
@@ -150,12 +140,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
             ExpPolynomial polynomial = new ExpPolynomial();
 
             // If there are no notes, we just return the polynomial with all coefficients 0.
-            if (difficulties.Count == 0 || difficulties.Max() == 0)
+            if (Difficulties.Count == 0 || Difficulties.Max() == 0)
                 return polynomial;
 
             double fcSkill = DifficultyValue();
 
-            Bin[] bins = Bin.CreateBins(difficulties, times, difficulty_bin_count, time_bin_count);
+            Bin[] bins = Bin.CreateBins(Difficulties, Times, difficulty_bin_count, time_bin_count);
 
             for (int i = 0; i < penalties.Length; i++)
             {
@@ -180,16 +170,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         /// </summary>
         private double getMissCountAtSkill(double skill, Bin[] bins)
         {
-            if (difficulties.Count == 0)
+            if (Difficulties.Count == 0)
                 return 0;
 
-            double maxDiff = difficulties.Max();
-            double endTime = times.Max();
+            double maxDiff = Difficulties.Max();
+            double endTime = Times.Max();
 
             if (maxDiff == 0)
                 return 0;
             if (skill <= 0)
-                return difficulties.Count;
+                return Difficulties.Count;
 
             IterativePoissonBinomial poiBin = new IterativePoissonBinomial();
 
@@ -197,7 +187,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
             {
                 poiBin.Reset();
 
-                if (difficulties.Count > time_bin_count * difficulty_bin_count)
+                if (Difficulties.Count > time_bin_count * difficulty_bin_count)
                 {
                     double binTimeSteps = endTime / time_bin_count;
 
@@ -225,12 +215,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
                 {
                     double totalTime = 0;
 
-                    for (int i = 0; i < difficulties.Count; i++)
+                    for (int i = 0; i < Difficulties.Count; i++)
                     {
-                        double hitProb = HitProbability(skill, difficulties[i]);
+                        double hitProb = HitProbability(skill, Difficulties[i]);
                         poiBin.AddProbability(hitProb);
 
-                        totalTime += times[i] * poiBin.CDF(missCount);
+                        totalTime += Times[i] * poiBin.CDF(missCount);
                     }
 
                     if (poiBin.CDF(missCount) < 1e-10)

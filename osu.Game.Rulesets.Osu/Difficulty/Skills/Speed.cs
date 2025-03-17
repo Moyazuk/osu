@@ -16,45 +16,75 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Speed : OsuStrainSkill
     {
-        private double skillMultiplier => 1.46;
-        private double strainDecayBase => 0.3;
+        private double totalMultiplier => 1.0;
+        private double burstMultiplier => 2.1;
+        private double streamMultiplier => 0.025;
+        private double staminaMultiplier => 0.027;
+        private double meanFactor => 1.25;
 
-        private double currentStrain;
+        private double currentBurstStrain;
+        private double currentStreamStrain;
+        private double currentStaminaStrain;
         private double currentRhythm;
 
-        protected override int ReducedSectionCount => 5;
+        public readonly bool WithoutStamina;
 
         public Speed(Mod[] mods)
             : base(mods)
         {
         }
 
-        private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
+        private double strainDecayBurst(double ms) => Math.Pow(0.14, ms / 1000);
+        private double strainDecayStream(double ms) => Math.Pow(0.01, Math.Pow(ms / 1000, 1.6));
+        private double strainDecayStamina(double ms) => Math.Pow(0.1, Math.Pow(ms / 1000, 2.6));
 
-        protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => (currentStrain * currentRhythm) * strainDecay(time - current.Previous(0).StartTime);
+        protected override double CalculateInitialStrain(double time, DifficultyHitObject current)
+        {
+            if (WithoutStamina)
+                return currentBurstStrain * currentRhythm * strainDecayBurst(time - current.Previous(0).StartTime);
+
+            return Math.Pow(
+                Math.Pow(currentBurstStrain * currentRhythm * strainDecayBurst(time - current.Previous(0).StartTime), meanFactor) +
+                Math.Pow(currentStreamStrain * strainDecayStream(time - current.Previous(0).StartTime), meanFactor) +
+                Math.Pow(currentStaminaStrain * strainDecayStamina(time - current.Previous(0).StartTime), meanFactor), 1.0 / meanFactor
+            );
+        }
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            currentStrain *= strainDecay(((OsuDifficultyHitObject)current).StrainTime);
-            currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
-
+            currentBurstStrain *= strainDecayBurst(((OsuDifficultyHitObject)current).StrainTime);
             currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
+            currentBurstStrain += SpeedEvaluator.EvaluateDifficultyOf(current) * burstMultiplier;
 
-            double totalStrain = currentStrain * currentRhythm;
+            if (WithoutStamina)
+                return currentBurstStrain * currentRhythm;
 
-            return totalStrain;
+            currentStreamStrain *= strainDecayStream(((OsuDifficultyHitObject)current).StrainTime);
+            currentStreamStrain += StaminaEvaluator.EvaluateDifficultyOf(current) * streamMultiplier;
+
+            currentStaminaStrain *= strainDecayStamina(((OsuDifficultyHitObject)current).StrainTime);
+            currentStaminaStrain += StaminaEvaluator.EvaluateDifficultyOf(current) * staminaMultiplier;
+
+            double totalValue =
+                Math.Pow(
+                    Math.Pow(currentBurstStrain * currentRhythm, meanFactor) +
+                    Math.Pow(currentStreamStrain, meanFactor) +
+                    Math.Pow(currentStaminaStrain, meanFactor), 1.0 / meanFactor
+                );
+
+            return totalValue * totalMultiplier;
         }
 
         public double RelevantNoteCount()
         {
-            if (ObjectStrains.Count == 0)
+            if (Difficulties.Count == 0)
                 return 0;
 
-            double maxStrain = ObjectStrains.Max();
+            double maxStrain = Difficulties.Max();
             if (maxStrain == 0)
                 return 0;
 
-            return ObjectStrains.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / maxStrain * 12.0 - 6.0))));
+            return Difficulties.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / maxStrain * 12.0 - 6.0))));
         }
     }
 }

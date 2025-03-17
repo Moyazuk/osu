@@ -22,6 +22,9 @@ namespace osu.Game.Rulesets.Difficulty.Skills
 
         private readonly Mod[] mods;
 
+        public readonly List<double> Times = new List<double>();
+        public readonly List<double> Difficulties = new List<double>();
+
         protected Skill(Mod[] mods)
         {
             this.mods = mods;

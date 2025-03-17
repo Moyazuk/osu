@@ -54,6 +54,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             ExpPolynomial aimMissPenaltyCurve = ((OsuTimeSkill)skills[0]).GetMissCountPolynomial();
             double speedDifficultyStrainCount = ((OsuStrainSkill)skills[2]).CountTopWeightedStrains();
 
+
             if (mods.Any(m => m is OsuModTouchDevice))
             {
                 aimRating = Math.Pow(aimRating, 0.8);
@@ -72,6 +73,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 aimRating = 0.0;
                 flashlightRating *= 0.4;
             }
+
+            var speed = skills.OfType<Speed>().Single();
+
+            double speedRelevantObjectCount = speed.CountRelevantObjects();
+
+            double speedLengthBonus = 1.0 + Math.Min(0.5, speedRelevantObjectCount / 1000.0) +
+                                      (speedRelevantObjectCount > 500 ? Math.Log10(speedRelevantObjectCount / 500.0) : 0.0);
+            speedRating *= Math.Cbrt(speedLengthBonus);
 
             double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);
             double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating);

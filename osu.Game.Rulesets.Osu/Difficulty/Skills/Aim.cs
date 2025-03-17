@@ -28,7 +28,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainInfluence => 1 / 8.0;
 
-        private double agiStrainInfluence => 1 / 1.0;
+        private double agiStrainInfluence => 2.5 / 1.0;
 
         protected override double HitProbability(double skill, double difficulty)
         {
@@ -40,6 +40,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
         private double agilityStrainDecay(double ms) => Math.Pow(strainDecayAgiBase, ms / 1000);
+
+        protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => currentStrain * strainDecay(time - current.Previous(0).StartTime);
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
@@ -56,7 +58,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (snapDifficulty < flowDifficulty)
             {
                 currentStrain += snapBaseDifficulty / 4.0;
-                agilityStrain += agilityDifficulty * 0.5;
+                agilityStrain += agilityDifficulty * 2.5;
             }
             else
             {
