@@ -28,7 +28,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainInfluence => 1 / 8.0;
 
-        private double agiStrainInfluence => 2.5 / 1.0;
+        private double agiStrainInfluence => 2.0 / 1.0;
 
         protected override double HitProbability(double skill, double difficulty)
         {
@@ -43,6 +43,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => currentStrain * strainDecay(time - current.Previous(0).StartTime);
 
+        private bool wasFlow = false; // Tracks last aim type
+
         protected override double StrainValueAt(DifficultyHitObject current)
         {
             agilityStrain *= agilityStrainDecay(current.DeltaTime);
@@ -53,19 +55,29 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double snapDifficulty = snapBaseDifficulty + (agilityDifficulty + agilityStrain * agiStrainInfluence);
             double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current);
 
+            bool isFlow = flowDifficulty < snapDifficulty;
             double currentDifficulty = Math.Min(snapDifficulty, flowDifficulty);
 
-            if (snapDifficulty < flowDifficulty)
+            // If switching from flow to snap, or snap to flow, apply a small bonus.
+            if (isFlow != wasFlow)
+            {
+                double switchBonus = 1.25;
+                //currentDifficulty *= switchBonus;
+            }
+
+            if (!isFlow)
             {
                 currentStrain += snapBaseDifficulty / 4.0;
-                agilityStrain += agilityDifficulty * 2.5;
+                agilityStrain += agilityDifficulty * 2.0;
             }
             else
             {
+                double currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
                 currentStrain += currentDifficulty / 4.0;
             }
 
-            // Strain contributes around 1 extra star for consistent 7-star gameplay at 200bpm, and 1.75 extra stars for consistent 7-star gameplay at 300bpm.
+            wasFlow = isFlow; // Update the last aim type
+
             return currentDifficulty + currentStrain * strainInfluence;
         }
     }

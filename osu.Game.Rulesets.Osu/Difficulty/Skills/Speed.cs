@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -16,63 +16,33 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Speed : OsuStrainSkill
     {
-        private double totalMultiplier => 1.0;
-        private double burstMultiplier => 2.1;
-        private double streamMultiplier => 0.025;
-        private double staminaMultiplier => 0.027;
-        private double meanFactor => 1.25;
+        private double skillMultiplier => 1.35;
+        private double strainDecayBase => 0.3;
 
-        private double currentBurstStrain;
-        private double currentStreamStrain;
-        private double currentStaminaStrain;
+        private double currentStrain;
         private double currentRhythm;
 
-        public readonly bool WithoutStamina;
+        protected override int ReducedSectionCount => 5;
 
         public Speed(Mod[] mods)
             : base(mods)
         {
         }
 
-        private double strainDecayBurst(double ms) => Math.Pow(0.14, ms / 1000);
-        private double strainDecayStream(double ms) => Math.Pow(0.01, Math.Pow(ms / 1000, 1.6));
-        private double strainDecayStamina(double ms) => Math.Pow(0.1, Math.Pow(ms / 1000, 2.6));
+        private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
 
-        protected override double CalculateInitialStrain(double time, DifficultyHitObject current)
-        {
-            if (WithoutStamina)
-                return currentBurstStrain * currentRhythm * strainDecayBurst(time - current.Previous(0).StartTime);
-
-            return Math.Pow(
-                Math.Pow(currentBurstStrain * currentRhythm * strainDecayBurst(time - current.Previous(0).StartTime), meanFactor) +
-                Math.Pow(currentStreamStrain * strainDecayStream(time - current.Previous(0).StartTime), meanFactor) +
-                Math.Pow(currentStaminaStrain * strainDecayStamina(time - current.Previous(0).StartTime), meanFactor), 1.0 / meanFactor
-            );
-        }
+        protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => (currentStrain * currentRhythm) * strainDecay(time - current.Previous(0).StartTime);
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            currentBurstStrain *= strainDecayBurst(((OsuDifficultyHitObject)current).StrainTime);
+            currentStrain *= strainDecay(((OsuDifficultyHitObject)current).StrainTime);
+            currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+
             currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
-            currentBurstStrain += SpeedEvaluator.EvaluateDifficultyOf(current) * burstMultiplier;
 
-            if (WithoutStamina)
-                return currentBurstStrain * currentRhythm;
+            double totalStrain = currentStrain * currentRhythm;
 
-            currentStreamStrain *= strainDecayStream(((OsuDifficultyHitObject)current).StrainTime);
-            currentStreamStrain += StaminaEvaluator.EvaluateDifficultyOf(current) * streamMultiplier;
-
-            currentStaminaStrain *= strainDecayStamina(((OsuDifficultyHitObject)current).StrainTime);
-            currentStaminaStrain += StaminaEvaluator.EvaluateDifficultyOf(current) * staminaMultiplier;
-
-            double totalValue =
-                Math.Pow(
-                    Math.Pow(currentBurstStrain * currentRhythm, meanFactor) +
-                    Math.Pow(currentStreamStrain, meanFactor) +
-                    Math.Pow(currentStaminaStrain, meanFactor), 1.0 / meanFactor
-                );
-
-            return totalValue * totalMultiplier;
+            return totalStrain;
         }
 
         public double RelevantNoteCount()
