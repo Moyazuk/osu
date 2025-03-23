@@ -25,7 +25,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
     public class OsuDifficultyCalculator : DifficultyCalculator
     {
         private const double difficulty_multiplier = 0.0675;
-        public const double AIM_EXPONENT = 0.55;
+        public const double AIM_EXPONENT = 0.50;
 
         public override int Version => 20241007;
 
@@ -78,8 +78,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double speedRelevantObjectCount = speed.CountRelevantObjects();
 
-            double speedLengthBonus = 1.0 + Math.Min(0.5, speedRelevantObjectCount / 1000.0) +
-                                      (speedRelevantObjectCount > 500 ? Math.Log10(speedRelevantObjectCount / 550.0) : 0.0);
+            double speedLengthBonus = 1.0 + Math.Min(0.5, speedRelevantObjectCount / 1300.0) +
+                                      (speedRelevantObjectCount > 500 ? Math.Log10(speedRelevantObjectCount / 450.0) : 0.0);
             speedRating *= Math.Cbrt(speedLengthBonus);
 
             double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);

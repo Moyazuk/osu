@@ -28,6 +28,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainInfluence => 1 / 8.0;
 
+        private double flowStrainInfluence => 1 / 2.0;
+
         private double agiStrainInfluence => 2.0 / 1.0;
 
         protected override double HitProbability(double skill, double difficulty)
@@ -54,6 +56,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double snapBaseDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current);
             double snapDifficulty = snapBaseDifficulty + (agilityDifficulty + agilityStrain * agiStrainInfluence);
             double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current);
+            double adjStrainInfluence = 0;
 
             bool isFlow = flowDifficulty < snapDifficulty;
             double currentDifficulty = Math.Min(snapDifficulty, flowDifficulty);
@@ -61,24 +64,26 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             // If switching from flow to snap, or snap to flow, apply a small bonus.
             if (isFlow != wasFlow)
             {
-                double switchBonus = 1.25;
+                //double switchBonus = 1.25;
                 //currentDifficulty *= switchBonus;
             }
 
             if (!isFlow)
             {
-                currentStrain += snapBaseDifficulty / 4.0;
+                currentStrain += snapBaseDifficulty / 8.0;
                 agilityStrain += agilityDifficulty * 2.0;
+                adjStrainInfluence = strainInfluence;
             }
             else
             {
                 double currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
-                currentStrain += currentDifficulty / 4.0;
+                currentStrain += currentDifficulty / 2.0;
+                adjStrainInfluence = flowStrainInfluence;
             }
 
-            wasFlow = isFlow; // Update the last aim type
+            wasFlow = isFlow;
 
-            return currentDifficulty + currentStrain * strainInfluence;
+            return currentDifficulty + currentStrain * adjStrainInfluence;
         }
     }
 }
