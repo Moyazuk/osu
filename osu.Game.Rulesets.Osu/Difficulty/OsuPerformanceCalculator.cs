@@ -123,13 +123,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double speedValue = computeSpeedValue(score, osuAttributes);
             double accuracyValue = computeAccuracyValue(score);
             double flashlightValue = computeFlashlightValue(score, osuAttributes);
-
+            double readingValue = computeReadingValue(score, osuAttributes);
             double totalValue =
                 Math.Pow(
                     Math.Pow(aimValue, 1.1) +
                     Math.Pow(speedValue, 1.1) +
                     Math.Pow(accuracyValue, 1.1) +
-                    Math.Pow(flashlightValue, 1.1), 1.0 / 1.1
+                    Math.Pow(flashlightValue, 1.1) +
+                    Math.Pow(readingValue, 1.1), 1.0 / 1.1
                 ) * multiplier;
 
             return new OsuPerformanceAttributes
@@ -138,6 +139,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 Speed = speedValue,
                 Accuracy = accuracyValue,
                 Flashlight = flashlightValue,
+                Reading = readingValue,
                 EffectiveMissCount = effectiveMissCount,
                 SpeedDeviation = speedDeviation,
                 Total = totalValue
@@ -183,8 +185,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double approachRateFactor = 0.0;
             if (attributes.ApproachRate > 10.33)
                 approachRateFactor = 0.3 * (attributes.ApproachRate - 10.33);
-            else if (attributes.ApproachRate < 8.0)
-                approachRateFactor = 0.05 * (8.0 - attributes.ApproachRate);
 
             if (score.Mods.Any(h => h is OsuModRelax))
                 approachRateFactor = 0.0;
@@ -193,11 +193,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             if (score.Mods.Any(m => m is OsuModBlinds))
                 aimValue *= 1.3 + (totalHits * (0.0016 / (1 + 2 * effectiveMissCount)) * Math.Pow(accuracy, 16)) * (1 - 0.003 * attributes.DrainRate * attributes.DrainRate);
-            else if (score.Mods.Any(m => m is OsuModHidden || m is OsuModTraceable))
-            {
-                // We want to give more reward for lower AR when it comes to aim and HD. This nerfs high AR and buffs lower AR.
-                aimValue *= 1.0 + 0.04 * (12.0 - attributes.ApproachRate);
-            }
 
             aimValue *= accuracy;
             // It is important to consider accuracy difficulty when scaling with accuracy.
@@ -233,11 +228,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 // Increasing the speed value by object count for Blinds isn't ideal, so the minimum buff is given.
                 speedValue *= 1.12;
             }
-            else if (score.Mods.Any(m => m is OsuModHidden || m is OsuModTraceable))
-            {
-                // We want to give more reward for lower AR when it comes to aim and HD. This nerfs high AR and buffs lower AR.
-                speedValue *= 1.0 + 0.04 * (12.0 - attributes.ApproachRate);
-            }
 
             double speedHighDeviationMultiplier = calculateSpeedHighDeviationNerf(attributes);
             speedValue *= speedHighDeviationMultiplier;
@@ -265,8 +255,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
             if (score.Mods.Any(m => m is OsuModBlinds))
                 accuracyValue *= 1.14;
-            else if (score.Mods.Any(m => m is OsuModHidden || m is OsuModTraceable))
-                accuracyValue *= 1.08;
 
             if (score.Mods.Any(m => m is OsuModFlashlight))
                 accuracyValue *= 1.02;
@@ -297,6 +285,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             flashlightValue *= 0.98 + Math.Pow(Math.Max(0, attributes.OverallDifficulty), 2) / 2500;
 
             return flashlightValue;
+        }
+
+        private double computeReadingValue(ScoreInfo score, OsuDifficultyAttributes attributes)
+        {
+            double readingValue = Reading.DifficultyToPerformance(attributes.ReadingDifficulty);
+
+            if (effectiveMissCount > 0)
+                readingValue *= calculateMissPenalty(effectiveMissCount, attributes.ReadingDifficultStrainCount);
+
+            // Scale the reading value with accuracy _harshly_.
+            readingValue *= accuracy * accuracy;
+            // It is important to also consider accuracy difficulty when doing that.
+            readingValue *= 0.98 + Math.Pow(attributes.OverallDifficulty, 2) / 2500;
+
+            return readingValue;
         }
 
         /// <summary>

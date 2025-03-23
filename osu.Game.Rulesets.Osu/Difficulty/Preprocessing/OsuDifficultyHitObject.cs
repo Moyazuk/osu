@@ -66,12 +66,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
 
         private readonly OsuHitObject? lastLastObject;
         private readonly OsuHitObject lastObject;
+        public readonly double Preempt;
 
         public OsuDifficultyHitObject(HitObject hitObject, HitObject lastObject, HitObject? lastLastObject, double clockRate, List<DifficultyHitObject> objects, int index)
             : base(hitObject, lastObject, clockRate, objects, index)
         {
             this.lastLastObject = lastLastObject as OsuHitObject;
             this.lastObject = (OsuHitObject)lastObject;
+            Preempt = BaseObject.TimePreempt / clockRate;
 
             Radius = BaseObject.Radius;
 
