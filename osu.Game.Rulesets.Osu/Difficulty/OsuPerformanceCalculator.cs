@@ -182,15 +182,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (effectiveMissCount > 0)
                 aimValue *= calculateCurveFittedMissPenalty(effectiveMissCount, attributes.AimMissPenaltyCurve);
 
-            double approachRateFactor = 0.0;
-            if (attributes.ApproachRate > 10.33)
-                approachRateFactor = 0.3 * (attributes.ApproachRate - 10.33);
-
-            if (score.Mods.Any(h => h is OsuModRelax))
-                approachRateFactor = 0.0;
-
-            aimValue *= 1.0 + approachRateFactor * lengthBonus; // Buff for longer maps with high AR.
-
             if (score.Mods.Any(m => m is OsuModBlinds))
                 aimValue *= 1.3 + (totalHits * (0.0016 / (1 + 2 * effectiveMissCount)) * Math.Pow(accuracy, 16)) * (1 - 0.003 * attributes.DrainRate * attributes.DrainRate);
 
@@ -214,15 +205,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (effectiveMissCount > 0)
                 speedValue *= calculateStrainCountMissPenalty(effectiveMissCount, attributes.SpeedDifficultStrainCount);
 
-            double approachRateFactor = 0.0;
-            if (attributes.ApproachRate > 10.33)
-                approachRateFactor = 0.3 * (attributes.ApproachRate - 10.33);
-
-            if (score.Mods.Any(h => h is OsuModAutopilot))
-                approachRateFactor = 0.0;
-
-            speedValue *= 1.0 + approachRateFactor * lengthBonus; // Buff for longer maps with high AR.
-
             if (score.Mods.Any(m => m is OsuModBlinds))
             {
                 // Increasing the speed value by object count for Blinds isn't ideal, so the minimum buff is given.
@@ -239,8 +221,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double relevantCountMeh = Math.Max(0, countMeh - Math.Max(0, relevantTotalDiff - countGreat - countOk));
             double relevantAccuracy = attributes.SpeedNoteCount == 0 ? 0 : (relevantCountGreat * 6.0 + relevantCountOk * 2.0 + relevantCountMeh) / (attributes.SpeedNoteCount * 6.0);
 
-            // Scale the speed value with accuracy and OD.
-            speedValue *= (0.95 + Math.Pow(Math.Max(0, attributes.OverallDifficulty), 2) / 750) * Math.Pow((accuracy + relevantAccuracy) / 2.0, (14.5 - attributes.OverallDifficulty) / 2);
+            // An effective hit window is created based on the speed SR. The higher the speed difficulty, the shorter the hit window.
+            // For example, a speed SR of 3.0 leads to an effective hit window of 20ms, which is OD 10.
+            double effectiveHitWindow = Math.Sqrt(20 * 60 / attributes.SpeedDifficulty);
+
+            // Find the proportion of 300s on speed notes assuming the hit window was the effective hit window.
+            double effectiveAccuracy = SpecialFunctions.Erf(effectiveHitWindow / (double)speedDeviation);
+
+            // OD 11.11 SS stays the same.
+            speedValue *= 1 + 557 / 4860.0;
+
+            // Scale speed value by normalized accuracy.
+            speedValue *= Math.Pow(effectiveAccuracy, 2);
 
             return speedValue;
         }
@@ -251,10 +243,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 return 0.0;
 
             double accuracyValue = 120 * Math.Pow(7.5 / (double)deviation, 2);
-
-            // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
-            if (score.Mods.Any(m => m is OsuModBlinds))
-                accuracyValue *= 1.14;
 
             if (score.Mods.Any(m => m is OsuModFlashlight))
                 accuracyValue *= 1.02;
@@ -292,7 +280,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double readingValue = Reading.DifficultyToPerformance(attributes.ReadingDifficulty);
 
             if (effectiveMissCount > 0)
-                readingValue *= calculateMissPenalty(effectiveMissCount, attributes.ReadingDifficultStrainCount);
+                readingValue *= calculateStrainCountMissPenalty(effectiveMissCount, attributes.ReadingDifficultStrainCount);
 
             // Scale the reading value with accuracy _harshly_.
             readingValue *= accuracy * accuracy;

@@ -17,50 +17,71 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     public static class ReadingEvaluator
     {
         private const double reading_window_size = 3000;
-        private const double hidden_multiplier = 0.6;
 
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, IReadOnlyList<Mod> mods)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, IReadOnlyList<Mod> mods, double rhythm)
         {
             if (current.BaseObject is Spinner || current.Index == 0)
                 return 0;
 
             var currObj = (OsuDifficultyHitObject)current;
+            double currVelocity = currObj.Movement.Length / currObj.StrainTime;
 
-            double noteDensityDifficulty = 1.0;
+            double pastObjectDifficultyInfluence = 1.0;
 
             foreach (var loopObj in retrievePastVisibleObjects(currObj))
             {
                 double loopDifficulty = currObj.OpacityAt(loopObj.BaseObject.StartTime, false);
 
                 // Small distances means objects may be cheesed, so it doesn't matter whether they are arranged confusingly.
-                loopDifficulty *= DifficultyCalculationUtils.Logistic(-(loopObj.MinimumJumpDistance - 80) / 15);
+                loopDifficulty *= DifficultyCalculationUtils.Logistic(-(loopObj.Movement.Length - 80) / 15);
 
                 double timeBetweenCurrAndLoopObj = (currObj.BaseObject.StartTime - loopObj.BaseObject.StartTime) / current.ClockRate;
                 loopDifficulty *= getTimeNerfFactor(timeBetweenCurrAndLoopObj);
 
-                noteDensityDifficulty += loopDifficulty;
+                pastObjectDifficultyInfluence += loopDifficulty;
             }
 
-            // Only award notes over 2.5 difficulty so we only buff denser than average maps
-            noteDensityDifficulty = Math.Max(0, noteDensityDifficulty - 2.5);
+            double preemptDifficulty = 0.0;
+
+            double currApproachRate = currObj.Preempt; // Approach rate in milliseconds
+
+            if (currApproachRate < 500)
+            {
+                preemptDifficulty += Math.Pow(500 - currApproachRate, 2.1) / 18000;
+
+                // Buff spacing.
+                preemptDifficulty *= currVelocity;
+
+                // Nerf preempt difficulty with density, lower density means more difficulty
+                // This is on the basis that in a high density environment you can rely more on patterns and muscle memory
+                preemptDifficulty /= Math.Max(1, retrieveCurrentVisibleObjects(currObj).Count);
+
+                // Nerf reading difficulty less the more rhythmically straining a note is
+                preemptDifficulty /= 1 + 2 * DifficultyCalculationUtils.Logistic(15 * rhythm - 17);
+            }
 
             double hiddenDifficulty = 0;
 
             if (mods.OfType<OsuModHidden>().Any())
             {
-                double currVelocity = currObj.LazyJumpDistance / currObj.StrainTime;
                 double timeSpentInvisible = getDurationSpentInvisible(currObj) / current.ClockRate;
                 // Nerf hidden difficulty less the more density difficulty you have
-                // We stop nerfing at density of 1 because there is a still an inherent hidden difficulty at low density
-                double timeDifficultyFactor = noteDensityDifficulty <= 1 ? 400 : 400 / noteDensityDifficulty;
+                double timeDifficultyFactor = 12000 / pastObjectDifficultyInfluence;
 
-                double visibleObjectFactor = Math.Clamp(retrieveCurrentVisibleObjects(currObj).Count - 2, 0, 15);
+                // Clamp objects because after a certain point hidden density is mainly memory
+                double visibleObjectFactor = Math.Min(retrieveCurrentVisibleObjects(currObj).Count, 10);
 
                 // The longer an object is hidden, the more velocity should matter
-                hiddenDifficulty += (visibleObjectFactor + timeSpentInvisible * currVelocity) / timeDifficultyFactor;
+                hiddenDifficulty += visibleObjectFactor * timeSpentInvisible * currVelocity / timeDifficultyFactor;
+
+                // Buff rhythm
+                hiddenDifficulty *= rhythm;
             }
 
-            double difficulty = hiddenDifficulty * hidden_multiplier + noteDensityDifficulty;
+            // Award only denser than average maps
+            double noteDensityDifficulty = Math.Max(0, pastObjectDifficultyInfluence - 2.8);
+
+            double difficulty = preemptDifficulty + hiddenDifficulty + noteDensityDifficulty;
 
             difficulty *= getConstantAngleNerfFactor(currObj);
 

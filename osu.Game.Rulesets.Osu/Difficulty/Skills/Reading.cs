@@ -4,13 +4,14 @@
 using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
     public class Reading : OsuStrainSkill
     {
-        private double skillMultiplier => 7.9;
+        private double skillMultiplier => 9.0;
         private double currentStrain;
         private double strainDecayBase => 0.2;
 
@@ -25,11 +26,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         protected override double StrainValueAt(DifficultyHitObject current)
         {
             currentStrain *= strainDecay(current.DeltaTime);
-            currentStrain += ReadingEvaluator.EvaluateDifficultyOf(current, Mods) * skillMultiplier;
+            currentStrain += ReadingEvaluator.EvaluateDifficultyOf(current, Mods, RhythmEvaluator.EvaluateDifficultyOf(current)) * skillMultiplier;
 
             return currentStrain;
         }
 
-        public static double DifficultyToPerformance(double difficulty) => 25 * Math.Pow(difficulty, 2);
+        public new static double DifficultyToPerformance(double difficulty) => 25 * Math.Pow(difficulty, 2);
     }
 }
