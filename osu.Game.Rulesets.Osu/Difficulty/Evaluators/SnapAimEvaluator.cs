@@ -21,7 +21,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double difficulty = EvaluateDistanceBonus(current) * 126;
             //difficulty += EvaluateAgilityBonus(current) * 65;
             difficulty += EvaluateAngleBonus(current) * 126;
-            difficulty += EvaluateVelocityChangeBonus(current) * 145;
+            difficulty += EvaluateVelocityChangeBonus(current) * 160;
 
             return difficulty;
         }
@@ -80,7 +80,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double prevVelocity = osuPrevObj.Movement.Length / osuPrevObj.StrainTime;
 
             // We scale angle bonus by the amount of overlap between the previous 2 notes. This addresses cheesable angles
-            double prevDistanceMultiplier = Smootherstep(osuPrevObj.RawMovement.Length / osuPrevObj.Radius, 0.5, 1);
+            double prevDistanceMultiplier = Smootherstep(osuPrevObj.RawMovement.Length / osuPrevObj.Radius, 0, 0.25);
 
             // We also scale angle bonus by the difference in velocity from prevPrev -> prev and prev -> current. This addresses cut stream patterns.
             prevDistanceMultiplier *= Math.Pow((currVelocity > 0 ? Math.Min(1, prevVelocity * 1.4 / currVelocity) : 1), 1);
