@@ -18,10 +18,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 return 0;
 
             // Base snap difficulty is velocity.
-            double difficulty = EvaluateDistanceBonus(current) * 126;
+            double difficulty = EvaluateDistanceBonus(current) * 286;
             //difficulty += EvaluateAgilityBonus(current) * 65;
-            difficulty += EvaluateAngleBonus(current) * 126;
-            difficulty += EvaluateVelocityChangeBonus(current) * 160;
+            difficulty += EvaluateAngleBonus(current) * 286;
+            difficulty += EvaluateVelocityChangeBonus(current) * 420;
 
             return difficulty;
         }
@@ -61,9 +61,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double baseBpm = 240.0 / (1 + 0.15 * Smootherstep(currentAngle, 0, 120) * currDistanceMultiplier * prevDistanceMultiplier);
 
             // Agility bonus of 1 at base BPM.
-            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 4.5) - 1);
+            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 4) - 1);
 
-            return agilityBonus * 2.85;
+            return agilityBonus * 0.15;
         }
 
         public static double EvaluateAngleBonus(DifficultyHitObject current)

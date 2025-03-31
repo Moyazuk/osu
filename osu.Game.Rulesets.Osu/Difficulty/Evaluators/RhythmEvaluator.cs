@@ -170,7 +170,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 prevObj = currObj;
             }
 
-            return Math.Sqrt(4 + rhythmComplexitySum * 1.95) / 2.0; // produces multiplier that can be applied to strain. range [1, infinity) (not really though)
+            return Math.Sqrt(4 + rhythmComplexitySum * 1.25) / 2.0; // produces multiplier that can be applied to strain. range [1, infinity) (not really though)
         }
 
         private class Island : IEquatable<Island>

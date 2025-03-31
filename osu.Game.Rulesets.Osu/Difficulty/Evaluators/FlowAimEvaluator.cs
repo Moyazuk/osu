@@ -13,7 +13,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     public static class FlowAimEvaluator
     {
         // The reason why this exist in evaluator instead of FlowAim skill - it's because it's very important to keep flowaim in the same scaling as snapaim on evaluator level
-        private static double flowMultiplier => 110;
+        private static double flowMultiplier => 235;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
@@ -43,14 +43,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             else
             {
                 // Decrease power here if you want to buff low-spaced flow aim
-                flowDifficulty *= Math.Pow(osuCurrObj.Movement.Length / diameter, 0.8);
+                flowDifficulty *= Math.Pow(osuCurrObj.Movement.Length / diameter, 1.4);
             }
 
             // Flow aim is harder on High BPM
             // Increase multiplier in the beginning to buff all the scaling
             // Increase power to increase buff for spaced speedflow
             // Increase number in the divisor to make steeper scaling with bpm
-            flowDifficulty += 1.6 * (Math.Pow(osuCurrObj.Movement.Length, 0.7) / osuCurrObj.StrainTime) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 12) - 1);
+            flowDifficulty += 2.4 * (Math.Pow(osuCurrObj.Movement.Length, 0.7) / osuCurrObj.StrainTime) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 12) - 1);
 
             double angleBonus = 0;
 
