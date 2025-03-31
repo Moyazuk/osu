@@ -13,10 +13,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     public static class FlowAimEvaluator
     {
         // The reason why this exist in evaluator instead of FlowAim skill - it's because it's very important to keep flowaim in the same scaling as snapaim on evaluator level
-        private static double flowMultiplier => 485.21;
+        private static double flowMultiplier => 112.147;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
+            if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
+                return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuLast0Obj = (OsuDifficultyHitObject)current.Previous(0);
@@ -36,23 +38,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double comfyness = IdentifyComfyFlow(current);
 
                 // Change those 2 power coeficients to control amount of buff high spaced flow aim has for comfy/uncomfy patterns
-                flowDifficulty *= Math.Pow(osuCurrObj.Movement.Length / diameter, 0.25 - 1.45 * comfyness);
+                flowDifficulty *= Math.Pow(osuCurrObj.Movement.Length / diameter, 0.75 - 0.55 * comfyness);
             }
             else
             {
                 // Decrease power here if you want to buff low-spaced flow aim
-                flowDifficulty *= Math.Pow(osuCurrObj.Movement.Length / diameter, 2);
+                flowDifficulty *= Math.Pow(osuCurrObj.Movement.Length / diameter, 0.8);
             }
 
             // Flow aim is harder on High BPM
             // Increase multiplier in the beginning to buff all the scaling
             // Increase power to increase buff for spaced speedflow
             // Increase number in the divisor to make steeper scaling with bpm
-            flowDifficulty += 2.8 * (Math.Pow(osuCurrObj.Movement.Length, 0.7) / osuCurrObj.StrainTime) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 12) - 1);
+            flowDifficulty += 1.6 * (Math.Pow(osuCurrObj.Movement.Length, 0.7) / osuCurrObj.StrainTime) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 12) - 1);
 
             double angleBonus = 0;
 
-            if (osuCurrObj.Angle != null && osuLast0Obj.Angle != null && osuLast1Obj.Angle != null)
+            if (osuCurrObj.AngleSigned != null && osuLast0Obj.AngleSigned != null && osuLast1Obj.AngleSigned != null)
             {
                 double angleChangeBonus = CalculateFlowAngleChangeBonus(current);
                 double acuteAngleBonus = CalculateFlowAcuteAngleBonus(current);
@@ -94,6 +96,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         // This bonus accounts for the fact that flow is circular movement, therefore flowing on sharp angles is harder.
         public static double CalculateFlowAcuteAngleBonus(DifficultyHitObject current)
         {
+            if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
+                return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
@@ -143,14 +147,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
             var osuLast2Obj = (OsuDifficultyHitObject)current.Previous(2);
 
-            if (osuCurrObj.Angle == null || osuLastObj.Angle == null)
+            if (osuCurrObj.AngleSigned == null || osuLastObj.AngleSigned == null)
                 return 0;
 
             double currVelocity = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
             double prevVelocity = osuLastObj.Movement.Length / osuLastObj.StrainTime;
 
-            double currAngle = osuCurrObj.Angle.Value;
-            double lastAngle = osuLastObj.Angle.Value;
+            double currAngle = osuCurrObj.AngleSigned.Value;
+            double lastAngle = osuLastObj.AngleSigned.Value;
 
             double minVelocity = Math.Min(currVelocity, prevVelocity);
             double angleChangeBonus = Math.Pow(Math.Sin((currAngle - lastAngle) / 2), 2) * minVelocity;
@@ -275,7 +279,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             OsuDifficultyHitObject? osuLast2Obj = (OsuDifficultyHitObject)current.Previous(starting_index);
             OsuDifficultyHitObject? osuLast3Obj = (OsuDifficultyHitObject)current.Previous(starting_index + 1);
 
-            double prevAngle = osuLast1Obj.Angle ?? 0;
+            double prevAngle = osuLast1Obj.AngleSigned ?? 0;
             double prevAngleChange = 0;
 
             double prev2Velocity = osuLast3Obj != null ? osuLast3Obj.Movement.Length / osuLast3Obj.StrainTime : double.NaN;
@@ -298,7 +302,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             {
                 var relevantObj = (OsuDifficultyHitObject)current.Previous(i);
 
-                double currAngle = relevantObj.Angle?? 0;
+                double currAngle = relevantObj.AngleSigned ?? 0;
 
                 if (angleLeniency > 0)
                 {
@@ -353,7 +357,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 prevAngleChange = currAngleChange;
             }
 
-            return totalComfyness ;
+            return totalComfyness;
         }
 
         private static double normalizeVelocityChange(double velocityChange) => double.IsNaN(velocityChange) ? 1.0 : velocityChange >= 1 ? velocityChange : 1.0 / velocityChange;
