@@ -12,13 +12,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class SnapAimEvaluator
     {
-        public static double EvaluateDifficultyOf(DifficultyHitObject current)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
         {
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
 
             // Base snap difficulty is velocity.
-            double difficulty = EvaluateDistanceBonus(current) * 263;
+            double difficulty = EvaluateDistanceBonus(current, withSliderTravelDistance) * 263;
             double sliderBonus = 0;
             //difficulty += EvaluateAgilityBonus(current) * 65;
             difficulty += EvaluateAngleBonus(current) * 263;
@@ -26,20 +26,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             var osuPrevObj = (OsuDifficultyHitObject)current;
 
-            if (osuPrevObj.BaseObject is Slider)
+            if (osuPrevObj.BaseObject is Slider && withSliderTravelDistance)
             {
                 // Reward sliders based on velocity.
                 sliderBonus = osuPrevObj.TravelDistance / osuPrevObj.TravelTime;
             }
 
             // Add in additional slider velocity bonus.
-
-            difficulty += sliderBonus * 30;
+            if (withSliderTravelDistance)
+                difficulty += sliderBonus * 60;
 
             return difficulty;
         }
 
-        public static double EvaluateDistanceBonus(DifficultyHitObject current)
+        public static double EvaluateDistanceBonus(DifficultyHitObject current, bool withSliderTravelDistance)
         {
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuPrevObj = (OsuDifficultyHitObject)current;
@@ -48,7 +48,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double distanceBonus = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
 
             // But if the last object is a slider, then we extend the travel velocity through the slider into the current object.
-            if (osuPrevObj.BaseObject is Slider)
+            if (osuPrevObj.BaseObject is Slider && withSliderTravelDistance)
             {
                 double travelVelocity = osuPrevObj.TravelDistance / osuPrevObj.TravelTime; // calculate the slider velocity from slider head to slider end.
                 double movementVelocity = osuCurrObj.MinimumJumpDistance / osuCurrObj.MinimumJumpTime; // calculate the movement velocity from slider end to current object
@@ -110,7 +110,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double angleBonus = Smootherstep(currAngle, 0, 180) * currVelocity * prevDistanceMultiplier; // Gengaozo pattern
 
-            double distanceScaling = 0.1 + 0.9 * Smootherstep(osuCurrObj.RawMovement.Length / osuCurrObj.Radius, 0.0, 8);
+            double distanceScaling = 0.4 + 0.6 * Smootherstep(osuCurrObj.RawMovement.Length / osuCurrObj.Radius, 0.0, 8);
 
             return angleBonus * distanceScaling;
         }

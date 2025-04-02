@@ -2,11 +2,14 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Difficulty.Utils;
+using osu.Game.Rulesets.Osu.Objects;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
@@ -15,10 +18,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Aim : OsuTimeSkill
     {
-        public Aim(Mod[] mods, bool withSliders)
+        public readonly bool IncludeSliders;
+        public Aim(Mod[] mods, bool includeSliders)
             : base(mods)
         {
+            IncludeSliders = includeSliders;
         }
+
+        private readonly List<double> sliderStrains = new List<double>();
 
         private double currentStrain;
         private double agilityStrain;
@@ -53,9 +60,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             currentStrain *= strainDecay(current.DeltaTime);
 
             double agilityDifficulty = SnapAimEvaluator.EvaluateAgilityBonus(current);
-            double snapBaseDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current);
+            double snapBaseDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
             double snapDifficulty = snapBaseDifficulty + (agilityDifficulty + agilityStrain * agiStrainInfluence);
-            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current);
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
             double adjStrainInfluence = 0;
 
             bool isFlow = flowDifficulty < snapDifficulty;
@@ -83,7 +90,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             wasFlow = isFlow;
 
+            if (current.BaseObject is Slider)
+            {
+                sliderStrains.Add(currentStrain);
+            }
+
             return currentDifficulty + currentStrain * adjStrainInfluence;
+        }
+        public double GetDifficultSliders()
+        {
+            if (sliderStrains.Count == 0)
+                return 0;
+
+            double maxSliderStrain = sliderStrains.Max();
+            if (maxSliderStrain == 0)
+                return 0;
+
+            return sliderStrains.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / maxSliderStrain * 12.0 - 6.0))));
         }
     }
 }
