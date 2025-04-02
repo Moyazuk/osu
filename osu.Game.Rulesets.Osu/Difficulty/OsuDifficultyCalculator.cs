@@ -85,8 +85,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double speedRelevantObjectCount = speed.CountRelevantObjects();
 
-            double speedLengthBonus = 1.0 + Math.Min(0.5, speedRelevantObjectCount / 1500.0) +
-                                      (speedRelevantObjectCount > 500 ? Math.Log10(speedRelevantObjectCount / 550.0) : 0.0);
+            double speedLengthBonus = 1.0 + Math.Min(0.5, speedRelevantObjectCount / 1300.0) +
+                                      (speedRelevantObjectCount > 500 ? Math.Log10(speedRelevantObjectCount / 650.0) : 0.0);
             speedRating *= Math.Cbrt(speedLengthBonus);
 
             double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);

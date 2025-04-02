@@ -13,7 +13,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     public static class FlowAimEvaluator
     {
         // The reason why this exist in evaluator instead of FlowAim skill - it's because it's very important to keep flowaim in the same scaling as snapaim on evaluator level
-        private static double flowMultiplier => 235;
+        private static double flowMultiplier => 370;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
@@ -29,6 +29,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Start with velocity
             double velocity = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
 
+            if (osuLast0Obj.BaseObject is Slider)
+            {
+                double travelVelocity = osuLast0Obj.TravelDistance / osuLast0Obj.TravelTime; // calculate the slider velocity from slider head to slider end.
+                double movementVelocity = osuCurrObj.MinimumJumpDistance / osuCurrObj.MinimumJumpTime; // calculate the movement velocity from slider end to current object
+
+                velocity = Math.Max(velocity, movementVelocity + travelVelocity); // take the larger total combined velocity.
+            }
+
+
             double flowDifficulty = velocity;
 
             // Rescale the distance to make it closer d/t
@@ -38,7 +47,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double comfyness = IdentifyComfyFlow(current);
 
                 // Change those 2 power coeficients to control amount of buff high spaced flow aim has for comfy/uncomfy patterns
-                flowDifficulty *= Math.Pow(osuCurrObj.Movement.Length / diameter, 0.75 - 0.55 * comfyness);
+                flowDifficulty *= Math.Pow(osuCurrObj.Movement.Length / diameter, 0.55 - 0.75 * comfyness);
             }
             else
             {
@@ -72,13 +81,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 // IMPORTANT INFORMATION: summing those bonuses instead of taking max singificantly buffs many alt maps
                 // BUT it also buffs ReLief. So it's should be explored how to keep this buff for actually hard patterns but not for ReLief
-                angleBonus = Math.Max(angleChangeBonus, acuteAngleBonus) * overlappedNotesWeight;
+                angleBonus = (angleChangeBonus + acuteAngleBonus) * overlappedNotesWeight;
             }
 
             double velocityChangeBonus = CalculateFlowVelocityChangeBonus(current);
 
             flowDifficulty += angleBonus + velocityChangeBonus;
             flowDifficulty *= flowMultiplier;
+
+            if (osuLast0Obj.BaseObject is Slider)
+            {
+                double sliderBonus = osuLast0Obj.TravelDistance / osuLast0Obj.TravelTime;
+                flowDifficulty += sliderBonus * 30;
+            }
 
             return flowDifficulty;
         }

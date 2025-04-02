@@ -18,10 +18,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 return 0;
 
             // Base snap difficulty is velocity.
-            double difficulty = EvaluateDistanceBonus(current) * 286;
+            double difficulty = EvaluateDistanceBonus(current) * 263;
+            double sliderBonus = 0;
             //difficulty += EvaluateAgilityBonus(current) * 65;
-            difficulty += EvaluateAngleBonus(current) * 286;
-            difficulty += EvaluateVelocityChangeBonus(current) * 420;
+            difficulty += EvaluateAngleBonus(current) * 263;
+            difficulty += EvaluateVelocityChangeBonus(current) * 460;
+
+            var osuPrevObj = (OsuDifficultyHitObject)current;
+
+            if (osuPrevObj.BaseObject is Slider)
+            {
+                // Reward sliders based on velocity.
+                sliderBonus = osuPrevObj.TravelDistance / osuPrevObj.TravelTime;
+            }
+
+            // Add in additional slider velocity bonus.
+
+            difficulty += sliderBonus * 30;
 
             return difficulty;
         }
@@ -29,9 +42,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         public static double EvaluateDistanceBonus(DifficultyHitObject current)
         {
             var osuCurrObj = (OsuDifficultyHitObject)current;
+            var osuPrevObj = (OsuDifficultyHitObject)current;
 
             // Base snap difficulty is velocity.
             double distanceBonus = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
+
+            // But if the last object is a slider, then we extend the travel velocity through the slider into the current object.
+            if (osuPrevObj.BaseObject is Slider)
+            {
+                double travelVelocity = osuPrevObj.TravelDistance / osuPrevObj.TravelTime; // calculate the slider velocity from slider head to slider end.
+                double movementVelocity = osuCurrObj.MinimumJumpDistance / osuCurrObj.MinimumJumpTime; // calculate the movement velocity from slider end to current object
+
+                distanceBonus = Math.Max(distanceBonus, movementVelocity + travelVelocity); // take the larger total combined velocity.
+            }
 
             return distanceBonus;
         }
@@ -87,7 +110,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double angleBonus = Smootherstep(currAngle, 0, 180) * currVelocity * prevDistanceMultiplier; // Gengaozo pattern
 
-            return angleBonus;
+            double distanceScaling = 0.1 + 0.9 * Smootherstep(osuCurrObj.RawMovement.Length / osuCurrObj.Radius, 0.0, 8);
+
+            return angleBonus * distanceScaling;
         }
 
         public static double EvaluateVelocityChangeBonus(DifficultyHitObject current)

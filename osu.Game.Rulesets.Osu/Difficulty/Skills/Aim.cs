@@ -28,9 +28,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainInfluence => 1 / 8.0;
 
-        private double flowStrainInfluence => 1 / 2.0;
+        private double flowStrainInfluence => 1 / 3.0;
 
-        private double agiStrainInfluence => 16.0 / 1;
+        private double agiStrainInfluence => 16 / 1.0;
 
         protected override double HitProbability(double skill, double difficulty)
         {
@@ -71,13 +71,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (!isFlow)
             {
                 currentStrain += snapBaseDifficulty / 8.0;
-                agilityStrain += agilityDifficulty * 16.0;
+                agilityStrain += agilityDifficulty * 16;
                 adjStrainInfluence = strainInfluence;
             }
             else
             {
                 double currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
-                currentStrain += currentDifficulty / 2.0;
+                currentStrain += currentDifficulty / 3.0;
                 adjStrainInfluence = flowStrainInfluence;
             }
 
