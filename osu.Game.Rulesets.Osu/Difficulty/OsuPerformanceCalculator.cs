@@ -171,7 +171,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 }
 
                 double sliderNerfFactor = (1 - attributes.SliderFactor) * Math.Pow(1 - estimateImproperlyFollowedDifficultSliders / attributes.AimDifficultSliderCount, 2) + attributes.SliderFactor;
-                Console.WriteLine($"nerf factor: {sliderNerfFactor}");
                 aimDifficulty *= sliderNerfFactor;
             }
 
