@@ -5,12 +5,42 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Objects;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
+    public class Flow : StrainSkill
+    {
+        public readonly bool IncludeSliders;
+        public Flow(Mod[] mods, bool includeSliders)
+            : base(mods)
+        {
+            IncludeSliders = includeSliders;
+        }
+
+        private double skillMultiplier => 25.6;
+
+        protected override double StrainValueAt(DifficultyHitObject current)
+        {
+            double difficulty = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current);
+
+            bool isFlow = difficulty > flowDifficulty;
+            return isFlow ? 100 : 0;
+        }
+
+        protected override double CalculateInitialStrain(double time, DifficultyHitObject current)
+        {
+            double difficulty = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current);
+
+            bool isFlow = difficulty > flowDifficulty;
+            return isFlow ? 100 : 0;
+        }
+    }
     /// <summary>
     /// Represents the skill required to correctly aim at every object in the map with a uniform CircleSize and normalized distances.
     /// </summary>
@@ -26,7 +56,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
-        private double skillMultiplier => 25.6;
+        private double skillMultiplier => 27.3;
         private double strainDecayBase => 0.15;
 
         private readonly List<double> sliderStrains = new List<double>();
@@ -37,8 +67,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
+            double difficulty = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
+
+            difficulty *= skillMultiplier;
+
             currentStrain *= strainDecay(current.DeltaTime);
-            currentStrain += AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
+            currentStrain += difficulty;
+
 
             if (current.BaseObject is Slider)
             {

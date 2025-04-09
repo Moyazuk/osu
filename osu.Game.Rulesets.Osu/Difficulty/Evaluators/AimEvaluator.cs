@@ -16,6 +16,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         private const double slider_multiplier = 1.35;
         private const double velocity_change_multiplier = 0.75;
         private const double wiggle_multiplier = 1.02;
+        private const double single_spacing_threshold = OsuDifficultyHitObject.NORMALISED_DIAMETER * 1.25; // 1.25 circles distance between centers
 
         /// <summary>
         /// Evaluates the difficulty of aiming the current object, based on:
@@ -132,14 +133,45 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             aimStrain += wiggleBonus * wiggle_multiplier;
 
-            // Add in acute angle bonus or wide angle bonus + velocity change bonus, whichever is larger.
-            aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier + velocityChangeBonus * velocity_change_multiplier);
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current);
+            double distanceBonus = EvaluateDistanceBonusOf(current);
+
+            bool isFlow = aimStrain > flowDifficulty;
+
+            if (isFlow)
+            {
+                aimStrain += distanceBonus * 0.055;
+                aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier + velocityChangeBonus * velocity_change_multiplier);
+                aimStrain *= 1;
+            }
+            else
+                aimStrain += (acuteAngleBonus * acute_angle_multiplier) + (wideAngleBonus * wide_angle_multiplier + velocityChangeBonus * velocity_change_multiplier);
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
                 aimStrain += sliderBonus * slider_multiplier;
 
             return aimStrain;
+        }
+
+        public static double EvaluateDistanceBonusOf(DifficultyHitObject current)
+        {
+
+            var osuCurrObj = (OsuDifficultyHitObject)current;
+            var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
+
+            double travelDistance = osuPrevObj?.TravelDistance ?? 0;
+            double distance = travelDistance + osuCurrObj.MinimumJumpDistance;
+
+            // Cap distance at single_spacing_threshold
+            distance = Math.Min(distance, single_spacing_threshold);
+
+            double strainTime = osuCurrObj.StrainTime;
+
+            // Max distance bonus is 1 * `distance_multiplier` at single_spacing_threshold
+            double distanceBonus = Math.Pow(distance / single_spacing_threshold, 3.95) * 0.9;
+
+            return distanceBonus * 1000 / strainTime;
         }
 
         private static double calcWideAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(40), double.DegreesToRadians(140));
