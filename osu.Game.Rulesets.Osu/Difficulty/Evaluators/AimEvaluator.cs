@@ -70,6 +70,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double aimStrain = currVelocity; // Start strain with regular velocity.
 
+            if (Math.Max(osuCurrObj.StrainTime, osuLastObj.StrainTime) < 1.25 * Math.Min(osuCurrObj.StrainTime, osuLastObj.StrainTime)) // If rhythms are the same.
+            {
                 if (osuCurrObj.Angle != null && osuLastObj.Angle != null)
                 {
                     double currAngle = osuCurrObj.Angle.Value;
@@ -103,6 +105,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                                   * Math.Pow(DifficultyCalculationUtils.ReverseLerp(osuLastObj.LazyJumpDistance, diameter * 3, diameter), 1.8)
                                   * DifficultyCalculationUtils.Smootherstep(lastAngle, double.DegreesToRadians(110), double.DegreesToRadians(60));
                 }
+            }
 
             if (Math.Max(prevVelocity, currVelocity) != 0)
             {
@@ -143,7 +146,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
             else
             {
-                aimStrain += (acuteAngleBonus * 1.8) + (wideAngleBonus * wide_angle_multiplier + velocityChangeBonus * velocity_change_multiplier);
+                aimStrain += (acuteAngleBonus * 2.1) + (wideAngleBonus * wide_angle_multiplier + velocityChangeBonus * velocity_change_multiplier);
                 aimStrain *= 1;
             }
 
