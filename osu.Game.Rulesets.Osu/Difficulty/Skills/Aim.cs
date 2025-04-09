@@ -21,8 +21,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             IncludeSliders = includeSliders;
         }
 
-        private double skillMultiplier => 25.6;
-
         protected override double StrainValueAt(DifficultyHitObject current)
         {
             double difficulty = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
@@ -56,7 +54,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
-        private double skillMultiplier => 27.3;
+        private double skillMultiplier => 27.6;
         private double strainDecayBase => 0.15;
 
         private readonly List<double> sliderStrains = new List<double>();

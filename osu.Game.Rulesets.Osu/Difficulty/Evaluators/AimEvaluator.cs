@@ -70,8 +70,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double aimStrain = currVelocity; // Start strain with regular velocity.
 
-            if (Math.Max(osuCurrObj.StrainTime, osuLastObj.StrainTime) < 1.25 * Math.Min(osuCurrObj.StrainTime, osuLastObj.StrainTime)) // If rhythms are the same.
-            {
                 if (osuCurrObj.Angle != null && osuLastObj.Angle != null)
                 {
                     double currAngle = osuCurrObj.Angle.Value;
@@ -105,7 +103,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                                   * Math.Pow(DifficultyCalculationUtils.ReverseLerp(osuLastObj.LazyJumpDistance, diameter * 3, diameter), 1.8)
                                   * DifficultyCalculationUtils.Smootherstep(lastAngle, double.DegreesToRadians(110), double.DegreesToRadians(60));
                 }
-            }
 
             if (Math.Max(prevVelocity, currVelocity) != 0)
             {
@@ -140,16 +137,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             if (isFlow)
             {
-                aimStrain += distanceBonus * 0.055;
+                aimStrain += distanceBonus * 0.0525;
                 aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier + velocityChangeBonus * velocity_change_multiplier);
                 aimStrain *= 1;
             }
             else
-                aimStrain += (acuteAngleBonus * acute_angle_multiplier) + (wideAngleBonus * wide_angle_multiplier + velocityChangeBonus * velocity_change_multiplier);
+            {
+                aimStrain += (acuteAngleBonus * 1.8) + (wideAngleBonus * wide_angle_multiplier + velocityChangeBonus * velocity_change_multiplier);
+                aimStrain *= 1;
+            }
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
                 aimStrain += sliderBonus * slider_multiplier;
+
 
             return aimStrain;
         }
