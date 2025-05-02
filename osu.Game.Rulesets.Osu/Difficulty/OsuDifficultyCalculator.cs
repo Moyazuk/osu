@@ -25,7 +25,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
     public class OsuDifficultyCalculator : DifficultyCalculator
     {
         private const double difficulty_multiplier = 0.0675;
-        public const double AIM_EXPONENT = 0.55;
+        public const double AIM_EXPONENT = 0.50;
 
         public override int Version => 20241007;
 
