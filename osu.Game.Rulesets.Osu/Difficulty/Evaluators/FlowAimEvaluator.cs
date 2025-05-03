@@ -13,7 +13,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     public static class FlowAimEvaluator
     {
         // The reason why this exist in evaluator instead of FlowAim skill - it's because it's very important to keep flowaim in the same scaling as snapaim on evaluator level
-        private static double flowMultiplier => 740;
+        private static double flowMultiplier => 695;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
         {
@@ -37,7 +37,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 velocity = Math.Max(velocity, movementVelocity + travelVelocity); // take the larger total combined velocity.
             }
 
-
             double flowDifficulty = velocity;
 
             // Rescale the distance to make it closer d/t
@@ -47,19 +46,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double comfyness = IdentifyComfyFlow(current);
 
                 // Change those 2 power coeficients to control amount of buff high spaced flow aim has for comfy/uncomfy patterns
-                flowDifficulty *= Math.Pow(osuCurrObj.Movement.Length / diameter, 0.55 - 0.75 * comfyness);
+                flowDifficulty *= Math.Pow(osuCurrObj.Movement.Length / diameter, 0.75 - 0.55 * comfyness);
             }
             else
             {
                 // Decrease power here if you want to buff low-spaced flow aim
-                flowDifficulty *= Math.Pow(osuCurrObj.Movement.Length / diameter, 1.4);
+                flowDifficulty *= Math.Pow(osuCurrObj.Movement.Length / diameter, 0.8);
             }
 
             // Flow aim is harder on High BPM
             // Increase multiplier in the beginning to buff all the scaling
             // Increase power to increase buff for spaced speedflow
             // Increase number in the divisor to make steeper scaling with bpm
-            flowDifficulty += 2.4 * (Math.Pow(osuCurrObj.Movement.Length, 0.7) / osuCurrObj.StrainTime) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 12) - 1);
+            flowDifficulty += 2.2 * (Math.Pow(osuCurrObj.Movement.Length, 0.8) / osuCurrObj.StrainTime) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 12) - 1);
 
             double angleBonus = 0;
 
@@ -81,7 +80,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 // IMPORTANT INFORMATION: summing those bonuses instead of taking max singificantly buffs many alt maps
                 // BUT it also buffs ReLief. So it's should be explored how to keep this buff for actually hard patterns but not for ReLief
-                angleBonus = (angleChangeBonus + acuteAngleBonus) * overlappedNotesWeight;
+                angleBonus = Math.Max(angleChangeBonus, acuteAngleBonus) * overlappedNotesWeight;
             }
 
             double velocityChangeBonus = CalculateFlowVelocityChangeBonus(current);
@@ -92,7 +91,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
             {
                 double sliderBonus = osuLast0Obj.TravelDistance / osuLast0Obj.TravelTime;
-                flowDifficulty += sliderBonus * 60;
+                flowDifficulty += sliderBonus * 250;
             }
 
             return flowDifficulty;

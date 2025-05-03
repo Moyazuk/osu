@@ -35,9 +35,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainInfluence => 1 / 2.0;
 
-        private double flowStrainInfluence => 1 / 3.0;
+        private double flowStrainInfluence => 1 / 2.0;
 
-        private double agiStrainInfluence => 16 / 1.0;
+        private double agiStrainInfluence => 4 / 1.0;
 
         protected override double HitProbability(double skill, double difficulty)
         {
@@ -65,26 +65,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
             double adjStrainInfluence = 0;
 
-            bool isFlow = flowDifficulty < snapDifficulty;
-            double currentDifficulty = Math.Min(snapDifficulty, flowDifficulty);
-
-            // If switching from flow to snap, or snap to flow, apply a small bonus.
-            if (isFlow != wasFlow)
-            {
-                //double switchBonus = 1.25;
-                //currentDifficulty *= switchBonus;
-            }
+            bool isFlow = flowDifficulty + currentStrain * flowStrainInfluence < snapDifficulty + currentStrain * strainInfluence;
+            double currentDifficulty = isFlow ? flowDifficulty : snapDifficulty;
 
             if (!isFlow)
             {
-                currentStrain += snapBaseDifficulty / 8.0;
-                agilityStrain += agilityDifficulty * 16;
+                currentStrain += snapBaseDifficulty / 4.0;
+                agilityStrain += agilityDifficulty / 4.0;
                 adjStrainInfluence = strainInfluence;
             }
             else
             {
-                double currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
-                currentStrain += currentDifficulty / 3.0;
+                currentStrain += currentDifficulty / 4.0;
                 adjStrainInfluence = flowStrainInfluence;
             }
 
