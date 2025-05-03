@@ -66,6 +66,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double adjStrainInfluence = 0;
 
             bool isFlow = flowDifficulty + currentStrain * flowStrainInfluence < snapDifficulty + currentStrain * strainInfluence;
+            //bool isFlow = flowDifficulty < snapDifficulty;
             double currentDifficulty = isFlow ? flowDifficulty : snapDifficulty;
 
             if (!isFlow)
