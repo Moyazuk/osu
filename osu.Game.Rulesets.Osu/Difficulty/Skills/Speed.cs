@@ -13,28 +13,24 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to press keys with regards to keeping up with the speed at which objects need to be hit.
     /// </summary>
-    public class Speed : OsuStrainSkill
+    public class Speed : ContinuousStrainSkill
     {
-        private double skillMultiplier => 1.46;
-        private double strainDecayBase => 0.3;
+        private double skillMultiplier => 2.45;
+        protected override double StrainDecayBase => 0.30;
+
+        //protected override int ReducedSectionCount => 5;
 
         private double currentStrain;
         private double currentRhythm;
-
-        protected override int ReducedSectionCount => 5;
 
         public Speed(Mod[] mods)
             : base(mods)
         {
         }
 
-        private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
-
-        protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => (currentStrain * currentRhythm) * strainDecay(time - current.Previous(0).StartTime);
-
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            currentStrain *= strainDecay(((OsuDifficultyHitObject)current).StrainTime);
+            currentStrain *= StrainDecay(((OsuDifficultyHitObject)current).StrainTime);
             currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * skillMultiplier;
 
             currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
@@ -46,14 +42,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         public double RelevantNoteCount()
         {
-            if (ObjectStrains.Count == 0)
+            if (Strains.Count == 0)
                 return 0;
 
-            double maxStrain = ObjectStrains.Max();
+            double maxStrain = Strains.MaxBy(s => (s.Strain, s.StrainCountChange)).Strain;
             if (maxStrain == 0)
                 return 0;
 
-            return ObjectStrains.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / maxStrain * 12.0 - 6.0))));
+            return Strains.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain.Strain / maxStrain * 12.0 - 6.0))));
         }
     }
 }

@@ -36,18 +36,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             var aim = skills.OfType<Aim>().Single(a => a.IncludeSliders);
             double aimRating = Math.Sqrt(aim.DifficultyValue()) * difficulty_multiplier;
-            double aimDifficultyStrainCount = aim.CountTopWeightedStrains();
+            double aimDifficultyStrainCount = aim.CountRelevantObjects();
             double difficultSliders = aim.GetDifficultSliders();
 
             var aimWithoutSliders = skills.OfType<Aim>().Single(a => !a.IncludeSliders);
             double aimRatingNoSliders = Math.Sqrt(aimWithoutSliders.DifficultyValue()) * difficulty_multiplier;
-            double sliderFactor = aimRating > 0 ? aimRatingNoSliders / aimRating : 1;
 
             var speed = skills.OfType<Speed>().Single();
             double speedRating = Math.Sqrt(speed.DifficultyValue()) * difficulty_multiplier;
             double speedNotes = speed.RelevantNoteCount();
-            double speedDifficultyStrainCount = speed.CountTopWeightedStrains();
-
+            double speedDifficultyStrainCount = speed.CountRelevantObjects();
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
             double flashlightRating = flashlight == null ? 0.0 : Math.Sqrt(flashlight.DifficultyValue()) * difficulty_multiplier;
 
@@ -70,8 +68,26 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 flashlightRating *= 0.4;
             }
 
-            double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);
-            double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating);
+            double aimRelevantObjectCount = aim.CountRelevantObjects();
+            double aimNoSlidersRelevantObjectCount = aimWithoutSliders.CountRelevantObjects();
+            double speedRelevantObjectCount = speed.CountRelevantObjects();
+
+            double aimLengthBonus = 1.0 + Math.Min(0.8, aimRelevantObjectCount / 400.0) +
+                                    (aimRelevantObjectCount > 320.0 ? 1.5 * Math.Log10(aimRelevantObjectCount / 320.0) : 0);
+            //aimRating *= Math.Cbrt(aimLengthBonus);
+
+            double aimNoSlidersLengthBonus = 1.0 + Math.Min(0.8, aimNoSlidersRelevantObjectCount / 400.0) +
+                                             (aimNoSlidersRelevantObjectCount > 320.0 ? 1.5 * Math.Log10(aimNoSlidersRelevantObjectCount / 320.0) : 0);
+            //aimRatingNoSliders *= Math.Cbrt(aimNoSlidersLengthBonus);
+
+            double speedLengthBonus = 1.0 + Math.Min(0.3, speedRelevantObjectCount / 1100.0) +
+                                      (speedRelevantObjectCount > 330 ? 0.7 * Math.Log10(speedRelevantObjectCount / 330.0) : 0.0);
+            //speedRating *= Math.Cbrt(speedLengthBonus);
+
+            double sliderFactor = aimRating > 0 ? aimRatingNoSliders / aimRating : 1;
+
+            double baseAimPerformance = ContinuousStrainSkill.DifficultyToPerformance(aimRating);
+            double baseSpeedPerformance = ContinuousStrainSkill.DifficultyToPerformance(speedRating);
             double baseFlashlightPerformance = 0.0;
 
             if (mods.Any(h => h is OsuModFlashlight))
