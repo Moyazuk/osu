@@ -3,11 +3,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using osu.Framework.Extensions.ObjectExtensions;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
-using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Osu.Objects;
@@ -18,113 +16,78 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     {
         private const double reading_window_size = 3000;
 
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, IReadOnlyList<Mod> mods)
+        public static double EvaluateDifficultyOf(int totalObjects, DifficultyHitObject current, double clockRate, double preempt, bool hidden)
         {
             if (current.BaseObject is Spinner || current.Index == 0)
                 return 0;
 
             var currObj = (OsuDifficultyHitObject)current;
-            double currVelocity = currObj.Movement.Length / currObj.StrainTime;
-
-            double rhythmFactor = 1;
+            double constantAngleNerfFactor = getConstantAngleNerfFactor(currObj);
+            double angularVelocityFactor = getAngularVelocityFactor(currObj);
 
             double pastObjectDifficultyInfluence = 1.0;
 
-            double overlapness = 1;
-
-            foreach (var loopObj in retrievePastVisibleObjects(currObj))
+            foreach (var loopObj in retrievePastVisibleObjects(currObj, preempt))
             {
                 double loopDifficulty = currObj.OpacityAt(loopObj.BaseObject.StartTime, false);
 
-                if (currObj.BaseObject is Slider slider)
-                    // Longer sliders are inherently denser objects
-                    loopDifficulty += Math.Log10(Math.Max(1, slider.Velocity * slider.SpanDuration / slider.Radius));
-
-                double timeBetweenCurrAndLoopObj = (currObj.BaseObject.StartTime - loopObj.BaseObject.StartTime) / currObj.ClockRate;
-                double timeNerfFactor = getTimeNerfFactor(timeBetweenCurrAndLoopObj);
-
-                var loopLastObj = (OsuDifficultyHitObject)loopObj.Previous(0);
-
-                if (loopLastObj is not null && loopObj.StrainTime > loopLastObj.StrainTime)
-                {
-                    double rhythmSimilarity = getRhythmDifference(loopObj.StrainTime, loopLastObj.StrainTime);
-                    rhythmSimilarity *= Math.Pow(Math.Sin(rhythmSimilarity * 2 * Math.PI), 2);
-                    rhythmFactor += rhythmSimilarity;
-                    rhythmFactor *= timeNerfFactor;
-                }
-
-                // Buff perfect stacks only if rhythms change
-                double loopOverlapness = loopObj.Movement.Length == 0 ? rhythmFactor : 0;
-
                 // Small distances means objects may be cheesed, so it doesn't matter whether they are arranged confusingly.
-                loopDifficulty *= loopOverlapness + DifficultyCalculationUtils.Logistic(-(loopObj.MinimumJumpDistance * Math.Pow(rhythmFactor, 3) - 80) / 15);
+                loopDifficulty *= DifficultyCalculationUtils.Logistic(-(loopObj.Movement.Length - 75) / 15);
 
-                if (loopObj.BaseObject is Slider pastSlider)
-                    // Buff current object if it's obstructed by a previous slider
-                    loopDifficulty += 0; // To be implemented
+                double timeBetweenCurrAndLoopObj = currObj.StartTime - loopObj.StartTime;
+                double timeNerfFactor = getTimeNerfFactor(timeBetweenCurrAndLoopObj);
 
                 loopDifficulty *= timeNerfFactor;
                 pastObjectDifficultyInfluence += loopDifficulty;
-                overlapness += loopOverlapness;
-            }
-
-            double preemptDifficulty = 0.0;
-
-            double currApproachRate = currObj.Preempt; // Approach rate in milliseconds
-
-            if (currApproachRate < 500)
-            {
-                preemptDifficulty += Math.Pow(500 - currApproachRate, 2.2) / 60000;
-
-                // Buff spacing.
-                preemptDifficulty *= currVelocity;
-
-                // Nerf preempt difficulty with density, lower density means more difficulty
-                // This is on the basis that in a high density environment you can rely more on patterns and muscle memory
-                preemptDifficulty /= Math.Max(1, retrieveCurrentVisibleObjects(currObj).Count);
-
-                // Buff rhythm changes harshly
-                preemptDifficulty *= Math.Pow(rhythmFactor, 2.5);
             }
 
             double hiddenDifficulty = 0.0;
 
-            if (mods.OfType<OsuModHidden>().Any())
+            if (hidden)
             {
-                // Hidden has some inherent difficulty even at its easiest situations
-                hiddenDifficulty += 0.2;
+                double timeSpentInvisible = getDurationSpentInvisible(currObj) / clockRate;
 
-                double timeSpentInvisible = getDurationSpentInvisible(currObj) / currObj.ClockRate;
+                // Nerf extremely high times as you begin to rely more on memory the longer a note is invisible
+                double timeSpentInvisibleFactor = Math.Min(timeSpentInvisible, 1000) + (timeSpentInvisible > 1000 ? 2000 * Math.Log10(timeSpentInvisible / 1000) : 0);
+
                 // Nerf hidden difficulty less the more past object difficulty you have
-                // Cap said difficulty because after a certain point hidden becomes memory
-                double timeDifficultyFactor = 12000 / Math.Min(pastObjectDifficultyInfluence, 7);
+                double timeDifficultyFactor = 9000 / pastObjectDifficultyInfluence;
 
-                // Clamp objects because after a certain point hidden density is mainly memory
-                double visibleObjectFactor = Math.Min(retrieveCurrentVisibleObjects(currObj).Count, 7);
+                // Cap objects because after a certain point hidden density is mainly memory
+                double visibleObjectFactor = Math.Min(getCurrentVisibleObjectCount(totalObjects, currObj, preempt), 8);
 
-                // The longer an object is hidden, the more velocity should matter
-                hiddenDifficulty += visibleObjectFactor * timeSpentInvisible * Math.Max(1, currVelocity) / timeDifficultyFactor;
+                hiddenDifficulty += visibleObjectFactor * timeSpentInvisibleFactor / timeDifficultyFactor;
 
-                // Buff rhythm changes
-                hiddenDifficulty *= rhythmFactor;
+                hiddenDifficulty *= constantAngleNerfFactor * angularVelocityFactor;
 
-                // Buff perfect stacks and scale with rhythm
-                hiddenDifficulty += currObj.Movement.Length == 0 ? 1 + 2 * overlapness : 0;
+                // Buff perfect stacks only if current note is completely invisible at the time you click the previous note
+                var previousObj = currObj.Previous(0);
+                hiddenDifficulty += currObj.Movement.Length == 0 &&
+                                    currObj.OpacityAt(previousObj.BaseObject.StartTime + preempt, hidden) == 0 &&
+                                    previousObj.StartTime + preempt > currObj.StartTime
+                    ? timeSpentInvisibleFactor / 200.0
+                    : 0;
             }
 
+            double preemptDifficulty = 0.0;
+
+            preemptDifficulty += preempt > 500 ? 0 : Math.Pow(500 - preempt, 2.3) / 75000;
+
+            preemptDifficulty *= constantAngleNerfFactor * angularVelocityFactor;
+
             // Award only denser than average maps
-            double noteDensityDifficulty = Math.Max(0, pastObjectDifficultyInfluence - 2.8);
+            double noteDensityDifficulty = Math.Max(0, pastObjectDifficultyInfluence - 2.7);
+
+            noteDensityDifficulty *= constantAngleNerfFactor * angularVelocityFactor;
 
             double difficulty = preemptDifficulty + hiddenDifficulty + noteDensityDifficulty;
-
-            difficulty *= getConstantAngleNerfFactor(currObj);
 
             return difficulty;
         }
 
         // Returns a list of objects that are visible on screen at
         // the point in time at which the current object becomes visible.
-        private static IEnumerable<OsuDifficultyHitObject> retrievePastVisibleObjects(OsuDifficultyHitObject current)
+        private static IEnumerable<OsuDifficultyHitObject> retrievePastVisibleObjects(OsuDifficultyHitObject current, double preempt)
         {
             for (int i = 0; i < current.Index; i++)
             {
@@ -132,7 +95,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 if (hitObject.IsNull() ||
                     current.StartTime - hitObject.StartTime > reading_window_size ||
-                    hitObject.StartTime < current.StartTime - current.Preempt)
+                    hitObject.StartTime + preempt < current.StartTime) // Current object not visible at the time object needs to be clicked
                     break;
 
                 yield return hitObject;
@@ -141,23 +104,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
         // Returns a list of objects that are visible on screen at
         // the point in time at which the current object needs to be clicked.
-        private static List<OsuDifficultyHitObject> retrieveCurrentVisibleObjects(OsuDifficultyHitObject current)
+        private static int getCurrentVisibleObjectCount(int totalObjects, OsuDifficultyHitObject current, double preempt)
         {
-            List<OsuDifficultyHitObject> objects = new List<OsuDifficultyHitObject>();
+            int visibleObjectCount = 0;
 
-            for (int i = 0; i < current.Count; i++)
+            for (int i = 0; i < totalObjects; i++)
             {
                 OsuDifficultyHitObject hitObject = (OsuDifficultyHitObject)current.Next(i);
 
                 if (hitObject.IsNull() ||
-                    (hitObject.StartTime - current.StartTime) > reading_window_size ||
-                    current.StartTime < hitObject.StartTime - hitObject.Preempt)
+                    hitObject.StartTime - current.StartTime > reading_window_size ||
+                    current.StartTime + preempt < hitObject.StartTime) // Object not visible at the time current object needs to be clicked
                     break;
 
-                objects.Add(hitObject);
+                visibleObjectCount += 1;
             }
 
-            return objects;
+            return visibleObjectCount;
         }
 
         private static double getDurationSpentInvisible(OsuDifficultyHitObject current)
@@ -191,14 +154,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 if (loopObj.Angle.IsNotNull() && current.Angle.IsNotNull())
                 {
                     double angleDifference = Math.Abs(current.Angle.Value - loopObj.Angle.Value);
-                    constantAngleCount += Math.Cos(4 * Math.Min(Math.PI / 8, angleDifference)) * longIntervalFactor;
+                    constantAngleCount += Math.Cos(2 * Math.Min(Math.PI / 4, angleDifference)) * longIntervalFactor;
                 }
 
                 currentTimeGap = current.StartTime - loopObj.StartTime;
                 index++;
             }
 
-            return Math.Pow(Math.Min(1, 2 / constantAngleCount), 2);
+            return Math.Min(1, 2 / constantAngleCount);
         }
 
         private static double getTimeNerfFactor(double deltaTime)
@@ -206,6 +169,34 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             return Math.Clamp(2 - deltaTime / (reading_window_size / 2), 0, 1);
         }
 
-        private static double getRhythmDifference(double t1, double t2) => 1 - Math.Min(t1, t2) / Math.Max(t1, t2);
+        private static double getAngularVelocityFactor(OsuDifficultyHitObject current)
+        {
+            var previous = (OsuDifficultyHitObject)current.Previous(0);
+            var previous2 = (OsuDifficultyHitObject)current.Previous(2);
+
+            if (!current.Angle.HasValue ||
+                previous?.Angle == null ||
+                !(Math.Abs(current.DeltaTime - previous.DeltaTime) < 10)) return current.MinimumJumpDistance / current.StrainTime;
+
+            double angleDifference = Math.Abs(current.Angle.Value - previous.Angle.Value);
+            double angleDifferenceAdjusted = Math.Sin(angleDifference / 2) * 180.0;
+            double angularVelocity = angleDifferenceAdjusted * (current.MinimumJumpDistance / current.StrainTime);
+            double angularVelocityBonus = Math.Max(0.0, Math.Pow(angularVelocity, 0.4) - 1.0) * 0.35;
+
+            if (previous2 == null) return angularVelocityBonus;
+            // If objects just go back and forth through a middle point - don't give as much bonus
+            // Use Previous(2) and Previous(0) because angles calculation is done prevprev-prev-curr, so any object's angle's center point is always the previous object
+            var lastBaseObject = (OsuHitObject)previous.BaseObject;
+            var last2BaseObject = (OsuHitObject)previous2.BaseObject;
+
+            float distance = (last2BaseObject.StackedPosition - lastBaseObject.StackedPosition).Length;
+
+            if (distance < 1)
+            {
+                return angularVelocityBonus * (1 - 0.35 * (1 - distance));
+            }
+
+            return angularVelocityBonus;
+        }
     }
 }

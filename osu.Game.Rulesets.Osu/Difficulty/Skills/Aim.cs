@@ -27,15 +27,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private readonly List<double> sliderStrains = new List<double>();
 
+        private readonly List<double> previousStrains = new List<double>();
+
+
         private double currentStrain;
         private double agilityStrain;
 
         private double strainDecayBase => 0.15;
         private double strainDecayAgiBase => 0.15;
 
-        private double strainInfluence => 1 / 2.0;
-
-        private double flowStrainInfluence => 1 / 2.0;
+        private double strainInfluence => 3 / 1.0;
+        private double strainIncreaseRate => 10;
+        private double strainDecreaseRate => 3;
 
         private double agiStrainInfluence => 4 / 1.0;
 
@@ -65,9 +68,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
             double adjStrainInfluence = 0;
 
-            bool isFlow = flowDifficulty + currentStrain * flowStrainInfluence < snapDifficulty + currentStrain * strainInfluence;
+            double priorDifficulty = highestPreviousStrain(current, current.DeltaTime);
+
+            bool isFlow = flowDifficulty + currentStrain * strainInfluence < snapDifficulty + currentStrain * strainInfluence;
             //bool isFlow = flowDifficulty < snapDifficulty;
             double currentDifficulty = isFlow ? flowDifficulty : snapDifficulty;
+
+            currentStrain = getStrainValueOf(currentDifficulty, priorDifficulty);
+            previousStrains.Add(currentStrain);
 
             if (!isFlow)
             {
@@ -78,7 +86,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             else
             {
                 currentStrain += currentDifficulty / 4.0;
-                adjStrainInfluence = flowStrainInfluence;
+                adjStrainInfluence = strainInfluence;
             }
 
             wasFlow = isFlow;
@@ -90,6 +98,34 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             return currentDifficulty + currentStrain * adjStrainInfluence;
         }
+
+        private double getStrainValueOf(double currentDifficulty, double priorDifficulty) => currentDifficulty > priorDifficulty
+            ? (priorDifficulty * strainIncreaseRate + currentDifficulty) / (strainIncreaseRate + 1)
+            : (priorDifficulty * strainDecreaseRate + currentDifficulty) / (strainDecreaseRate + 1);
+
+        private double highestPreviousStrain(DifficultyHitObject current, double time)
+        {
+            double hardestPreviousDifficulty = 0;
+            double cumulativeDeltaTime = time;
+
+            double timeDecay(double ms) => Math.Pow(strainDecayBase, Math.Pow(ms / 900, 7));
+
+            for (int i = 0; i < previousStrains.Count; i++)
+            {
+                if (cumulativeDeltaTime > 1200)
+                {
+                    previousStrains.RemoveRange(0, i);
+                    break;
+                }
+
+                hardestPreviousDifficulty = Math.Max(hardestPreviousDifficulty, previousStrains[^(i + 1)] * timeDecay(cumulativeDeltaTime));
+
+                cumulativeDeltaTime += current.Previous(i).DeltaTime;
+            }
+
+            return hardestPreviousDifficulty;
+        }
+
         public double GetDifficultSliders()
         {
             if (sliderStrains.Count == 0)

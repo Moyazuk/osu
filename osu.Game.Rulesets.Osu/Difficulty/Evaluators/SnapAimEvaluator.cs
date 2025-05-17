@@ -18,11 +18,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 return 0;
 
             // Base snap difficulty is velocity.
-            double difficulty = EvaluateDistanceBonus(current, withSliderTravelDistance) * 107.5;
+            double difficulty = EvaluateDistanceBonus(current, withSliderTravelDistance) * 135;
             double sliderBonus = 0;
             //difficulty += EvaluateAgilityBonus(current) * 65;
-            difficulty += EvaluateAngleBonus(current) * 85;
-            difficulty += EvaluateVelocityChangeBonus(current) * 160;
+            difficulty += EvaluateAngleBonus(current) * 135;
+            difficulty += EvaluateVelocityChangeBonus(current) * 420;
 
             var osuPrevObj = (OsuDifficultyHitObject)current;
 
@@ -34,7 +34,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
-                difficulty += sliderBonus * 35;
+                difficulty += sliderBonus * 120;
 
             return difficulty;
         }
@@ -81,12 +81,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
 
             // We reward high bpm more for wider angles, but only when both current and previous distance are over 0.5 radii.
-            double baseBpm = 320.0 / (1 + 0.25 * Smootherstep(currentAngle, 0, 120) * currDistanceMultiplier * prevDistanceMultiplier);
+            double baseBpm = 260.0 / (1 + 0.25 * Smootherstep(currentAngle, 0, 120) * currDistanceMultiplier * prevDistanceMultiplier);
 
             // Agility bonus of 1 at base BPM.
-            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 4) - 1);
+            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 3) - 1);
 
-            return agilityBonus * 46;
+            return agilityBonus * 48;
         }
 
         public static double EvaluateAngleBonus(DifficultyHitObject current)

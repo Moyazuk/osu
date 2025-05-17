@@ -25,7 +25,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
     public class OsuDifficultyCalculator : DifficultyCalculator
     {
         private const double difficulty_multiplier = 0.0675;
-        public const double AIM_EXPONENT = 0.60;
+        public const double AIM_EXPONENT = 0.50;
 
         public override int Version => 20241007;
 
@@ -174,7 +174,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 new Aim(mods, true),
                 new Aim(mods, false),
                 new Speed(mods),
-                new Reading(mods)
+                new Reading(beatmap, mods, clockRate)
             };
 
             if (mods.Any(h => h is OsuModFlashlight))
