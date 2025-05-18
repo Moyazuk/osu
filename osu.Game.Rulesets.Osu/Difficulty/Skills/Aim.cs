@@ -36,7 +36,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double strainDecayBase => 0.15;
         private double strainDecayAgiBase => 0.15;
 
-        private double strainInfluence => 3 / 1.0;
+        private double strainInfluence => 4 / 1.0;
         private double strainIncreaseRate => 10;
         private double strainDecreaseRate => 3;
 
@@ -79,13 +79,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             if (!isFlow)
             {
-                currentStrain += snapBaseDifficulty / 4.0;
-                agilityStrain += agilityDifficulty / 4.0;
+                currentStrain += snapBaseDifficulty;
+                agilityStrain += agilityDifficulty;
                 adjStrainInfluence = strainInfluence;
             }
             else
             {
-                currentStrain += currentDifficulty / 4.0;
+                currentStrain += currentDifficulty;
                 adjStrainInfluence = strainInfluence;
             }
 

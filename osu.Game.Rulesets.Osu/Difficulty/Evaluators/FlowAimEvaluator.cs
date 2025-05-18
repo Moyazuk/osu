@@ -13,7 +13,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     public static class FlowAimEvaluator
     {
         // The reason why this exist in evaluator instead of FlowAim skill - it's because it's very important to keep flowaim in the same scaling as snapaim on evaluator level
-        private static double flowMultiplier => 275;
+        private static double flowMultiplier => 125;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
         {
@@ -58,7 +58,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Increase multiplier in the beginning to buff all the scaling
             // Increase power to increase buff for spaced speedflow
             // Increase number in the divisor to make steeper scaling with bpm
-            flowDifficulty += 2.2 * (Math.Pow(osuCurrObj.Movement.Length, 0.8) / osuCurrObj.StrainTime) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 16) - 1);
+            flowDifficulty += 2.4 * (Math.Pow(osuCurrObj.Movement.Length, 0.8) / osuCurrObj.StrainTime) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 18) - 1);
 
             double angleBonus = 0;
 
@@ -89,7 +89,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
             {
                 double sliderBonus = osuLast0Obj.TravelDistance / osuLast0Obj.TravelTime;
-                flowDifficulty += sliderBonus * 180;
+                flowDifficulty += sliderBonus * 35;
             }
 
             return flowDifficulty;
