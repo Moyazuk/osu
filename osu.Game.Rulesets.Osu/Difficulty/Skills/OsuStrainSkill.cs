@@ -27,9 +27,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         /// <summary>
         /// The baseline multiplier applied to the section with the biggest strain.
         /// </summary>
-        protected virtual double ReducedStrainBaseline => useNormalDiffspikeNerf ? 0.9 : 0.8;
+        protected virtual double ReducedStrainBaseline => useNormalDiffspikeNerf && useEarlyDiffspikeNerf ? 0.9 : 0.8;
 
         private bool useNormalDiffspikeNerf => true;
+        private bool useEarlyDiffspikeNerf => false;
 
         protected OsuStrainSkill(Mod[] mods)
             : base(mods)
@@ -47,12 +48,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             List<double> strains = peaks.ToList();
 
-            double reducedSectionCount = ReducedDuration * 1000.0 / SectionLength;
-
-            for (int i = 0; i < Math.Min(strains.Count, reducedSectionCount); i++)
+            if (useEarlyDiffspikeNerf)
             {
-                double scale = Math.Log10(Interpolation.Lerp(1, 10, Math.Clamp(i / reducedSectionCount, 0, 1)));
-                strains[i] *= Interpolation.Lerp(ReducedStrainBaseline, 1.0, scale);
+                double reducedSectionCount = ReducedDuration * 1000.0 / SectionLength;
+
+                for (int i = 0; i < Math.Min(strains.Count, reducedSectionCount); i++)
+                {
+                    double scale = Math.Log10(Interpolation.Lerp(1, 10, Math.Clamp(i / reducedSectionCount, 0, 1)));
+                    strains[i] *= Interpolation.Lerp(ReducedStrainBaseline, 1.0, scale);
+                }
             }
 
             if (useNormalDiffspikeNerf)
