@@ -84,8 +84,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
 
             double velocityChangeBonus = CalculateFlowVelocityChangeBonus(current);
-
             flowDifficulty += angleBonus + velocityChangeBonus;
+
             flowDifficulty *= flowMultiplier;
 
             if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
@@ -94,7 +94,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 flowDifficulty += sliderBonus * AimEvaluator.SLIDER_MULTIPLIER;
             }
 
-            return flowDifficulty;
+            return flowDifficulty * osuCurrObj.SmallCircleBonus;
         }
 
         private static double getOverlapness(OsuDifficultyHitObject odho1, OsuDifficultyHitObject odho2)
@@ -114,7 +114,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLast0Obj = (OsuDifficultyHitObject)current.Previous(0);
             var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
             var osuLast2Obj = (OsuDifficultyHitObject)current.Previous(2);
 
@@ -130,12 +130,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double result = currAngleBonus;
 
-            result *= Math.Min(osuCurrObj.LazyJumpDistance, osuLastObj.LazyJumpDistance) / Math.Max(osuCurrObj.StrainTime, osuLastObj.StrainTime);
+            result *= Math.Min(osuCurrObj.LazyJumpDistance, osuLast0Obj.LazyJumpDistance) / Math.Max(osuCurrObj.StrainTime, osuLast0Obj.StrainTime);
 
             // Nerf acute angle if previous notes were slower
             // IMPORTANT INFORMATION: removing this limitation buffs many alt maps
             // BUT it also  buffs ReLief. So it's should be explored how to keep this buff for actually hard patterns but not for ReLief
-            result *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLastObj.StrainTime * 0.55, osuLastObj.StrainTime * 0.75);
+            result *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLast0Obj.StrainTime * 0.55, osuLast0Obj.StrainTime * 0.75);
 
             // Decrease angle bonus if angle changes are slower than 1 in 4 notes
             double deltaAngle = Math.Abs(last1Angle - last2Angle);
@@ -157,26 +157,26 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLast0Obj = (OsuDifficultyHitObject)current.Previous(0);
             var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
             var osuLast2Obj = (OsuDifficultyHitObject)current.Previous(2);
 
-            if (osuCurrObj.AngleSigned == null || osuLastObj.AngleSigned == null)
+            if (osuCurrObj.AngleSigned == null || osuLast0Obj.AngleSigned == null)
                 return 0;
 
             double currVelocity = osuCurrObj.LazyJumpDistance / osuCurrObj.StrainTime;
-            double prevVelocity = osuLastObj.LazyJumpDistance / osuLastObj.StrainTime;
+            double prevVelocity = osuLast0Obj.LazyJumpDistance / osuLast0Obj.StrainTime;
 
             double currAngle = osuCurrObj.AngleSigned.Value;
-            double lastAngle = osuLastObj.AngleSigned.Value;
+            double lastAngle = osuLast0Obj.AngleSigned.Value;
 
             double minVelocity = Math.Min(currVelocity, prevVelocity);
             double angleChangeBonus = Math.Pow(Math.Sin((currAngle - lastAngle) / 2), 2) * minVelocity;
 
-            // Remove angle change if previous notes were slower
+            // Remove angle change if previous 2 notes were slower
             // IMPORTANT INFORMATION: removing this limitation significantly buffs almost all tech, alt, underweight maps in general
             // BUT it also very significantly buffs ReLief. So it's should be explored how to keep this buff for actually hard patterns but not for ReLief
-            angleChangeBonus *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLastObj.StrainTime * 0.55, osuLastObj.StrainTime * 0.75);
+            angleChangeBonus *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLast0Obj.StrainTime * 0.55, osuLast0Obj.StrainTime * 0.75);
             angleChangeBonus *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLast1Obj.StrainTime * 0.55, osuLast1Obj.StrainTime * 0.75);
 
             double last1Angle = osuLast1Obj.Angle ?? 0;
@@ -236,7 +236,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Add radius to account for distance potenitally being very small
             double distanceSimilarityFactor = DifficultyCalculationUtils.ReverseLerp(prev1Distance + radius, (prev2Distance + radius) * 0.8, (prev2Distance + radius) * 0.95);
             double distanceFactor = 0.5 + 0.5 * DifficultyCalculationUtils.ReverseLerp(Math.Max(prev1Distance, prev2Distance), diameter * 1.5, diameter * 0.75);
-            // There also should be smth like angleFactor, because if it has aim-control difficulty - you can't really speed-up flow aim that easily
+            // There also should be something like angleFactor, because if it has aim-control difficulty - you can't really speed-up flow aim that easily
 
             deltaVelocity *= 1 - 0.65 * distanceSimilarityFactor * distanceFactor;
 
@@ -266,6 +266,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
 
             deltaVelocity *= 1 - distanceSimilarity1 * distanceSimilarity2 * directionFactor;
+
+            // Penalize rhythm change
+            deltaVelocity *= DifficultyCalculationUtils.ReverseLerp(osuLast0Obj.StrainTime, osuCurrObj.StrainTime * 0.55, osuCurrObj.StrainTime * 0.75);
 
             // Don't reward very big differences too much
             if (deltaVelocity > minVelocity * 2)
@@ -338,7 +341,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                     double potentialLeniency = currAngleChange - Math.Min(currAngleChange, prevAngleChange);
 
                     double usedLeniency = Math.Min(angleChangeLeniency, potentialLeniency);
-                    relevantAngleChange = relevantAngleChange * (1 - usedLeniency);
+                    relevantAngleChange *= (1 - usedLeniency);
                     angleChangeLeniency -= usedLeniency;
                 }
 
