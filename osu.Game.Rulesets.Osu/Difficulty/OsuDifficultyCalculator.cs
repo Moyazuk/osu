@@ -134,12 +134,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimNoSlidersRelevantObjectCount = aimWithoutSliders.CountRelevantObjects();
             double speedRelevantObjectCount = speed.CountRelevantObjects();
 
-            double aimLengthBonus = 1.0 + Math.Min(0.8, aimRelevantObjectCount / 400.0) +
-                                    (aimRelevantObjectCount > 320.0 ? 1.5 * Math.Log10(aimRelevantObjectCount / 320.0) : 0);
+            double aimLengthBonus = 1.0 + Math.Min(0.8, aimRelevantObjectCount / 300.0) +
+                                    (aimRelevantObjectCount > 320.0 ? 1.5 * Math.Log10(aimRelevantObjectCount / 240.0) : 0);
             aimRating *= Math.Cbrt(aimLengthBonus);
 
-            double aimNoSlidersLengthBonus = 1.0 + Math.Min(0.8, aimNoSlidersRelevantObjectCount / 400.0) +
-                                             (aimNoSlidersRelevantObjectCount > 320.0 ? 1.5 * Math.Log10(aimNoSlidersRelevantObjectCount / 320.0) : 0);
+            double aimNoSlidersLengthBonus = 1.0 + Math.Min(0.8, aimNoSlidersRelevantObjectCount / 300.0) +
+                                             (aimNoSlidersRelevantObjectCount > 320.0 ? 1.5 * Math.Log10(aimNoSlidersRelevantObjectCount / 240.0) : 0);
             aimRatingNoSliders *= Math.Cbrt(aimNoSlidersLengthBonus);
 
             double speedLengthBonus = 1.0 + Math.Min(0.3, speedRelevantObjectCount / 1100.0) +

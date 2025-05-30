@@ -85,7 +85,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         /// <summary>
         /// Returns the number of relevant objects weighted against the top strain.
         /// </summary>
-        public double CountRelevantObjects()
+        public virtual double CountRelevantObjects()
         {
             double consistentTopStrain = DifficultyValue() / 10; // What would the top strain be if all strain values were identical
             if (consistentTopStrain == 0)
