@@ -140,12 +140,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double speedValue = computeSpeedValue(score, osuAttributes);
             double accuracyValue = computeAccuracyValue(score, osuAttributes);
             double flashlightValue = computeFlashlightValue(score, osuAttributes);
+            double fingerControlValue = computeFingerControlValue(score, osuAttributes);
 
             double totalValue =
                 Math.Pow(
                     Math.Pow(aimValue, 1.1) +
                     Math.Pow(speedValue, 1.1) +
                     Math.Pow(accuracyValue, 1.1) +
+                    Math.Pow(fingerControlValue, 1.1) +
                     Math.Pow(flashlightValue, 1.1), 1.0 / 1.1
                 ) * multiplier;
 
@@ -154,6 +156,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 Aim = aimValue,
                 Speed = speedValue,
                 Accuracy = accuracyValue,
+                FingerControl = fingerControlValue,
                 Flashlight = flashlightValue,
                 EffectiveMissCount = effectiveMissCount,
                 ComboBasedEstimatedMissCount = comboBasedEstimatedMissCount,
@@ -260,6 +263,52 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             speedValue *= Math.Pow((accuracy + relevantAccuracy) / 2.0, (14.5 - overallDifficulty) / 2);
 
             return speedValue;
+        }
+
+        private double computeFingerControlValue(ScoreInfo score, OsuDifficultyAttributes attributes)
+        {
+            if (score.Mods.Any(h => h is OsuModRelax) || speedDeviation == null)
+                return 0.0;
+
+            double fingerControlValue = OsuStrainSkill.DifficultyToPerformance(attributes.FingerControlDifficulty);
+
+            Console.WriteLine($"{attributes.FingerControlDifficulty}");
+
+            double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
+                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
+            fingerControlValue *= lengthBonus;
+
+            if (effectiveMissCount > 0)
+            {
+                speedEstimatedSliderBreaks = calculateEstimatedSliderBreaks(attributes.SpeedTopWeightedSliderFactor, attributes);
+                fingerControlValue *= calculateMissPenalty(effectiveMissCount + speedEstimatedSliderBreaks, attributes.SpeedDifficultStrainCount);
+            }
+
+            // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
+            if (score.Mods.Any(m => m is OsuModBlinds))
+            {
+                // Increasing the speed value by object count for Blinds isn't ideal, so the minimum buff is given.
+                fingerControlValue *= 1.12;
+            }
+            else if (score.Mods.Any(m => m is OsuModTraceable))
+            {
+                fingerControlValue *= 1.0 + OsuDifficultyCalculator.CalculateVisibilityBonus(score.Mods, approachRate);
+            }
+
+            double speedHighDeviationMultiplier = calculateSpeedHighDeviationNerf(attributes);
+            fingerControlValue *= speedHighDeviationMultiplier;
+
+            // Calculate accuracy assuming the worst case scenario
+            double relevantTotalDiff = Math.Max(0, totalHits - attributes.SpeedNoteCount);
+            double relevantCountGreat = Math.Max(0, countGreat - relevantTotalDiff);
+            double relevantCountOk = Math.Max(0, countOk - Math.Max(0, relevantTotalDiff - countGreat));
+            double relevantCountMeh = Math.Max(0, countMeh - Math.Max(0, relevantTotalDiff - countGreat - countOk));
+            double relevantAccuracy = attributes.SpeedNoteCount == 0 ? 0 : (relevantCountGreat * 6.0 + relevantCountOk * 2.0 + relevantCountMeh) / (attributes.SpeedNoteCount * 6.0);
+
+            // Scale the speed value with accuracy and OD.
+            fingerControlValue *= Math.Pow((accuracy + relevantAccuracy) / 2.0, (14.5 - overallDifficulty) / 2);
+
+            return fingerControlValue;
         }
 
         private double computeAccuracyValue(ScoreInfo score, OsuDifficultyAttributes attributes)

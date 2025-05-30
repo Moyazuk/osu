@@ -102,5 +102,40 @@ namespace osu.Game.Rulesets.Difficulty.Utils
         {
             return Math.Clamp((x - start) / (end - start), 0.0, 1.0);
         }
+
+        /// <summary>
+        /// Performs a linear interpolation using a sorted (x, y) table. Returns the interpolated y-value for a given x.
+        /// Values outside the table are clamped to the edge values.
+        /// </summary>
+        public static double InterpolateFromSortedTable(double[] xs, double[] ys, double x)
+        {
+            if (xs.Length != ys.Length || xs.Length < 2)
+                throw new ArgumentException("Arrays must be the same length and contain at least two points.");
+
+            // Clamp below minimum
+            if (x <= xs[0])
+                return ys[0];
+
+            // Clamp above maximum
+            if (x >= xs[^1])
+                return ys[^1];
+
+            // Find the interval for x
+            for (int i = 0; i < xs.Length - 1; i++)
+            {
+                if (x < xs[i + 1])
+                {
+                    double x0 = xs[i], x1 = xs[i + 1];
+                    double y0 = ys[i], y1 = ys[i + 1];
+
+                    double t = (x - x0) / (x1 - x0);
+                    return y0 + t * (y1 - y0);
+                }
+            }
+
+            // Should not reach here if input is sorted and valid
+            return ys[^1];
+        }
+
     }
 }

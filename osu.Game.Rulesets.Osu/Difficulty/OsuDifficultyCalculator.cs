@@ -77,7 +77,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             var aim = skills.OfType<Aim>().Single(a => a.IncludeSliders);
             var aimWithoutSliders = skills.OfType<Aim>().Single(a => !a.IncludeSliders);
             var speed = skills.OfType<Speed>().Single();
+            var fingerControl = skills.OfType<FingerControl>().SingleOrDefault();
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
+
 
             double speedNotes = speed.RelevantNoteCount();
 
@@ -115,12 +117,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimDifficultyValue = aim.DifficultyValue();
             double aimNoSlidersDifficultyValue = aimWithoutSliders.DifficultyValue();
             double speedDifficultyValue = speed.DifficultyValue();
+            double fingerControlDifficultyValue = fingerControl.DifficultyValue();
 
             mechanicalDifficultyRating = calculateMechanicalDifficultyRating(aimDifficultyValue, speedDifficultyValue);
 
             double aimRating = computeAimRating(aimDifficultyValue, mods, totalHits, approachRate, overallDifficulty);
             double aimRatingNoSliders = computeAimRating(aimNoSlidersDifficultyValue, mods, totalHits, approachRate, overallDifficulty);
             double speedRating = computeSpeedRating(speedDifficultyValue, mods, totalHits, approachRate, overallDifficulty);
+            double fingerControlRating = computeFingerControlRating(fingerControlDifficultyValue, mods, totalHits, approachRate, overallDifficulty);
 
             double flashlightRating = 0.0;
 
@@ -131,13 +135,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);
             double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating);
+            double baseFingerControlPerformance = OsuStrainSkill.DifficultyToPerformance(fingerControlRating);
             double baseFlashlightPerformance = Flashlight.DifficultyToPerformance(flashlightRating);
 
             double basePerformance =
                 Math.Pow(
                     Math.Pow(baseAimPerformance, 1.1) +
                     Math.Pow(baseSpeedPerformance, 1.1) +
-                    Math.Pow(baseFlashlightPerformance, 1.1), 1.0 / 1.1
+                    Math.Pow(baseFlashlightPerformance, 1.1) +
+                    Math.Pow(baseFingerControlPerformance, 1.1), 1.0 / 1.1
                 );
 
             double multiplier = CalculateDifficultyMultiplier(mods, totalHits, spinnerCount);
@@ -157,6 +163,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 AimDifficultSliderCount = difficultSliders,
                 SpeedDifficulty = speedRating,
                 SpeedNoteCount = speedNotes,
+                FingerControlDifficulty = fingerControlRating,
                 FlashlightDifficulty = flashlightRating,
                 SliderFactor = sliderFactor,
                 AimDifficultStrainCount = aimDifficultStrainCount,
@@ -265,6 +272,48 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return speedRating * Math.Cbrt(ratingMultiplier);
         }
 
+        private double computeFingerControlRating(double fingerControlDifficultyValue, Mod[] mods, int totalHits, double approachRate, double overallDifficulty)
+        {
+            if (mods.Any(m => m is OsuModRelax))
+                return 0;
+
+            double fingerControlRating = calculateDifficultyRating(fingerControlDifficultyValue);
+
+            if (mods.Any(m => m is OsuModAutopilot))
+                fingerControlRating *= 0.5;
+
+            if (mods.Any(m => m is OsuModMagnetised))
+            {
+                // reduce speed rating because of the speed distance scaling, with maximum reduction being 0.7x
+                float magnetisedStrength = mods.OfType<OsuModMagnetised>().First().AttractionStrength.Value;
+                fingerControlRating *= 1.0 - magnetisedStrength * 0.3;
+            }
+
+            double ratingMultiplier = 1.0;
+
+            double approachRateLengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
+                                             (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
+
+            double approachRateFactor = 0.0;
+            if (approachRate > 10.33)
+                approachRateFactor = 0.3 * (approachRate - 10.33);
+
+            if (mods.Any(m => m is OsuModAutopilot))
+                approachRateFactor = 0.0;
+
+            ratingMultiplier *= 1.0 + approachRateFactor * approachRateLengthBonus; // Buff for longer maps with high AR.
+
+            if (mods.Any(m => m is OsuModHidden))
+            {
+                double visibilityFactor = calculateSpeedVisibilityFactor(approachRate);
+                ratingMultiplier *= 1.0 + CalculateVisibilityBonus(mods, approachRate, visibilityFactor);
+            }
+
+            ratingMultiplier *= 0.95 + Math.Pow(Math.Max(0, overallDifficulty), 2) / 750;
+
+            return fingerControlRating * Math.Cbrt(ratingMultiplier);
+        }
+
         private double computeFlashlightRating(double flashlightDifficultyValue, Mod[] mods, int totalHits, double overallDifficulty)
         {
             if (!mods.Any(m => m is OsuModFlashlight))
@@ -358,7 +407,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 new Aim(mods, true),
                 new Aim(mods, false),
-                new Speed(mods)
+                new Speed(mods),
+                new FingerControl(mods)
             };
 
             if (mods.Any(h => h is OsuModFlashlight))
