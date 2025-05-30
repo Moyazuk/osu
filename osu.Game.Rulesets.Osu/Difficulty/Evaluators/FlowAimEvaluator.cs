@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
@@ -23,6 +24,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuLast0Obj = (OsuDifficultyHitObject)current.Previous(0);
             var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
+            var osuLast2Obj = (OsuDifficultyHitObject)current.Previous(2);
+            var osuLast3Obj = (OsuDifficultyHitObject)current.Previous(3);
 
             const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
 
@@ -78,9 +81,22 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                     overlappedNotesWeight = 1 - o1 * o2 * o3;
                 }
 
-                // IMPORTANT INFORMATION: summing those bonuses instead of taking max singificantly buffs many alt maps
-                // BUT it also buffs ReLief. So it's should be explored how to keep this buff for actually hard patterns but not for ReLief
-                angleBonus = Math.Max(angleChangeBonus, acuteAngleBonus) * overlappedNotesWeight;
+                // Don't apply both angle change and acute angle bonus at the same time if change is consistent
+                double angleChangeCurr = (double)(osuCurrObj.AngleSigned - osuLast0Obj.AngleSigned);
+                double angleChangePrev = (double)(osuLast1Obj.AngleSigned - osuLast0Obj.AngleSigned);
+                double angleChangePrev1 = (double)(osuLast1Obj.AngleSigned - osuLast2Obj?.AngleSigned ?? 0);
+
+                double angleChangeConsistencyFactor = DifficultyCalculationUtils.Smoothstep(Math.Abs(angleChangePrev - angleChangeCurr), 0.2, 0.1)
+                    * DifficultyCalculationUtils.Smoothstep(Math.Abs(angleChangePrev1 - angleChangePrev), 0.2, 0.1);
+
+                double[] strainTimes = [osuCurrObj.StrainTime, osuLast0Obj.StrainTime, osuLast1Obj.StrainTime, osuLast2Obj?.StrainTime ?? 0, osuLast3Obj?.StrainTime ?? 0];
+                double strainTimeDifferenceFactor = DifficultyCalculationUtils.Smoothstep(strainTimes.Min(), strainTimes.Max() * 0.75, strainTimes.Max() * 0.95);
+                angleChangeConsistencyFactor = 1 - strainTimeDifferenceFactor * (1 - angleChangeConsistencyFactor);
+
+                double largerBonus = Math.Max(angleChangeBonus, acuteAngleBonus);
+                double summedBonus = angleChangeBonus + acuteAngleBonus;
+
+                angleBonus = double.Lerp(summedBonus, largerBonus, angleChangeConsistencyFactor) * overlappedNotesWeight;
             }
 
             double velocityChangeBonus = CalculateFlowVelocityChangeBonus(current);

@@ -66,14 +66,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 // Jumps need to have some spacing to be snapped
                 double result = currDistance < snapThreshold ? snapThreshold * 0.65 + currDistance * 0.35 : currDistance;
 
-                // Don't buff doubles jumps as you don't snap in this case (except very close to itself doubles, that need to have some distance bonus to be calculated as flow)
-                double lowSpacingFactor = DifficultyCalculationUtils.ReverseLerp(currDistance, radius * 2, radius);
-
-                // Make nerf much smaller if it's not doubles
-                double notOverlappingAdjust = diameter * 2 * (1 - lowSpacingFactor);
-
                 // Don't increase snap distance when previous jump is very big, as it leads to cheese being overrewarded
-                double bigDistanceDifferenceFactor = DifficultyCalculationUtils.ReverseLerp(osuLastObj.LazyJumpDistance, notOverlappingAdjust + diameter, notOverlappingAdjust + diameter * 2);
+                double bigDistanceDifferenceFactor = DifficultyCalculationUtils.ReverseLerp(osuLastObj.LazyJumpDistance, 2 * diameter, 4 * diameter);
 
                 // And don't nerf bursts with this
                 bigDistanceDifferenceFactor *= DifficultyCalculationUtils.ReverseLerpTwoDirectional(osuCurrObj.StrainTime, osuLastObj.StrainTime, 1.95, 1.5);
@@ -220,10 +214,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 velocityChangeBonus *= 1 - distanceSimilarityFactor * distanceFactor * angleFactor * rhythmPenalty;
 
                 // Decrease buff large jumps leading into very small jumps to compensate the fact that smaller jumps are buffed by minimal snap distance
-                // Use 2 different curves for doubles and microjumps here for better balancing
-                double doublesNerf = 0.8 * DifficultyCalculationUtils.ReverseLerp(osuCurrObj.LazyJumpDistance, diameter, diameter * 3) * DifficultyCalculationUtils.ReverseLerp(osuLastObj.LazyJumpDistance, diameter, radius);
-                double microJumpsNerf = 0.75 * DifficultyCalculationUtils.ReverseLerp(osuCurrObj.LazyJumpDistance, diameter * 2.5, diameter * 5) * DifficultyCalculationUtils.ReverseLerp(osuLastObj.LazyJumpDistance, diameter * 2, diameter);
-                velocityChangeBonus *= 1 - Math.Max(doublesNerf, microJumpsNerf) * rhythmPenalty;
+                double microJumpsNerf = 0.75 * DifficultyCalculationUtils.ReverseLerp(osuCurrObj.LazyJumpDistance, diameter * 2.5, diameter * 5) * DifficultyCalculationUtils.ReverseLerp(osuLastObj.LazyJumpDistance, diameter * 2, radius);
+                velocityChangeBonus *= 1 - microJumpsNerf * rhythmPenalty;
             }
 
             if (osuLastObj.BaseObject is Slider)
