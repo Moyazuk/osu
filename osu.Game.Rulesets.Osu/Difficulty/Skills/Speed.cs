@@ -18,36 +18,80 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Speed : OsuStrainSkill
     {
-        private double skillMultiplier => 1.46;
-        private double strainDecayBase => 0.3;
+        private double totalMultiplier => 1.0;
+        private double burstMultiplier => 2.05;
+        private double streamMultiplier => 0.06;
+        private double staminaMultiplier => 0.04;
+        private double meanFactor => 1.25;
 
-        private double currentStrain;
-        private double currentRhythm;
+        private double currentBurstStrain;
+        private double currentStreamStrain;
+        private double currentStaminaStrain;
 
         private readonly List<double> sliderStrains = new List<double>();
+        public readonly bool WithoutStamina;
 
-        protected override int ReducedSectionCount => 5;
-
-        public Speed(Mod[] mods)
+        public Speed(Mod[] mods, bool withoutStamina)
             : base(mods)
         {
+            WithoutStamina = withoutStamina;
         }
 
-        private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
+        private double strainDecayBurst(double ms) => Math.Pow(0.14, ms / 1000);
+        private double strainDecayStream(double ms) => Math.Pow(0.01, Math.Pow(ms / 1000, 1.6));
 
-        protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => (currentStrain * currentRhythm) * strainDecay(time - current.Previous(0).StartTime);
+        private double strainDecayStamina(double ms, double staminaValue)
+        {
+            double changeFactor = currentStaminaStrain > 0 ? 1 + Math.Pow(currentStaminaStrain / (staminaValue + currentStaminaStrain), 25) : 1;
+            return Math.Pow(0.05, Math.Pow(ms * changeFactor / 1000, 3.5));
+        }
+
+        protected override double CalculateInitialStrain(double time, DifficultyHitObject current)
+        {
+            if (WithoutStamina)
+                return currentBurstStrain * strainDecayBurst(time - current.Previous(0).StartTime);
+
+            return Math.Pow(
+                Math.Pow(currentBurstStrain * strainDecayBurst(time - current.Previous(0).StartTime), meanFactor) +
+                Math.Pow(currentStreamStrain * strainDecayStream(time - current.Previous(0).StartTime), meanFactor) +
+                Math.Pow(currentStaminaStrain * strainDecayStamina(time - current.Previous(0).StartTime, StaminaEvaluator.EvaluateDifficultyOf(current) * staminaMultiplier), meanFactor), 1.0 / meanFactor
+            );
+        }
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            currentStrain *= strainDecay(((OsuDifficultyHitObject)current).StrainTime);
-            currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * skillMultiplier;
+            currentBurstStrain *= strainDecayBurst(((OsuDifficultyHitObject)current).StrainTime);
+            currentBurstStrain += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * burstMultiplier;
 
-            double totalStrain = currentStrain;
+            if (WithoutStamina)
+            {
+                double totalStrain = currentBurstStrain;
+
+                if (current.BaseObject is Slider)
+                    sliderStrains.Add(totalStrain);
+
+                return totalStrain;
+            }
+
+            double staminaValue = StaminaEvaluator.EvaluateDifficultyOf(current);
+
+            currentStreamStrain *= strainDecayStream(((OsuDifficultyHitObject)current).StrainTime);
+            currentStreamStrain += staminaValue * streamMultiplier;
+
+            currentStaminaStrain *= strainDecayStamina(((OsuDifficultyHitObject)current).StrainTime, staminaValue * staminaMultiplier);
+            currentStaminaStrain += staminaValue * staminaMultiplier;
+
+            double totalValue =
+                Math.Pow(
+                    Math.Pow(currentBurstStrain, meanFactor) +
+                    Math.Pow(currentStreamStrain, meanFactor) +
+                    Math.Pow(currentStaminaStrain, meanFactor), 1.0 / meanFactor
+                );
 
             if (current.BaseObject is Slider)
-                sliderStrains.Add(totalStrain);
+                sliderStrains.Add(totalValue);
 
-            return totalStrain;
+            return totalValue * totalMultiplier;
         }
 
         public double RelevantNoteCount()
