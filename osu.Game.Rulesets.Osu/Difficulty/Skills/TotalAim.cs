@@ -25,6 +25,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double flow = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
 
             double snappiness = snap > 0 ? Math.Pow(flow / snap, 1.5) : 0;
+
+            // Rescale
+            snappiness = (snappiness - 0.25) / (1 - 0.25);
+
             double objectWeight = 0.5 + 0.5 * Math.Clamp(snappiness, 0, 1);
             objectWeights.Add(objectWeight);
 

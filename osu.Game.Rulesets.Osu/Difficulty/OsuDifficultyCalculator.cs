@@ -142,8 +142,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                                              (aimNoSlidersRelevantObjectCount > 320.0 ? 1.5 * Math.Log10(aimNoSlidersRelevantObjectCount / 240.0) : 0);
             aimRatingNoSliders *= Math.Cbrt(aimNoSlidersLengthBonus);
 
-            double speedLengthBonus = 1.0 + Math.Min(0.3, speedRelevantObjectCount / 1100.0) +
-                                      (speedRelevantObjectCount > 330 ? 0.7 * Math.Log10(speedRelevantObjectCount / 330.0) : 0.0);
+            double speedLengthBonus = 1.0 + Math.Min(0.2, speedRelevantObjectCount / 750.0) +
+                                      (speedRelevantObjectCount > 200 ? 0.4 * Math.Log10(speedRelevantObjectCount / 200.0) : 0.0);
             speedRating *= Math.Cbrt(speedLengthBonus);
 
             double flashlightRating = 0.0;
