@@ -46,6 +46,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public double SpeedNoteCount { get; set; }
 
         /// <summary>
+        /// The difficulty corresponding to the speed skill.
+        /// </summary>
+        [JsonProperty("finger_control_note_count")]
+        public double FingerControlNoteCount { get; set; }
+
+        /// <summary>
         /// The difficulty corresponding to the flashlight skill.
         /// </summary>
         [JsonProperty("flashlight_difficulty")]
@@ -58,6 +64,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         /// </summary>
         [JsonProperty("slider_factor")]
         public double SliderFactor { get; set; }
+
+        /// <summary>
+        /// Describes how much of <see cref="AimDifficulty"/> is cheesable.
+        /// A value closer to 1.0 indicates most of <see cref="AimDifficulty"/> is non-cheesable.
+        /// A value closer to 0.0 indicates most of <see cref="AimDifficulty"/> is cheesable.
+        /// </summary>
+        [JsonProperty("cheese_factor")]
+        public double CheeseFactor { get; set; }
 
         /// <summary>
         /// Describes how much of <see cref="AimDifficultStrainCount"/> is contributed to by hitcircles or sliders
@@ -80,6 +94,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         [JsonProperty("speed_difficult_strain_count")]
         public double SpeedDifficultStrainCount { get; set; }
+
+        [JsonProperty("finger_contol_difficult_strain_count")]
+        public double FingerControlDifficultStrainCount { get; set; }
 
         [JsonProperty("nested_score_per_object")]
         public double NestedScorePerObject { get; set; }

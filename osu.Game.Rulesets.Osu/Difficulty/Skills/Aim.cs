@@ -18,11 +18,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public class Aim : OsuStrainSkill
     {
         public readonly bool IncludeSliders;
+        public readonly bool WithCheesability;
 
-        public Aim(Mod[] mods, bool includeSliders)
+        public Aim(Mod[] mods, bool includeSliders, bool withCheesability)
             : base(mods)
         {
             IncludeSliders = includeSliders;
+            WithCheesability = withCheesability;
         }
 
         private double currentStrain;
@@ -39,7 +41,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         protected override double StrainValueAt(DifficultyHitObject current)
         {
             currentStrain *= strainDecay(current.DeltaTime);
-            currentStrain += AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
+            currentStrain += AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, WithCheesability) * skillMultiplier;
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentStrain);

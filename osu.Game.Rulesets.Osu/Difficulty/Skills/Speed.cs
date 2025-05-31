@@ -19,8 +19,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public class Speed : OsuStrainSkill
     {
         private double totalMultiplier => 1.0;
-        private double burstMultiplier => 2.05;
-        private double streamMultiplier => 0.06;
+        private double burstMultiplier => 2.1;
+        private double streamMultiplier => 0;
         private double staminaMultiplier => 0.04;
         private double meanFactor => 1.25;
 
