@@ -223,7 +223,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             // Scale the aim value by how cheesable it is.
             double cheesedAimValue = aimValue * Math.Pow(attributes.CheeseFactor, 3);
-            aimValue = double.Lerp(cheesedAimValue, aimValue, DifficultyCalculationUtils.Erf(20 / (Math.Sqrt(2) * (double)deviation)));
+            double cheesedProbability = calculateCheesePValue(score, attributes);
+            aimValue = double.Lerp(cheesedAimValue, aimValue, 1 - cheesedProbability);
 
             return aimValue;
         }
@@ -255,9 +256,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 speedValue *= 1.0 + OsuDifficultyCalculator.CalculateVisibilityBonus(score.Mods, approachRate);
             }
-
-            double speedHighDeviationMultiplier = calculateSpeedHighDeviationNerf(attributes);
-            speedValue *= speedHighDeviationMultiplier;
 
             // Calculate accuracy assuming the worst case scenario
             double relevantTotalDiff = Math.Max(0, totalHits - attributes.SpeedNoteCount);
@@ -524,30 +522,27 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             }
         }
 
-        // Calculates multiplier for speed to account for improper tapping based on the deviation and speed difficulty
-        // https://www.desmos.com/calculator/dmogdhzofn
-        private double calculateSpeedHighDeviationNerf(OsuDifficultyAttributes attributes)
+        private double calculateCheesePValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            if (speedDeviation == null)
-                return 0;
+            if (deviation == null)
+                return 1;
 
-            double speedValue = OsuStrainSkill.DifficultyToPerformance(attributes.SpeedDifficulty);
+            double sigma = (double)deviation;
 
-            // Decides a point where the PP value achieved compared to the speed deviation is assumed to be tapped improperly. Any PP above this point is considered "excess" speed difficulty.
-            // This is used to cause PP above the cutoff to scale logarithmically towards the original speed value thus nerfing the value.
-            double excessSpeedDifficultyCutoff = 100 + 220 * Math.Pow(22 / speedDeviation.Value, 6.5);
+            static double gaussianCdf(double x) => 0.5 * (1 + DifficultyCalculationUtils.Erf(x / Math.Sqrt(2)));
+            int n = attributes.HitCircleCount + attributes.SliderCount;
+            int countGreatsWhileCheesing = (int)attributes.GreatsWithCheesing; // Accounts for sliders already; no need to adjust for classic.
 
-            if (speedValue <= excessSpeedDifficultyCutoff)
-                return 1.0;
+            double expectedProportion = DifficultyCalculationUtils.Erf(greatHitWindow / (Math.Sqrt(2) * sigma));
+            double mean = n * expectedProportion;
+            double stdev = Math.Sqrt(n * expectedProportion * (1 - expectedProportion));
 
-            const double scale = 50;
-            double adjustedSpeedValue = scale * (Math.Log((speedValue - excessSpeedDifficultyCutoff) / scale + 1) + excessSpeedDifficultyCutoff / scale);
+            if (countGreatsWhileCheesing >= n || stdev == 0)
+                return 1;
 
-            // 220 UR and less are considered tapped correctly to ensure that normal scores will be punished as little as possible
-            double lerp = 1 - DifficultyCalculationUtils.ReverseLerp(speedDeviation.Value, 22.0, 27.0);
-            adjustedSpeedValue = double.Lerp(adjustedSpeedValue, speedValue, lerp);
-
-            return adjustedSpeedValue / speedValue;
+            // Use Gaussian approximation with continuity correction for the Binomial CDF.
+            double pValue = gaussianCdf((countGreatsWhileCheesing + 0.5 - mean) / stdev);
+            return pValue;
         }
 
         // Miss penalty assumes that a player will miss on the hardest parts of a map,

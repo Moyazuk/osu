@@ -7,8 +7,11 @@ using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
+using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
+using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Osu.Objects;
+using osu.Game.Scoring;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
@@ -20,12 +23,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         public readonly bool IncludeSliders;
         public readonly bool WithCheesability;
 
+        private bool isUsingClassicSliderAcc;
+
         public Aim(Mod[] mods, bool includeSliders, bool withCheesability)
             : base(mods)
         {
             IncludeSliders = includeSliders;
             WithCheesability = withCheesability;
+            isUsingClassicSliderAcc = mods.OfType<OsuModClassic>().Any(m => m.NoSliderHeadAccuracy.Value);
         }
+
+        private int countGreatWithCheesing = 0;
 
         private double currentStrain;
 
@@ -46,6 +54,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentStrain);
 
+            countGreatWithCheesing += isGreatWhileCheesed(current, isUsingClassicSliderAcc);
+
             return currentStrain;
         }
 
@@ -63,5 +73,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         }
 
         public double CountTopWeightedSliders() => OsuStrainUtils.CountTopWeightedSliders(sliderStrains, DifficultyValue());
+
+        public double GetGreatsWithCheesing() => countGreatWithCheesing;
+
+        // Check if cheesing the current object still results in a great.
+        private static int isGreatWhileCheesed(DifficultyHitObject current, bool isUsingClassicSliderAcc)
+        {
+            var osuCurrObj = (OsuDifficultyHitObject)current;
+
+            // Since the extra delta time is never above the 50 hit window (the hit window for sliders when slider acc is disabled),
+            // we can always get a 300 on sliders when cheesing.
+            if (osuCurrObj.BaseObject is Slider && isUsingClassicSliderAcc)
+                return 1;
+
+            return osuCurrObj.ExtraDeltaTime <= osuCurrObj.HitWindowGreat ? 1 : 0;
+        }
     }
 }
