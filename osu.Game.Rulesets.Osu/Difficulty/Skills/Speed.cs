@@ -1,13 +1,15 @@
-﻿﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Osu.Objects;
 using System.Linq;
-using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
+using osu.Game.Rulesets.Osu.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
@@ -16,45 +18,94 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Speed : OsuStrainSkill
     {
-        private double skillMultiplier => 1.40;
-        private double strainDecayBase => 0.3;
+        private double totalMultiplier => 1.0;
+        private double burstMultiplier => 2.95;
+        private double streamMultiplier => 0.065;
+        private double staminaMultiplier => 0.07;
+        private double meanFactor => 1.25;
 
-        private double currentStrain;
-        private double currentRhythm;
+        private double currentBurstStrain;
+        private double currentStreamStrain;
+        private double currentStaminaStrain;
 
-        protected override int ReducedSectionCount => 5;
+        private readonly List<double> sliderStrains = new List<double>();
+        public readonly bool WithoutStamina;
 
-        public Speed(Mod[] mods)
+        public Speed(Mod[] mods, bool withoutStamina)
             : base(mods)
         {
+            WithoutStamina = withoutStamina;
         }
 
-        private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
+        private double strainDecayBurst(double ms) => Math.Pow(0.025, ms / 1000);
+        private double strainDecayStream(double ms) => Math.Pow(0.01, Math.Pow(ms / 1000, 1.6));
 
-        protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => (currentStrain * currentRhythm) * strainDecay(time - current.Previous(0).StartTime);
+        private double strainDecayStamina(double ms, double staminaValue)
+        {
+            double changeFactor = currentStaminaStrain > 0 ? 1 + Math.Pow(currentStaminaStrain / (staminaValue + currentStaminaStrain), 25) : 1;
+            return Math.Pow(0.05, Math.Pow(ms * changeFactor / 1000, 3.5));
+        }
+
+        protected override double CalculateInitialStrain(double time, DifficultyHitObject current)
+        {
+            if (WithoutStamina)
+                return currentBurstStrain * strainDecayBurst(time - current.Previous(0).StartTime);
+
+            return Math.Pow(
+                Math.Pow(currentBurstStrain * strainDecayBurst(time - current.Previous(0).StartTime), meanFactor) +
+                Math.Pow(currentStreamStrain * strainDecayStream(time - current.Previous(0).StartTime), meanFactor) +
+                Math.Pow(currentStaminaStrain * strainDecayStamina(time - current.Previous(0).StartTime, StaminaEvaluator.EvaluateDifficultyOf(current) * staminaMultiplier), meanFactor), 1.0 / meanFactor
+            );
+        }
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            currentStrain *= strainDecay(((OsuDifficultyHitObject)current).StrainTime);
-            currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+            currentBurstStrain *= strainDecayBurst(((OsuDifficultyHitObject)current).StrainTime);
+            currentBurstStrain += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * burstMultiplier;
 
-            currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
+            if (WithoutStamina)
+            {
+                double totalStrain = currentBurstStrain;
 
-            double totalStrain = currentStrain * currentRhythm;
+                if (current.BaseObject is Slider)
+                    sliderStrains.Add(totalStrain);
 
-            return totalStrain;
+                return totalStrain;
+            }
+
+            double staminaValue = StaminaEvaluator.EvaluateDifficultyOf(current);
+
+            currentStreamStrain *= strainDecayStream(((OsuDifficultyHitObject)current).StrainTime);
+            currentStreamStrain += staminaValue * streamMultiplier;
+
+            currentStaminaStrain *= strainDecayStamina(((OsuDifficultyHitObject)current).StrainTime, staminaValue * staminaMultiplier);
+            currentStaminaStrain += staminaValue * staminaMultiplier;
+
+            double totalValue =
+                Math.Pow(
+                    Math.Pow(currentBurstStrain, meanFactor) +
+                    Math.Pow(currentStreamStrain, meanFactor) +
+                    Math.Pow(currentStaminaStrain, meanFactor), 1.0 / meanFactor
+                );
+
+            if (current.BaseObject is Slider)
+                sliderStrains.Add(totalValue);
+
+            return totalValue * totalMultiplier;
         }
 
         public double RelevantNoteCount()
         {
-            if (Difficulties.Count == 0)
+            if (ObjectStrains.Count == 0)
                 return 0;
 
-            double maxStrain = Difficulties.Max();
+            double maxStrain = ObjectStrains.Max();
             if (maxStrain == 0)
                 return 0;
 
-            return Difficulties.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / maxStrain * 12.0 - 6.0))));
+            return ObjectStrains.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / maxStrain * 12.0 - 6.0))));
         }
+
+        public double CountTopWeightedSliders() => OsuStrainUtils.CountTopWeightedSliders(sliderStrains, DifficultyValue());
     }
 }

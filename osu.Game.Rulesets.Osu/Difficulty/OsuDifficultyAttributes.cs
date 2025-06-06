@@ -40,11 +40,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public double SpeedDifficulty { get; set; }
 
         /// <summary>
+        /// The difficulty corresponding to the speed skill.
+        /// </summary>
+        [JsonProperty("finger_control_difficulty")]
+        public double FingerControlDifficulty { get; set; }
+
+        /// <summary>
         /// The number of clickable objects weighted by difficulty.
         /// Related to <see cref="SpeedDifficulty"/>
         /// </summary>
         [JsonProperty("speed_note_count")]
         public double SpeedNoteCount { get; set; }
+
+        /// <summary>
+        /// The difficulty corresponding to the speed skill.
+        /// </summary>
+        [JsonProperty("finger_control_note_count")]
+        public double FingerControlNoteCount { get; set; }
 
         /// <summary>
         /// The difficulty corresponding to the flashlight skill.
@@ -65,6 +77,30 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         /// </summary>
         [JsonProperty("slider_factor")]
         public double SliderFactor { get; set; }
+
+        /// <summary>
+        /// Describes how much of <see cref="AimDifficulty"/> is cheesable.
+        /// A value closer to 1.0 indicates most of <see cref="AimDifficulty"/> is non-cheesable.
+        /// A value closer to 0.0 indicates most of <see cref="AimDifficulty"/> is cheesable.
+        /// </summary>
+        [JsonProperty("cheese_factor")]
+        public double CheeseFactor { get; set; }
+
+        /// <summary>
+        /// Describes how much of <see cref="AimDifficultStrainCount"/> is contributed to by hitcircles or sliders
+        /// A value closer to 0.0 indicates most of <see cref="AimDifficultStrainCount"/> is contributed by hitcircles
+        /// A value closer to Infinity indicates most of <see cref="AimDifficultStrainCount"/> is contributed by sliders
+        /// </summary>
+        [JsonProperty("aim_top_weighted_slider_factor")]
+        public double AimTopWeightedSliderFactor { get; set; }
+
+        /// <summary>
+        /// Describes how much of <see cref="SpeedDifficultStrainCount"/> is contributed to by hitcircles or sliders
+        /// A value closer to 0.0 indicates most of <see cref="SpeedDifficultStrainCount"/> is contributed by hitcircles
+        /// A value closer to Infinity indicates most of <see cref="SpeedDifficultStrainCount"/> is contributed by sliders
+        /// </summary>
+        [JsonProperty("speed_top_weighted_slider_factor")]
+        public double SpeedTopWeightedSliderFactor { get; set; }
 
         [JsonProperty("aim_difficult_strain_count")]
         public double AimDifficultStrainCount { get; set; }
@@ -105,6 +141,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("meh_hit_window")]
         public double MehHitWindow { get; set; }
 
+        [JsonProperty("finger_contol_difficult_strain_count")]
+        public double FingerControlDifficultStrainCount { get; set; }
+
+        [JsonProperty("nested_score_per_object")]
+        public double NestedScorePerObject { get; set; }
+
+        [JsonProperty("legacy_score_base_multiplier")]
+        public double LegacyScoreBaseMultiplier { get; set; }
+
+        [JsonProperty("maximum_legacy_combo_score")]
+        public double MaximumLegacyComboScore { get; set; }
+
         /// <summary>
         /// The beatmap's drain rate. This doesn't scale with rate-adjusting mods.
         /// </summary>
@@ -143,6 +191,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             yield return (ATTRIB_ID_SPEED_DIFFICULT_STRAIN_COUNT, SpeedDifficultStrainCount);
             yield return (ATTRIB_ID_SPEED_NOTE_COUNT, SpeedNoteCount);
             yield return (ATTRIB_ID_AIM_DIFFICULT_SLIDER_COUNT, AimDifficultSliderCount);
+            yield return (ATTRIB_ID_AIM_TOP_WEIGHTED_SLIDER_FACTOR, AimTopWeightedSliderFactor);
+            yield return (ATTRIB_ID_SPEED_TOP_WEIGHTED_SLIDER_FACTOR, SpeedTopWeightedSliderFactor);
+            yield return (ATTRIB_ID_NESTED_SCORE_PER_OBJECT, NestedScorePerObject);
+            yield return (ATTRIB_ID_LEGACY_SCORE_BASE_MULTIPLIER, LegacyScoreBaseMultiplier);
+            yield return (ATTRIB_ID_MAXIMUM_LEGACY_COMBO_SCORE, MaximumLegacyComboScore);
         }
 
         public override void FromDatabaseAttributes(IReadOnlyDictionary<int, double> values, IBeatmapOnlineInfo onlineInfo)
@@ -161,6 +214,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             SpeedDifficultStrainCount = values[ATTRIB_ID_SPEED_DIFFICULT_STRAIN_COUNT];
             SpeedNoteCount = values[ATTRIB_ID_SPEED_NOTE_COUNT];
             AimDifficultSliderCount = values[ATTRIB_ID_AIM_DIFFICULT_SLIDER_COUNT];
+            AimTopWeightedSliderFactor = values[ATTRIB_ID_AIM_TOP_WEIGHTED_SLIDER_FACTOR];
+            SpeedTopWeightedSliderFactor = values[ATTRIB_ID_SPEED_TOP_WEIGHTED_SLIDER_FACTOR];
+            NestedScorePerObject = values[ATTRIB_ID_NESTED_SCORE_PER_OBJECT];
+            LegacyScoreBaseMultiplier = values[ATTRIB_ID_LEGACY_SCORE_BASE_MULTIPLIER];
+            MaximumLegacyComboScore = values[ATTRIB_ID_MAXIMUM_LEGACY_COMBO_SCORE];
             DrainRate = onlineInfo.DrainRate;
             HitCircleCount = onlineInfo.CircleCount;
             SliderCount = onlineInfo.SliderCount;
