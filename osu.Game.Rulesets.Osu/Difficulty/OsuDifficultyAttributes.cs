@@ -102,14 +102,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("speed_top_weighted_slider_factor")]
         public double SpeedTopWeightedSliderFactor { get; set; }
 
-        /// <summary>
-        /// Describes how much of <see cref="AimDifficulty"/> is cheesable.
-        /// A value closer to 1.0 indicates most of <see cref="AimDifficulty"/> is non-cheesable.
-        /// A value closer to 0.0 indicates most of <see cref="AimDifficulty"/> is cheesable.
-        /// </summary>
-        [JsonProperty("cheese_factor")]
-        public double CheeseFactor { get; set; }
-
         [JsonProperty("aim_difficult_strain_count")]
         public double AimDifficultStrainCount { get; set; }
 
@@ -118,6 +110,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         [JsonProperty("reading_difficult_strain_count")]
         public double ReadingDifficultStrainCount { get; set; }
+
+        [JsonProperty("reading_difficult_note_count")]
+        public double ReadingDifficultNoteCount { get; set; }
 
         /// <summary>
         /// The perceived approach rate inclusive of rate-adjusting mods (DT/HT/etc).
@@ -213,10 +208,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             AimDifficulty = values[ATTRIB_ID_AIM];
             SpeedDifficulty = values[ATTRIB_ID_SPEED];
-            OverallDifficulty = values[ATTRIB_ID_OVERALL_DIFFICULTY];
-            ApproachRate = values[ATTRIB_ID_APPROACH_RATE];
             StarRating = values[ATTRIB_ID_DIFFICULTY];
-            GreatHitWindow = values[ATTRIB_ID_GREAT_HIT_WINDOW];
             FlashlightDifficulty = values.GetValueOrDefault(ATTRIB_ID_FLASHLIGHT);
             SliderFactor = values[ATTRIB_ID_SLIDER_FACTOR];
             CheeseFactor = values[ATTRIB_ID_CHEESE_FACTOR];

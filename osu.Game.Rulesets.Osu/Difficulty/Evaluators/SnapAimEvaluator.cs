@@ -18,11 +18,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 return 0;
 
             // Base snap difficulty is velocity.
-            double difficulty = EvaluateDistanceBonus(current, withSliderTravelDistance) * 75;
+            double difficulty = EvaluateDistanceBonus(current, withSliderTravelDistance, withCheesability) * 10.25;
             double sliderBonus = 0;
             //difficulty += EvaluateAgilityBonus(current) * 65;
-            difficulty += EvaluateAngleBonus(current) * 50;
-            difficulty += EvaluateVelocityChangeBonus(current) * 200;
+            difficulty += EvaluateAngleBonus(current) * 9;
+            difficulty += EvaluateVelocityChangeBonus(current) * 18;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuPrevObj = (OsuDifficultyHitObject)current;
@@ -35,23 +35,29 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
-                difficulty += sliderBonus * 35;
+                difficulty += sliderBonus * 0;
+
+            return difficulty * osuCurrObj.SmallCircleBonus;
+        }
+
+        public static double EvaluateDistanceBonus(DifficultyHitObject current, bool withSliderTravelDistance, bool withCheesability)
+        {
+            var osuCurrObj = (OsuDifficultyHitObject)current;
+            var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
+
+            double currStrainTime = osuCurrObj.StrainTime;
+            double lastStrainTime = osuPrevObj.StrainTime;
+
+            double currMinimumJumpTime = osuCurrObj.MinimumJumpTime;
+            double lastMinimumJumpTime = osuPrevObj.MinimumJumpTime;
 
             if (withCheesability)
             {
-                double cheesability = Math.Min(1, osuCurrObj.Movement.Length / 100)
-                                      * (1 - Math.Min(1, osuPrevObj.Movement.Length / 100))
-                                      * Math.Min(1, osuPrevObj.StrainTime / osuCurrObj.StrainTime);
-                difficulty *= 1 - cheesability;
+                currStrainTime += osuCurrObj.ExtraDeltaTime;
+                currMinimumJumpTime += osuCurrObj.ExtraDeltaTime;
+                lastMinimumJumpTime += osuPrevObj.ExtraDeltaTime;
+                lastStrainTime += osuPrevObj.ExtraDeltaTime;
             }
-
-            return difficulty;
-        }
-
-        public static double EvaluateDistanceBonus(DifficultyHitObject current, bool withSliderTravelDistance)
-        {
-            var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj = (OsuDifficultyHitObject)current;
 
             // Base snap difficulty is velocity.
             double distanceBonus = osuCurrObj.Movement.Length / osuCurrObj.StrainTime;
@@ -60,7 +66,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (osuPrevObj.BaseObject is Slider && withSliderTravelDistance)
             {
                 double travelVelocity = osuPrevObj.TravelDistance / osuPrevObj.TravelTime; // calculate the slider velocity from slider head to slider end.
-                double movementVelocity = osuCurrObj.MinimumJumpDistance / osuCurrObj.MinimumJumpTime; // calculate the movement velocity from slider end to current object
+                double movementVelocity = osuCurrObj.MinimumJumpDistance / currMinimumJumpTime; // calculate the movement velocity from slider end to current object
 
                 distanceBonus = Math.Max(distanceBonus, movementVelocity + travelVelocity); // take the larger total combined velocity.
             }
@@ -90,12 +96,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
 
             // We reward high bpm more for wider angles, but only when both current and previous distance are over 0.5 radii.
-            double baseBpm = 240.0 / (1 + 0.45 * Smootherstep(currentAngle, 0, 120) * currDistanceMultiplier * prevDistanceMultiplier);
+            double baseBpm = 320.0 / (1 + 0.65 * Smootherstep(currentAngle, 0, 120) * currDistanceMultiplier * prevDistanceMultiplier);
 
             // Agility bonus of 1 at base BPM.
-            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 2) - 1);
+            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 3) - 1);
 
-            return agilityBonus * 14;
+            return agilityBonus * 1.1;
         }
 
         public static double EvaluateAngleBonus(DifficultyHitObject current)
@@ -119,9 +125,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double angleBonus = Smootherstep(currAngle, 0, 180) * currVelocity * prevDistanceMultiplier; // Gengaozo pattern
 
-            double distanceScaling = 0.4 + 0.6 * Smootherstep(osuCurrObj.RawMovement.Length / osuCurrObj.Radius, 0.0, 8);
+            // double distanceScaling = 0.4 + 0.6 * Smootherstep(osuCurrObj.RawMovement.Length / osuCurrObj.Radius, 0.0, 8);
 
-            return angleBonus * distanceScaling;
+            return angleBonus;
         }
 
         public static double EvaluateVelocityChangeBonus(DifficultyHitObject current)

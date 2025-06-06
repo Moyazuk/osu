@@ -149,6 +149,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double accuracyValue = computeAccuracyValue(score, osuAttributes);
             double flashlightValue = computeFlashlightValue(score, osuAttributes);
             double fingerControlValue = computeFingerControlValue(score, osuAttributes);
+            double readingValue = computeReadingValue(osuAttributes);
 
             double totalValue =
                 Math.Pow(
@@ -156,6 +157,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                     Math.Pow(speedValue, 1.1) +
                     Math.Pow(accuracyValue, 1.1) +
                     Math.Pow(fingerControlValue, 1.1) +
+                    Math.Pow(readingValue, 1.1) +
                     Math.Pow(flashlightValue, 1.1), 1.0 / 1.1
                 ) * multiplier;
 
@@ -206,22 +208,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double aimValue = OsuStrainSkill.DifficultyToPerformance(aimDifficulty);
 
-            double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
-                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-            aimValue *= lengthBonus;
-
             if (effectiveMissCount > 0)
             {
                 aimEstimatedSliderBreaks = calculateEstimatedSliderBreaks(attributes.AimTopWeightedSliderFactor, attributes);
                 aimValue *= calculateCurveFittedMissPenalty(effectiveMissCount + aimEstimatedSliderBreaks, attributes.AimMissPenaltyCurve);
-            }
-
-            // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
-            if (score.Mods.Any(m => m is OsuModBlinds))
-                aimValue *= 1.3 + (totalHits * (0.0016 / (1 + 2 * effectiveMissCount)) * Math.Pow(accuracy, 16)) * (1 - 0.003 * attributes.DrainRate * attributes.DrainRate);
-            else if (score.Mods.Any(m => m is OsuModTraceable))
-            {
-                aimValue *= 1.0 + OsuDifficultyCalculator.CalculateVisibilityBonus(score.Mods, approachRate);
             }
 
             // Scale the aim value by how cheesable it is.
@@ -240,7 +230,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
                                  (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-            speedValue *= lengthBonus;
 
             if (effectiveMissCount > 0)
             {
@@ -253,10 +242,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 // Increasing the speed value by object count for Blinds isn't ideal, so the minimum buff is given.
                 speedValue *= 1.12;
-            }
-            else if (score.Mods.Any(m => m is OsuModTraceable))
-            {
-                speedValue *= 1.0 + OsuDifficultyCalculator.CalculateVisibilityBonus(score.Mods, approachRate);
             }
 
             double speedHighDeviationMultiplier = calculateSpeedHighDeviationNerf(attributes);
@@ -289,10 +274,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double fingerControlValue = OsuStrainSkill.DifficultyToPerformance(attributes.FingerControlDifficulty);
 
-            double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
-                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-            fingerControlValue *= lengthBonus;
-
             if (effectiveMissCount > 0)
             {
                 fingerControlValue *= calculateStrainCountMissPenalty(effectiveMissCount + speedEstimatedSliderBreaks, attributes.FingerControlDifficultStrainCount);
@@ -303,10 +284,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 // Increasing the speed value by object count for Blinds isn't ideal, so the minimum buff is given.
                 fingerControlValue *= 1.12;
-            }
-            else if (score.Mods.Any(m => m is OsuModTraceable))
-            {
-                fingerControlValue *= 1.0 + OsuDifficultyCalculator.CalculateVisibilityBonus(score.Mods, approachRate);
             }
 
             // Calculate accuracy assuming the worst case scenario
@@ -373,6 +350,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             flashlightValue *= 0.5 + accuracy / 2.0;
 
             return flashlightValue;
+        }
+
+        private double computeReadingValue(OsuDifficultyAttributes attributes)
+        {
+            double readingValue = Reading.DifficultyToPerformance(attributes.ReadingDifficulty);
+
+            if (effectiveMissCount > 0)
+            {
+                readingValue *= calculateStrainCountMissPenalty(effectiveMissCount + aimEstimatedSliderBreaks, attributes.ReadingDifficultNoteCount);
+            }
+
+            // Scale the reading value with accuracy _harshly_.
+            readingValue *= Math.Pow(accuracy, 3);
+
+            return readingValue;
         }
 
         private double calculateComboBasedEstimatedMissCount(OsuDifficultyAttributes attributes)

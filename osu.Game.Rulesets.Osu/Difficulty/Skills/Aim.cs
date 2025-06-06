@@ -40,9 +40,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double strainDecayBase => 0.15;
         private double strainDecayAgiBase => 0.15;
 
-        private double strainInfluence => 4 / 1.0;
-        private double strainIncreaseRate => 10;
-        private double strainDecreaseRate => 3;
+        private double strainInfluence => 8 / 1.0;
+        private double strainIncreaseRate => 15;
+        private double strainDecreaseRate => 5;
 
         private double agiStrainInfluence => 4 / 1.0;
 
