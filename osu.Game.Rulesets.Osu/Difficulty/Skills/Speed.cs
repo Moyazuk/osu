@@ -19,9 +19,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public class Speed : OsuStrainSkill
     {
         private double totalMultiplier => 1.0;
-        private double burstMultiplier => 2.1;
-        private double streamMultiplier => 0;
-        private double staminaMultiplier => 0.04;
+        private double burstMultiplier => 2.95;
+        private double streamMultiplier => 0.065;
+        private double staminaMultiplier => 0.07;
         private double meanFactor => 1.25;
 
         private double currentBurstStrain;
@@ -37,7 +37,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             WithoutStamina = withoutStamina;
         }
 
-        private double strainDecayBurst(double ms) => Math.Pow(0.14, ms / 1000);
+        private double strainDecayBurst(double ms) => Math.Pow(0.025, ms / 1000);
         private double strainDecayStream(double ms) => Math.Pow(0.01, Math.Pow(ms / 1000, 1.6));
 
         private double strainDecayStamina(double ms, double staminaValue)

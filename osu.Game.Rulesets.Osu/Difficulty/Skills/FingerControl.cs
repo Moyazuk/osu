@@ -9,6 +9,7 @@ using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
 using System.Linq;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
@@ -18,7 +19,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class FingerControl : OsuStrainSkill
     {
-        private double skillMultiplier => 18.8;
+        private double skillMultiplier => 26.8;
         private double strainDecayBase => 0.20;
 
         private double currentStrain;
@@ -38,10 +39,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
+            double currentSpeed = SpeedEvaluator.EvaluateDifficultyOf((OsuDifficultyHitObject)current, Mods);
             currentStrain *= strainDecay(((OsuDifficultyHitObject)current).StrainTime);
             currentStrain += RhythmEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
 
-            double totalStrain = currentStrain;
+            var tapCorrection = 1.0;
+
+            if (currentSpeed != null)
+            {
+                tapCorrection = 1 + DifficultyCalculationUtils.Logistic((currentSpeed - 10) / 2) * 0.20;
+            }
+
+            double totalStrain = currentStrain * tapCorrection;
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(totalStrain);
