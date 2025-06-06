@@ -9,6 +9,7 @@ using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Difficulty.Utils;
+using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Objects;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
@@ -19,10 +20,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public class Aim : OsuTimeSkill
     {
         public readonly bool IncludeSliders;
-        public Aim(Mod[] mods, bool includeSliders)
+        public readonly bool WithCheesability;
+
+        public Aim(Mod[] mods, bool includeSliders, bool withCheesability)
             : base(mods)
         {
             IncludeSliders = includeSliders;
+            WithCheesability = withCheesability;
         }
 
         private readonly List<double> sliderStrains = new List<double>();
@@ -63,7 +67,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             currentStrain *= strainDecay(current.DeltaTime);
 
             double agilityDifficulty = SnapAimEvaluator.EvaluateAgilityBonus(current);
-            double snapBaseDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
+            double snapBaseDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, WithCheesability);
             double snapDifficulty = snapBaseDifficulty + (agilityDifficulty + agilityStrain * agiStrainInfluence);
             double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
             double adjStrainInfluence = 0;
@@ -137,5 +141,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             return sliderStrains.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / maxSliderStrain * 12.0 - 6.0))));
         }
+
+        public double CountTopWeightedSliders() => OsuStrainUtils.CountTopWeightedSliders(sliderStrains, DifficultyValue());
     }
 }

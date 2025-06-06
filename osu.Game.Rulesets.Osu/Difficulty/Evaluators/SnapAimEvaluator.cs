@@ -12,7 +12,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class SnapAimEvaluator
     {
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance, bool withCheesability)
         {
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
@@ -24,6 +24,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             difficulty += EvaluateAngleBonus(current) * 50;
             difficulty += EvaluateVelocityChangeBonus(current) * 200;
 
+            var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuPrevObj = (OsuDifficultyHitObject)current;
 
             if (osuPrevObj.BaseObject is Slider && withSliderTravelDistance)
@@ -35,6 +36,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
                 difficulty += sliderBonus * 35;
+
+            if (withCheesability)
+            {
+                double cheesability = Math.Min(1, osuCurrObj.Movement.Length / 100)
+                                      * (1 - Math.Min(1, osuPrevObj.Movement.Length / 100))
+                                      * Math.Min(1, osuPrevObj.StrainTime / osuCurrObj.StrainTime);
+                difficulty *= 1 - cheesability;
+            }
 
             return difficulty;
         }
