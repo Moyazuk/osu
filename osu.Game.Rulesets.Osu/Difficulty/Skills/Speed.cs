@@ -22,7 +22,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double totalMultiplier => 1.0;
         private double burstMultiplier => 2.95;
         private double streamMultiplier => 0.065;
-        private double staminaMultiplier => 0.07;
+        private double staminaMultiplier => 0.10;
         private double meanFactor => 1.25;
 
         private double currentBurstStrain;
@@ -44,7 +44,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double strainDecayStamina(double ms, double staminaValue)
         {
             double changeFactor = currentStaminaStrain > 0 ? 1 + Math.Pow(currentStaminaStrain / (staminaValue + currentStaminaStrain), 25) : 1;
-            return Math.Pow(0.05, Math.Pow(ms * changeFactor / 1000, 3.5));
+            return Math.Pow(0.05, Math.Pow(ms * changeFactor / 1000, 3.2));
         }
 
         protected override double CalculateInitialStrain(double time, DifficultyHitObject current)

@@ -35,7 +35,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
-                difficulty += sliderBonus * 0;
+                difficulty += sliderBonus * 4;
 
             return difficulty * osuCurrObj.SmallCircleBonus;
         }
@@ -118,7 +118,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double prevVelocity = osuPrevObj.Movement.Length / osuPrevObj.StrainTime;
 
             // We scale angle bonus by the amount of overlap between the previous 2 notes. This addresses cheesable angles
-            double prevDistanceMultiplier = Smootherstep(osuPrevObj.RawMovement.Length / osuPrevObj.Radius, 0, 0.25);
+            double prevDistanceMultiplier = Smootherstep(osuPrevObj.RawMovement.Length / osuPrevObj.Radius, 0, 0.5);
 
             // We also scale angle bonus by the difference in velocity from prevPrev -> prev and prev -> current. This addresses cut stream patterns.
             prevDistanceMultiplier *= Math.Pow((currVelocity > 0 ? Math.Min(1, prevVelocity * 1.4 / currVelocity) : 1), 1);
