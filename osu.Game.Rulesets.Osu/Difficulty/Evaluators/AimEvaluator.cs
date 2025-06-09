@@ -40,51 +40,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
             const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
 
-            // Additional reward for wide angles being hard to snap on high BPM
-            double angleSnapDifficultyBonus = 0;
-            double strainTimeThreshold = DifficultyCalculationUtils.BPMToMilliseconds(180, 2);
-
-            if (osuCurrObj.StrainTime < strainTimeThreshold)
-            {
-                double bpmFactor = Math.Pow((strainTimeThreshold - osuCurrObj.StrainTime) * 0.015, 2.5);
-
-                angleSnapDifficultyBonus = OsuDifficultyHitObject.NORMALISED_DIAMETER * bpmFactor;
-
-                // Shift starting point of "uncomfy" from square to wide-angle patterns if spacing is too big, becvause big spacing is already buffed enough by wide angle bonus
-                double highSpacingAdjust = Math.PI / 6;
-                highSpacingAdjust *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.LazyJumpDistance, diameter * 2, diameter * 4);
-
-                angleSnapDifficultyBonus *= DifficultyCalculationUtils.Smoothstep(osuCurrObj.Angle ?? 0, Math.PI / 3 + highSpacingAdjust, Math.PI / 2 + highSpacingAdjust);
-            }
-
-            // Adjusting minimal distance of snap evaluator to account for fact that the snapping difficulty itself have it's own difficulty
-            double adjustSnapDistance(double currDistance)
-            {
-                double bpm = DifficultyCalculationUtils.BPMToMilliseconds(osuCurrObj.StrainTime, 2);
-                double snapThreshold = diameter * (1 + 1.3 * DifficultyCalculationUtils.ReverseLerp(bpm, 200, 250));
-
-                // Jumps need to have some spacing to be snapped
-                double result = currDistance < snapThreshold ? snapThreshold * 0.65 + currDistance * 0.35 : currDistance;
-
-                // Don't increase snap distance when previous jump is very big, as it leads to cheese being overrewarded
-                double bigDistanceDifferenceFactor = DifficultyCalculationUtils.ReverseLerp(osuLastObj.LazyJumpDistance, 2 * diameter, 4 * diameter);
-
-                // And don't nerf bursts with this
-                bigDistanceDifferenceFactor *= DifficultyCalculationUtils.ReverseLerpTwoDirectional(osuCurrObj.StrainTime, osuLastObj.StrainTime, 1.95, 1.5);
-
-                double totalBonus = result + angleSnapDifficultyBonus - currDistance;
-                return currDistance + totalBonus * (1 - bigDistanceDifferenceFactor);
-            }
-
             // Calculate the velocity to the current hitobject, which starts with a base distance / time assuming the last object is a hitcircle.
-            double currDistance = adjustSnapDistance(osuCurrObj.LazyJumpDistance);
+            double currDistance = adjustSnapDistance(osuCurrObj.LazyJumpDistance, osuCurrObj, osuLastObj);
             double currVelocity = currDistance / osuCurrObj.StrainTime;
+            double sliderlessCurrVelocity = currVelocity;
 
             // But if the last object is a slider, then we extend the travel velocity through the slider into the current object.
             if (osuLastObj.BaseObject is Slider && withSliderTravelDistance)
             {
                 double travelVelocity = osuLastObj.TravelDistance / osuLastObj.TravelTime; // calculate the slider velocity from slider head to slider end.
-                double movementVelocity = adjustSnapDistance(osuCurrObj.MinimumJumpDistance) / osuCurrObj.MinimumJumpTime; // calculate the movement velocity from slider end to current object
+                double movementVelocity = adjustSnapDistance(osuCurrObj.MinimumJumpDistance, osuCurrObj, osuLastObj) / osuCurrObj.MinimumJumpTime; // calculate the movement velocity from slider end to current object
 
                 currVelocity = Math.Max(currVelocity, movementVelocity + travelVelocity); // take the larger total combined velocity.
             }
@@ -128,14 +93,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 acuteVelocityBase = double.Lerp(acuteVelocityBase, currVelocity,
                     Math.Pow(DifficultyCalculationUtils.Smoothstep(osuCurrObj.StrainTime, osuLastObj.StrainTime, osuLastObj.StrainTime * 1.75), 2));
 
-                double wideVelocityBase = Math.Min(currDistance / osuCurrObj.StrainTime, prevVelocity); // Don't reward wide angle bonus to sliders
+                double wideVelocityBase = Math.Min(sliderlessCurrVelocity, prevVelocity); // Don't reward wide angle bonus to sliders
 
+                // Nerf high spaced wide angles to compensate part of wide angled bonus being in snapping difficulty
                 double velocityThreshold = diameter * 2.3 / osuCurrObj.StrainTime;
-
-                if (wideVelocityBase > velocityThreshold) // Nerf high spaced squares to compensate total square buff
-                {
-                    wideVelocityBase = velocityThreshold + 0.4 * (wideVelocityBase - velocityThreshold);
-                }
+                wideVelocityBase = Math.Min(wideVelocityBase, velocityThreshold + 0.4 * (wideVelocityBase - velocityThreshold));
 
                 // Potentially wide should also use fasterRhythmMultiplier, but there are some unwanted buffs alongside the wanted ones
                 wideAngleBonus = differentRhythmMultiplier * CalcWideAngleBonus(currAngle);
@@ -189,7 +151,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (Math.Max(prevVelocity, currVelocity) != 0)
             {
                 // Scale with ratio of difference compared to 0.5 * max dist.
-                double distRatio = Math.Pow(Math.Sin(Math.PI / 2 * Math.Abs(prevVelocity - currVelocity) / Math.Max(prevVelocity, currVelocity)), 2);
+                double distRatio = DifficultyCalculationUtils.Smoothstep(Math.Abs(prevVelocity - currVelocity) / Math.Max(prevVelocity, currVelocity), 0, 1);
 
                 // Reward for % distance up to 125 / strainTime for overlaps where velocity is still changing.
                 double overlapVelocityBuff = Math.Min(diameter * 1.25 / Math.Min(osuCurrObj.StrainTime, osuLastObj.StrainTime), Math.Abs(prevVelocity - currVelocity));
@@ -225,9 +187,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
 
             aimStrain += wiggleBonus * wiggle_multiplier;
+            aimStrain += velocityChangeBonus * velocity_change_multiplier;
 
-            // Add in acute angle bonus or wide angle bonus + velocity change bonus, whichever is larger.
-            aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier + velocityChangeBonus * velocity_change_multiplier);
+            // Add in acute angle bonus or wide angle bonus, whichever is larger.
+            aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier);
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
@@ -237,6 +200,51 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             aimStrain *= osuCurrObj.SmallCircleBonus;
 
             return aimStrain;
+        }
+
+        // Adjusting minimal distance of snap evaluator to account for fact that the snapping difficulty itself have it's own difficulty
+        private static double adjustSnapDistance(double currDistance, OsuDifficultyHitObject osuCurrObj, OsuDifficultyHitObject osuLastObj)
+        {
+            const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
+            const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
+
+            // Additional reward for wide angles being hard to snap on high BPM
+            double angleSnapDifficultyBonus = 0;
+            double strainTimeThreshold = DifficultyCalculationUtils.BPMToMilliseconds(180, 2);
+
+            if (osuCurrObj.StrainTime < strainTimeThreshold)
+            {
+                double bpmFactor = Math.Pow((strainTimeThreshold - osuCurrObj.StrainTime) * 0.015, 2.5);
+
+                angleSnapDifficultyBonus = OsuDifficultyHitObject.NORMALISED_DIAMETER * bpmFactor;
+
+                // Shift starting point of "uncomfy" from square to wide-angle patterns if spacing is too big, becvause big spacing is already buffed enough by wide angle bonus
+                double highSpacingAdjust = Math.PI / 6;
+                highSpacingAdjust *= DifficultyCalculationUtils.ReverseLerp(currDistance, diameter * 2, diameter * 4);
+
+                angleSnapDifficultyBonus *= DifficultyCalculationUtils.Smoothstep(osuCurrObj.Angle ?? 0, Math.PI / 3 + highSpacingAdjust, Math.PI / 2 + highSpacingAdjust);
+            }
+
+            double bpm = DifficultyCalculationUtils.BPMToMilliseconds(osuCurrObj.StrainTime, 2);
+            double snapThreshold = diameter * (1 + 1.3 * DifficultyCalculationUtils.ReverseLerp(bpm, 200, 250));
+
+            // Jumps need to have some spacing to be snapped
+            double result = currDistance < snapThreshold ? snapThreshold * 0.65 + currDistance * 0.35 : currDistance;
+
+            // Don't buff doubles jumps as you don't snap in this case (except very close to itself doubles, that need to have some distance bonus to be calculated as flow)
+            double lowSpacingFactor = DifficultyCalculationUtils.ReverseLerp(currDistance, radius * 2, radius);
+
+            // Make nerf much smaller if it's not doubles
+            double notOverlappingAdjust = diameter * 2 * (1 - lowSpacingFactor);
+
+            // Don't increase snap distance when previous jump is very big, as it leads to cheese being overrewarded
+            double bigDistanceDifferenceFactor = DifficultyCalculationUtils.ReverseLerp(osuLastObj.LazyJumpDistance, notOverlappingAdjust + diameter, notOverlappingAdjust + diameter * 2);
+
+            // And don't nerf bursts with this
+            bigDistanceDifferenceFactor *= DifficultyCalculationUtils.ReverseLerpTwoDirectional(osuCurrObj.StrainTime, osuLastObj.StrainTime, 1.95, 1.5);
+
+            double totalBonus = result + angleSnapDifficultyBonus - currDistance;
+            return currDistance + totalBonus * (1 - bigDistanceDifferenceFactor);
         }
 
         public static double CalcWideAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(40), double.DegreesToRadians(140));

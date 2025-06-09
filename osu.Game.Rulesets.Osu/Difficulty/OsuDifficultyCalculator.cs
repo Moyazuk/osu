@@ -242,7 +242,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 // no reduce on snap aim rating is intentional, because it's used only in versatility bonus, not as a base
             }
 
-            aimRating = aimRating * (1 - AimVersatilityBonus) + (snapAimRating + flowAimRating) * AimVersatilityBonus;
+            aimRating = double.Lerp(aimRating, snapAimRating + flowAimRating, AimVersatilityBonus);
 
             return computeRawAimRating(aimRating, mods, totalHits, approachRate, overallDifficulty);
         }
