@@ -77,8 +77,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("cheese_factor")]
         public double CheeseFactor { get; set; }
 
-        [JsonProperty("greats_with_cheesing")]
-        public double GreatsWithCheesing { get; set; }
+        [JsonProperty("inaccuracies_with_cheesing")]
+        public double InaccuraciesWithCheesing { get; set; }
 
         [JsonProperty("aim_difficult_strain_count")]
         public double AimDifficultStrainCount { get; set; }
@@ -151,7 +151,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             FlashlightDifficulty = values.GetValueOrDefault(ATTRIB_ID_FLASHLIGHT);
             SliderFactor = values[ATTRIB_ID_SLIDER_FACTOR];
             CheeseFactor = values[ATTRIB_ID_CHEESE_FACTOR];
-            GreatsWithCheesing = values[ATTRIB_ID_GREATS_WITH_CHEESING];
+            InaccuraciesWithCheesing = values[ATTRIB_ID_INACCURACIES_WITH_CHEESING];
             AimDifficultStrainCount = values[ATTRIB_ID_AIM_DIFFICULT_STRAIN_COUNT];
             SpeedDifficultStrainCount = values[ATTRIB_ID_SPEED_DIFFICULT_STRAIN_COUNT];
             SpeedNoteCount = values[ATTRIB_ID_SPEED_NOTE_COUNT];

@@ -133,7 +133,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double sliderFactor = aimRating > 0 ? aimRatingNoSliders / aimRating : 1;
             double cheeseFactor = aimRating > 0 ? aimRatingCheesed / aimRating : 1;
 
-            double greatsWithCheesing = aim.GetGreatsWithCheesing();
+            double greatsWithCheesing = aim.GetInaccuraciesWithCheesing();
 
             double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);
             double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating);
@@ -166,7 +166,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 FlashlightDifficulty = flashlightRating,
                 SliderFactor = sliderFactor,
                 CheeseFactor = cheeseFactor,
-                GreatsWithCheesing = greatsWithCheesing,
+                InaccuraciesWithCheesing = greatsWithCheesing,
                 AimDifficultStrainCount = aimDifficultStrainCount,
                 SpeedDifficultStrainCount = speedDifficultStrainCount,
                 AimTopWeightedSliderFactor = aimTopWeightedSliderFactor,

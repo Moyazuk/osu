@@ -201,6 +201,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 aimDifficulty *= sliderNerfFactor;
             }
 
+            double cheesedAimDifficulty = aimDifficulty * attributes.CheeseFactor;
+            double cheesedProbability = calculateCheesePValue(score, attributes);
+            aimDifficulty = double.Lerp(aimDifficulty, cheesedAimDifficulty, cheesedProbability);
+
             double aimValue = OsuStrainSkill.DifficultyToPerformance(aimDifficulty);
 
             double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
@@ -220,11 +224,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 aimValue *= 1.0 + OsuDifficultyCalculator.CalculateVisibilityBonus(score.Mods, approachRate);
             }
-
-            // Scale the aim value by how cheesable it is.
-            double cheesedAimValue = aimValue * Math.Pow(attributes.CheeseFactor, 3);
-            double cheesedProbability = calculateCheesePValue(score, attributes);
-            aimValue = double.Lerp(cheesedAimValue, aimValue, 1 - cheesedProbability);
 
             return aimValue;
         }
@@ -492,6 +491,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 double n = countGreat + countOk;
 
+                if (n == 0)
+                    return null;
+
                 // Proportion of greats hit on circles, ignoring misses and 50s.
                 double p = countGreat / n;
 
@@ -530,8 +532,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double sigma = (double)deviation;
 
             static double gaussianCdf(double x) => 0.5 * (1 + DifficultyCalculationUtils.Erf(x / Math.Sqrt(2)));
-            int n = attributes.HitCircleCount + attributes.SliderCount;
-            int countGreatsWhileCheesing = (int)attributes.GreatsWithCheesing; // Accounts for sliders already; no need to adjust for classic.
+            double n = attributes.HitCircleCount + attributes.SliderCount;
+            double countGreatsWhileCheesing = n - (int)attributes.InaccuraciesWithCheesing;
+
+            double aimDifficulty = attributes.AimDifficulty;
+            double speedDifficulty = attributes.SpeedDifficulty;
+
+            // High speed difficulty usually results in 100s
+            if (speedDifficulty > aimDifficulty)
+            {
+                double weight = 1 - aimDifficulty / speedDifficulty;
+                countGreatsWhileCheesing = double.Lerp(countGreatsWhileCheesing, Math.Max(0, countGreatsWhileCheesing - attributes.SpeedNoteCount / 2), weight);
+            }
+
+            // Use Gaussian approximation with continuity correction for the Binomial CDF to compute the probability of cheesing.
+            // Note that sigma is the 99% upper bound of deviation, so the probability is a bit aggressive.
 
             double expectedProportion = DifficultyCalculationUtils.Erf(greatHitWindow / (Math.Sqrt(2) * sigma));
             double mean = n * expectedProportion;
@@ -540,15 +555,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (countGreatsWhileCheesing >= n || stdev == 0)
                 return 1;
 
-            // Use Gaussian approximation with continuity correction for the Binomial CDF.
             double pValue = gaussianCdf((countGreatsWhileCheesing + 0.5 - mean) / stdev);
             return pValue;
         }
 
-        // Miss penalty assumes that a player will miss on the hardest parts of a map,
-        // so we use the amount of relatively difficult sections to adjust miss penalty
-        // to make it more punishing on maps with lower amount of hard sections.
-        private double calculateMissPenalty(double missCount, double difficultStrainCount) => 0.96 / ((missCount / (4 * Math.Pow(Math.Log(difficultStrainCount), 0.94))) + 1);
+    // Miss penalty assumes that a player will miss on the hardest parts of a map,
+    // so we use the amount of relatively difficult sections to adjust miss penalty
+    // to make it more punishing on maps with lower amount of hard sections.
+    private double calculateMissPenalty(double missCount, double difficultStrainCount) => 0.96 / ((missCount / (4 * Math.Pow(Math.Log(difficultStrainCount), 0.94))) + 1);
         private double getComboScalingFactor(OsuDifficultyAttributes attributes) => attributes.MaxCombo <= 0 ? 1.0 : Math.Min(Math.Pow(scoreMaxCombo, 0.8) / Math.Pow(attributes.MaxCombo, 0.8), 1.0);
 
         private int totalHits => countGreat + countOk + countMeh + countMiss;

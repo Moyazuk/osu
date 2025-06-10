@@ -23,24 +23,22 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         public readonly bool IncludeSliders;
         public readonly bool WithCheesability;
 
-        private bool isUsingClassicSliderAcc;
-
         public Aim(Mod[] mods, bool includeSliders, bool withCheesability)
             : base(mods)
         {
             IncludeSliders = includeSliders;
             WithCheesability = withCheesability;
-            isUsingClassicSliderAcc = mods.OfType<OsuModClassic>().Any(m => m.NoSliderHeadAccuracy.Value);
         }
 
-        private int countGreatWithCheesing = 0;
 
         private double currentStrain;
 
         private double skillMultiplier => 25.6;
         private double strainDecayBase => 0.15;
 
+        private readonly List<double> cheeseResults = new List<double>();
         private readonly List<double> sliderStrains = new List<double>();
+        private readonly List<double> strains = new List<double>();
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
 
@@ -51,10 +49,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             currentStrain *= strainDecay(current.DeltaTime);
             currentStrain += AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, WithCheesability) * skillMultiplier;
 
+            strains.Add(currentStrain);
+
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentStrain);
 
-            countGreatWithCheesing += isGreatWhileCheesed(current, isUsingClassicSliderAcc);
+            cheeseResults.Add(isInaccurateWhileCheesed(current));
 
             return currentStrain;
         }
@@ -74,19 +74,28 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         public double CountTopWeightedSliders() => OsuStrainUtils.CountTopWeightedSliders(sliderStrains, DifficultyValue());
 
-        public double GetGreatsWithCheesing() => countGreatWithCheesing;
+        public double GetInaccuraciesWithCheesing()
+        {
+            double sum = 0;
+            for (int i = 0; i < cheeseResults.Count; i++)
+            {
+                double w = strains[i] / strains.Max();
+                sum += cheeseResults[i] * (1 - w); // Limit the amount of inaccuracies on easier parts
+            }
+
+            return sum;
+        }
 
         // Check if cheesing the current object still results in a great.
-        private static int isGreatWhileCheesed(DifficultyHitObject current, bool isUsingClassicSliderAcc)
+        private static int isInaccurateWhileCheesed(DifficultyHitObject current)
         {
             var osuCurrObj = (OsuDifficultyHitObject)current;
 
-            // Since the extra delta time is never above the 50 hit window (the hit window for sliders when slider acc is disabled),
-            // we can always get a 300 on sliders when cheesing.
-            if (osuCurrObj.BaseObject is Slider && isUsingClassicSliderAcc)
-                return 1;
+            // Assume even on Lazer that cheesing does not happen on sliders
+            if (osuCurrObj.BaseObject is Slider)
+                return 0;
 
-            return osuCurrObj.ExtraDeltaTime <= osuCurrObj.HitWindowGreat ? 1 : 0;
+            return osuCurrObj.ExtraDeltaTime > osuCurrObj.HitWindowGreat ? 1 : 0;
         }
     }
 }
