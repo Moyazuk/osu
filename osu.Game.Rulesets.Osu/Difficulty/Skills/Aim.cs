@@ -9,9 +9,7 @@ using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
-using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Osu.Objects;
-using osu.Game.Scoring;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
@@ -30,15 +28,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             WithCheesability = withCheesability;
         }
 
-
+        private double inaccuraciesWhileCheesing = 0;
+        private double maxStrain = 0;
         private double currentStrain;
 
         private double skillMultiplier => 25.45;
         private double strainDecayBase => 0.15;
 
-        private readonly List<double> cheeseResults = new List<double>();
         private readonly List<double> sliderStrains = new List<double>();
-        private readonly List<double> strains = new List<double>();
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
 
@@ -49,12 +46,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             currentStrain *= strainDecay(current.DeltaTime);
             currentStrain += AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, WithCheesability) * skillMultiplier;
 
-            strains.Add(currentStrain);
-
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentStrain);
 
-            cheeseResults.Add(isInaccurateWhileCheesed(current));
+            inaccuraciesWhileCheesing += isInaccurateWhileCheesed(current) * currentStrain;
+            if (currentStrain > maxStrain)
+                maxStrain = currentStrain;
 
             return currentStrain;
         }
@@ -74,17 +71,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         public double CountTopWeightedSliders() => OsuStrainUtils.CountTopWeightedSliders(sliderStrains, DifficultyValue());
 
-        public double GetInaccuraciesWithCheesing()
-        {
-            double sum = 0;
-            for (int i = 0; i < cheeseResults.Count; i++)
-            {
-                double w = strains[i] / strains.Max();
-                sum += cheeseResults[i] * (1 - w); // Limit the amount of inaccuracies on easier parts
-            }
-
-            return sum;
-        }
+        public double GetInaccuraciesWithCheesing() => maxStrain > 0 ? inaccuraciesWhileCheesing / maxStrain : 0;
 
         // Check if cheesing the current object still results in a great.
         private static int isInaccurateWhileCheesed(DifficultyHitObject current)
