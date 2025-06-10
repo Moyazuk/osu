@@ -420,18 +420,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         /// Estimates the player's tap deviation based on the OD, given number of greats, oks, mehs and misses,
         /// assuming the player's mean hit error is 0. The estimation is consistent in that two SS scores on the same map with the same settings
         /// will always return the same deviation. Misses are ignored because they are usually due to misaiming.
-        /// This method actually gives an upper bound for deviation; i.e. we can be 99% confident that deviation is below this value.
-        /// This is so long maps can be less harshly nerfed.
+        /// This method actually gives an upper bound for deviation given the parameter z, which represents a quantile of the z-distribution.
+        /// The default is z = 2.32634787404, which corresponds to the 99% quantile of the z-distribution, effectively giving the
+        /// maximum deviation where the probability of observing the inaccuracies is at least 1%.
+        /// This is so long maps can be less harshly nerfed and that luck/RNG is accounted for when scaling accuracy pp.
         /// Greats and oks are assumed to follow a normal distribution, whereas mehs are assumed to follow a uniform distribution.
         /// </summary>
-        private double? calculateDeviation(ScoreInfo score, OsuDifficultyAttributes attributes)
+        private double? calculateDeviation(ScoreInfo score, OsuDifficultyAttributes attributes, double z = 2.32634787404)
         {
             if (totalSuccessfulHits == 0)
                 return null;
 
-            const double z = 2.32634787404; // 99% critical value for the normal distribution (one-tailed).
-
-            if (score.Mods.Any(m => m is OsuModClassic))
+            if (usingClassicSliderAccuracy)
             {
                 int circleCount = attributes.HitCircleCount;
                 int missCountCircles = Math.Min(countMiss, circleCount);
@@ -444,6 +444,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 if (greatCountCircles > 0)
                 {
                     double n = circleCount - missCountCircles - mehCountCircles;
+
+                    if (greatCountCircles == n && z == 0)
+                        return 0;
 
                     // Proportion of greats hit on circles, ignoring misses and 50s.
                     double p = greatCountCircles / n;
@@ -500,6 +503,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 if (n == 0)
                     return null;
 
+                if (countGreat == n && z == 0)
+                    return 0;
+
                 // Proportion of greats hit on circles, ignoring misses and 50s.
                 double p = countGreat / n;
 
@@ -532,10 +538,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private double calculateCheesePValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            if (deviation == null)
-                return 1;
+            // Use z = 0 to get the MLE estimate for deviation, which is most appropriate here,
+            // since it does not account for length or any luck factors.
+            double? sigma = calculateDeviation(score, attributes, 0);
+            if (sigma == 0)
+                return 0;
 
-            double sigma = (double)deviation;
+            if (sigma == null)
+                return 1;
 
             static double gaussianCdf(double x) => 0.5 * (1 + DifficultyCalculationUtils.Erf(x / Math.Sqrt(2)));
             double n = attributes.HitCircleCount + attributes.SliderCount;
@@ -552,13 +562,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             }
 
             // Use Gaussian approximation with continuity correction for the Binomial CDF to compute the probability of cheesing.
-            // Note that sigma is the 99% upper bound of deviation, so the probability is a bit aggressive.
+            double expectedGreatProportion = DifficultyCalculationUtils.Erf(greatHitWindow / (Math.Sqrt(2) * (double)sigma));
+            if (usingClassicSliderAccuracy)
+            {
+                double expectedGreatProportionSliders = DifficultyCalculationUtils.Erf(mehHitWindow / (Math.Sqrt(2) * (double)sigma));
+                expectedGreatProportion = (expectedGreatProportion * attributes.HitCircleCount + expectedGreatProportionSliders * attributes.SliderCount) / n;
+            }
 
-            double expectedProportion = DifficultyCalculationUtils.Erf(greatHitWindow / (Math.Sqrt(2) * sigma));
-            double mean = n * expectedProportion;
-            double stdev = Math.Sqrt(n * expectedProportion * (1 - expectedProportion));
+            double mean = n * expectedGreatProportion;
+            double stdev = Math.Sqrt(n * expectedGreatProportion * (1 - expectedGreatProportion));
 
-            if (countGreatsWhileCheesing >= n || stdev == 0)
+            if (countGreatsWhileCheesing >= n || expectedGreatProportion == 0)
                 return 1;
 
             double pValue = gaussianCdf((countGreatsWhileCheesing + 0.5 - mean) / stdev);
