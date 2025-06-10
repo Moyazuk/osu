@@ -214,7 +214,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (effectiveMissCount > 0)
             {
                 aimEstimatedSliderBreaks = calculateEstimatedSliderBreaks(attributes.AimTopWeightedSliderFactor, attributes);
-                aimValue *= calculateMissPenalty(effectiveMissCount + aimEstimatedSliderBreaks, attributes.AimDifficultStrainCount);
+
+                double relevantMissCount = Math.Min(effectiveMissCount + aimEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
+
+                aimValue *= calculateMissPenalty(relevantMissCount, attributes.AimDifficultStrainCount);
             }
 
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
@@ -242,7 +245,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (effectiveMissCount > 0)
             {
                 speedEstimatedSliderBreaks = calculateEstimatedSliderBreaks(attributes.SpeedTopWeightedSliderFactor, attributes);
-                speedValue *= calculateMissPenalty(effectiveMissCount + speedEstimatedSliderBreaks, attributes.SpeedDifficultStrainCount);
+
+                double relevantMissCount = Math.Min(effectiveMissCount + speedEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
+
+                speedValue *= calculateMissPenalty(relevantMissCount, attributes.SpeedDifficultStrainCount);
             }
 
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
@@ -289,7 +295,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             else if (score.Mods.Any(m => m is OsuModHidden || m is OsuModTraceable))
             {
                 // Decrease bonus for AR > 10
-                accuracyValue *= 1 + 0.08 * Math.Clamp((11.5 - approachRate) / (11.5 - 10), 0, 1);
+                accuracyValue *= 1 + 0.08 * DifficultyCalculationUtils.ReverseLerp(approachRate, 11.5, 10);
             }
 
             if (score.Mods.Any(m => m is OsuModFlashlight))
@@ -359,7 +365,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double missedComboPercent = 1.0 - (double)scoreMaxCombo / attributes.MaxCombo;
             double estimatedSliderBreaks = Math.Min(countOk, effectiveMissCount * topWeightedSliderFactor);
 
-            // scores with more oks are more likely to have slider breaks
+            // Scores with more Oks are more likely to have slider breaks.
             double okAdjustment = ((countOk - estimatedSliderBreaks) + 0.5) / countOk;
 
             // There is a low probability of extra slider breaks on effective miss counts close to 1, as score based calculations are good at indicating if only a single break occurred.
@@ -559,10 +565,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return pValue;
         }
 
-    // Miss penalty assumes that a player will miss on the hardest parts of a map,
-    // so we use the amount of relatively difficult sections to adjust miss penalty
-    // to make it more punishing on maps with lower amount of hard sections.
-    private double calculateMissPenalty(double missCount, double difficultStrainCount) => 0.96 / ((missCount / (4 * Math.Pow(Math.Log(difficultStrainCount), 0.94))) + 1);
+        // Miss penalty assumes that a player will miss on the hardest parts of a map,
+        // so we use the amount of relatively difficult sections to adjust miss penalty
+        // to make it more punishing on maps with lower amount of hard sections.
+        private double calculateMissPenalty(double missCount, double difficultStrainCount) => 0.96 / ((missCount / (4 * Math.Pow(Math.Log(difficultStrainCount), 0.94))) + 1);
         private double getComboScalingFactor(OsuDifficultyAttributes attributes) => attributes.MaxCombo <= 0 ? 1.0 : Math.Min(Math.Pow(scoreMaxCombo, 0.8) / Math.Pow(attributes.MaxCombo, 0.8), 1.0);
 
         private int totalHits => countGreat + countOk + countMeh + countMiss;
