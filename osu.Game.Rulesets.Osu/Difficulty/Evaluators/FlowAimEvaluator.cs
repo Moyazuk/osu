@@ -48,7 +48,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double comfyness = IdentifyComfyFlow(current);
 
                 // Change those 2 power coeficients to control amount of buff high spaced flow aim has for comfy/uncomfy patterns
-                flowDifficulty *= Math.Pow(osuCurrObj.LazyJumpDistance / diameter, 0.75 - 0.55 * comfyness);
+                flowDifficulty *= Math.Pow(osuCurrObj.LazyJumpDistance / diameter, 0.8 - 0.4 * comfyness);
             }
             else
             {
