@@ -108,7 +108,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 wideAngleBonus *= 1 - wideAngleRepetitionNerf;
 
                 double acuteAngleRepetitionNerf = Math.Pow(CalcAcuteAngleBonus(lastAngle), 3);
-                acuteAngleBonus *= 0.08 + 0.65 * (1 - Math.Min(acuteAngleBonus, acuteAngleRepetitionNerf));
+                acuteAngleBonus *= 0.08 + 0.68 * (1 - Math.Min(acuteAngleBonus, acuteAngleRepetitionNerf));
 
                 // Apply full wide angle bonus for distance more than one diameter
                 wideAngleBonus *= wideVelocityBase * DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, 0, diameter);
@@ -219,7 +219,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 // Shift starting point of "uncomfy" from square to wide-angle patterns if spacing is too big, becvause big spacing is already buffed enough by wide angle bonus
                 double highSpacingAdjust = Math.PI / 6;
-                highSpacingAdjust *= DifficultyCalculationUtils.ReverseLerp(currDistance, diameter * 2, diameter * 4);
+                highSpacingAdjust *= DifficultyCalculationUtils.ReverseLerp(currDistance, diameter * 1.5, diameter * 3.5);
 
                 angleSnapDifficultyBonus *= DifficultyCalculationUtils.Smoothstep(osuCurrObj.Angle ?? 0, Math.PI / 3 + highSpacingAdjust, Math.PI / 2 + highSpacingAdjust);
             }
