@@ -15,6 +15,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         // The reason why this exist in evaluator instead of FlowAim skill - it's because it's very important to keep flowaim in the same scaling as snapaim on evaluator level
         private static double flowMultiplier => 1.13;
 
+        private const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
+
         public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
         {
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
@@ -25,8 +27,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
             var osuLast2Obj = (OsuDifficultyHitObject?)current.Previous(2);
             var osuLast3Obj = (OsuDifficultyHitObject?)current.Previous(3);
-
-            const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
 
             // Start with velocity
             double velocity = osuCurrObj.LazyJumpDistance / osuCurrObj.StrainTime;
@@ -188,14 +188,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currAngle = osuCurrObj.AngleSigned.Value;
             double lastAngle = osuLast0Obj.AngleSigned.Value;
 
-            double minVelocity = Math.Min(currVelocity, prevVelocity);
-            double angleChangeBonus = Math.Pow(Math.Sin((currAngle - lastAngle) / 2), 2) * minVelocity;
+            double baseVelocity = Math.Min(currVelocity, prevVelocity);
+            double angleChangeBonus = Math.Pow(Math.Sin((currAngle - lastAngle) / 2), 2) * baseVelocity;
 
-            // Remove angle change if previous 2 notes were slower
+            // Remove angle change if previous 2 notes were different
             // IMPORTANT INFORMATION: removing this limitation significantly buffs almost all tech, alt, underweight maps in general
             // BUT it also very significantly buffs ReLief. So it's should be explored how to keep this buff for actually hard patterns but not for ReLief
-            angleChangeBonus *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLast0Obj.StrainTime * 0.55, osuLast0Obj.StrainTime * 0.75);
-            angleChangeBonus *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLast1Obj.StrainTime * 0.55, osuLast1Obj.StrainTime * 0.75);
+            angleChangeBonus *= DifficultyCalculationUtils.ReverseLerpTwoDirectional(osuCurrObj.StrainTime, osuLast0Obj.StrainTime, 0.55, 0.75);
+            angleChangeBonus *= DifficultyCalculationUtils.ReverseLerpTwoDirectional(osuCurrObj.StrainTime, osuLast1Obj.StrainTime, 0.55, 0.75);
 
             double last1Angle = osuLast1Obj.Angle ?? 0;
             double last2Angle = osuLast2Obj?.Angle ?? 0;

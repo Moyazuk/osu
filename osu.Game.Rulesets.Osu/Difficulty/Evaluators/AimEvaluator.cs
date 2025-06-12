@@ -230,8 +230,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Jumps need to have some spacing to be snapped
             double result = currDistance < snapThreshold ? snapThreshold * 0.65 + currDistance * 0.35 : currDistance;
 
+            double totalBonus = result + angleSnapDifficultyBonus - currDistance;
+
             // Don't buff doubles jumps as you don't snap in this case (except very close to itself doubles, that need to have some distance bonus to be calculated as flow)
-            double lowSpacingFactor = DifficultyCalculationUtils.ReverseLerp(currDistance, radius * 2, radius);
+            double lowSpacingFactor = DifficultyCalculationUtils.ReverseLerp(currDistance, diameter, radius);
 
             // Make nerf much smaller if it's not doubles
             double notOverlappingAdjust = diameter * 2 * (1 - lowSpacingFactor);
@@ -239,11 +241,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Don't increase snap distance when previous jump is very big, as it leads to cheese being overrewarded
             double bigDistanceDifferenceFactor = DifficultyCalculationUtils.ReverseLerp(osuLastObj.LazyJumpDistance, notOverlappingAdjust + diameter, notOverlappingAdjust + diameter * 2);
 
-            // And don't nerf bursts with this
-            bigDistanceDifferenceFactor *= DifficultyCalculationUtils.ReverseLerpTwoDirectional(osuCurrObj.StrainTime, osuLastObj.StrainTime, 1.95, 1.5);
+            // And don't nerf spaced bursts with this
+            bigDistanceDifferenceFactor *= DifficultyCalculationUtils.ReverseMultiply(DifficultyCalculationUtils.ReverseLerpTwoDirectional(osuCurrObj.StrainTime, osuLastObj.StrainTime, 1.95, 1.5), lowSpacingFactor);
 
-            double totalBonus = result + angleSnapDifficultyBonus - currDistance;
-            return currDistance + totalBonus * (1 - bigDistanceDifferenceFactor);
+            totalBonus *= 1 - bigDistanceDifferenceFactor;
+            return currDistance + totalBonus;
         }
 
         public static double CalcWideAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(40), double.DegreesToRadians(140));
