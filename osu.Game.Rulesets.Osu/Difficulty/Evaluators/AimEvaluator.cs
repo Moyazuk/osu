@@ -120,7 +120,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 // Apply wiggle bonus for jumps that are [radius, 3*diameter] in distance, with < 110 angle
                 // https://www.desmos.com/calculator/dp0v0nvowc
                 wiggleBonus = acuteVelocityBase
-                                * fasterRhythmMultiplier
                                 * DifficultyCalculationUtils.Smootherstep(currDistance, radius, diameter)
                                 * Math.Pow(DifficultyCalculationUtils.ReverseLerp(currDistance, diameter * 3, diameter), 1.8)
                                 * DifficultyCalculationUtils.Smootherstep(currAngle, double.DegreesToRadians(110), double.DegreesToRadians(60))
