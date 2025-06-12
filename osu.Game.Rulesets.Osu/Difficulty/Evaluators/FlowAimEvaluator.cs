@@ -60,7 +60,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Increase multiplier in the beginning to buff all the scaling
             // Increase power to increase buff for spaced speedflow
             // Increase number in the divisor to make steeper scaling with bpm
-            flowDifficulty += 2.2 * (Math.Pow(osuCurrObj.LazyJumpDistance, 0.7) / osuCurrObj.StrainTime) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 12) - 1);
+            flowDifficulty += 2 * (Math.Pow(osuCurrObj.LazyJumpDistance, 0.7) / osuCurrObj.StrainTime) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 15) - 1);
 
             double angleBonus = 0;
 
