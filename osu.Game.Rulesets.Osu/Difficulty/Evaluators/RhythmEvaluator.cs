@@ -65,7 +65,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 noteHistoryVirtual.Add(virtualStrainT);
                 runningTotal += strainT;
 
-                if (runningTotal > 4 || noteHistory.Count > 32)
+                if (runningTotal > 2 || noteHistory.Count > 12)
                     break;
 
                 if (noteHistory.Count < noteHistoryVirtual.Count)
@@ -82,7 +82,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (noteHistory.Count > 2)
             {
                 double repetition = 1.0 - calculateExpectancy(noteHistory);
-                double virtualRepetition = 1.0 - calculateExpectancy(noteHistoryVirtual);
+
+                // Added arbitrary buffer to virtualRepetition because slider endtimes are not a consistent rhythmic reference point due to leniency (also makes values better)
+
+                double virtualRepetition = 1.5 - calculateExpectancy(noteHistoryVirtual);
                 double repetitionExponent = Math.Min(2.0, 66.25 * Math.Min(strainTime, virtualStrainTime) - 1.65625);
                 repetitionVal = Math.Pow(Math.Min(repetition, virtualRepetition), repetitionExponent);
 
@@ -107,8 +110,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 multiplier /= 2;
             }
 
-            // Console.WriteLine($"repetitionVal: {repetitionVal}, multiplier: {multiplier}, downtimeScale: {downtimeScale}, appearanceScale {appearanceScale}, uniqueScale, {uniqueScale}");
             double strain = repetitionVal * multiplier * downtimeScale * appearanceScale * uniqueScale / strainTime;
+
+            double nextMultiplier = 0;
 
             if (osuNext != null)
             {
@@ -117,7 +121,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 if (current.BaseObject is Slider currSlider)
                     nextVirtualStrainTime = Math.Max((nextTime - currSlider.EndTime / 1000.0), 0.025);
 
-                double nextMultiplier = Math.Min(
+                nextMultiplier = Math.Min(
                     Math.Min(CompareStrains(strainTime, nextTime, nextFractionX, nextFractionY), CompareStrains(strainTime, nextVirtualStrainTime, nextFractionX, nextFractionY)),
                     Math.Min(CompareStrains(virtualStrainTime, nextTime, nextFractionX, nextFractionY), CompareStrains(virtualStrainTime, nextVirtualStrainTime, nextFractionX, nextFractionY))
                 );
@@ -127,7 +131,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 strain *= nextMultiplier;
             }
 
-
+            // Console.WriteLine($"strain: {strain}, repetitionVal: {repetitionVal}, multiplier: {multiplier}, nextMult: {nextMultiplier}, downtimeScale: {downtimeScale}, appearanceScale {appearanceScale}, uniqueScale, {uniqueScale}");
             return strain;
         }
 
@@ -169,7 +173,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (current.LastObject is Slider prevSlider)
 
                 return Math.Max((current.StartTime - prevSlider.EndTime) / 1000, 0.025);
-
 
             return current.StrainTime / 1000;
         }
