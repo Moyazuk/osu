@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Collections.Generic;
 using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Difficulty.Utils;
@@ -48,26 +47,27 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             int index = -1; // Start from current
 
+            double runningTotal = 0;
+
             while (true)
             {
-                // Get the previous object
                 DifficultyHitObject previousObj = current.Previous(index++);
                 if (previousObj == null)
-                    break; // Exit if there are no more previous objects
-
-                // Safely cast the previous object to OsuDifficultyHitObject
-                if (previousObj is not OsuDifficultyHitObject currObj)
-                    continue; // Skip if the object is not of the expected type
-
-                // Add to note histories
-                noteHistory.Add(currObj.StrainTime / 1000);
-                noteHistoryVirtual.Add(CalculateVirtualStrainTime(currObj));
-
-                // Break if the sum of noteHistory exceeds 4 seconds or the list grows too large
-                if (noteHistory.Sum() > 4 || noteHistory.Count > 32)
                     break;
 
-                // Break if the virtual history is mismatched
+                if (previousObj is not OsuDifficultyHitObject currObj)
+                    continue;
+
+                double strainT = currObj.StrainTime / 1000;
+                double virtualStrainT = CalculateVirtualStrainTime(currObj);
+
+                noteHistory.Add(strainT);
+                noteHistoryVirtual.Add(virtualStrainT);
+                runningTotal += strainT;
+
+                if (runningTotal > 2 || noteHistory.Count > 12)
+                    break;
+
                 if (noteHistory.Count < noteHistoryVirtual.Count)
                     break;
             }
@@ -82,7 +82,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (noteHistory.Count > 2)
             {
                 double repetition = 1.0 - calculateExpectancy(noteHistory);
-                double virtualRepetition = 1.0 - calculateExpectancy(noteHistoryVirtual);
+
+                // Added arbitrary buffer to virtualRepetition because slider endtimes are not a consistent rhythmic reference point due to leniency (also makes values better)
+
+                double virtualRepetition = 1.5 - calculateExpectancy(noteHistoryVirtual);
                 double repetitionExponent = Math.Min(2.0, 66.25 * Math.Min(strainTime, virtualStrainTime) - 1.65625);
                 repetitionVal = Math.Pow(Math.Min(repetition, virtualRepetition), repetitionExponent);
 
@@ -107,8 +110,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 multiplier /= 2;
             }
 
-            // Console.WriteLine($"repetitionVal: {repetitionVal}, multiplier: {multiplier}, downtimeScale: {downtimeScale}, appearanceScale {appearanceScale}, uniqueScale, {uniqueScale}");
             double strain = repetitionVal * multiplier * downtimeScale * appearanceScale * uniqueScale / strainTime;
+
+            double nextMultiplier = 0;
 
             if (osuNext != null)
             {
@@ -117,7 +121,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 if (current.BaseObject is Slider currSlider)
                     nextVirtualStrainTime = Math.Max((nextTime - currSlider.EndTime / 1000.0), 0.025);
 
-                double nextMultiplier = Math.Min(
+                nextMultiplier = Math.Min(
                     Math.Min(CompareStrains(strainTime, nextTime, nextFractionX, nextFractionY), CompareStrains(strainTime, nextVirtualStrainTime, nextFractionX, nextFractionY)),
                     Math.Min(CompareStrains(virtualStrainTime, nextTime, nextFractionX, nextFractionY), CompareStrains(virtualStrainTime, nextVirtualStrainTime, nextFractionX, nextFractionY))
                 );
@@ -127,7 +131,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 strain *= nextMultiplier;
             }
 
-
+            Console.WriteLine($"strain: {strain}, repetitionVal: {repetitionVal}, multiplier: {multiplier}, nextMult: {nextMultiplier}, downtimeScale: {downtimeScale}, appearanceScale {appearanceScale}, uniqueScale, {uniqueScale}");
             return strain;
         }
 
@@ -142,7 +146,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double longNoteFraction = Math.Max(0.5, (double)longNoteCount / (double)refNoteHistory.Count);
 
-            double result = Math.Pow(Math.Sin(Math.PI * (longNoteFraction - 1.0)), 2.0);
+            double result = 1.0 - DifficultyCalculationUtils.Smoothstep(longNoteFraction, 0.5, 1.0);
             return result;
         }
 
@@ -155,9 +159,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                     strainApperance++;
             }
 
+            if (strainApperance == refNoteHistory.Count)
+                return 0;
+
             double strainAppearanceFraction = Math.Max(0.5, (double)strainApperance / (double)refNoteHistory.Count);
 
-            double result = Math.Pow(Math.Sin(Math.PI * (strainAppearanceFraction - 1.0)), 2.0);
+            double result = 1.0 - DifficultyCalculationUtils.Smoothstep(strainAppearanceFraction, 0.5, 1.0);;
             return result;
         }
 
@@ -167,125 +174,97 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 return Math.Max((current.StartTime - prevSlider.EndTime) / 1000, 0.025);
 
-
             return current.StrainTime / 1000;
         }
 
         private static double calculateExpectancy(List<double> refNoteHistory)
         {
-            // See how many unique strains there are, and get a nerfed version of the straintime
             (double anomalyVal, bool exists) = checkAnomaly(refNoteHistory);
 
-            refNoteHistory.Reverse();
+            int n = refNoteHistory.Count;
+            List<double> history = new List<double>(n);
+            for (int i = n - 1; i >= 0; i--)
+                history.Add(refNoteHistory[i]);
 
-            // Get reference pattern
-            List<double> pattern = new List<double>();
-            double strainTime = refNoteHistory[0];
-            for (int i = 1; i < refNoteHistory.Count; i++)
+            double strainTime = history[0];
+
+            List<double> pattern = null;
+            for (int i = 1; i < history.Count; i++)
             {
-                if (Math.Abs(refNoteHistory[i] - strainTime) > identicalStrainTolerance)
+                if (Math.Abs(history[i] - strainTime) > identicalStrainTolerance)
                 {
-                    pattern = refNoteHistory.Take(i+1).ToList();
+                    pattern = history.GetRange(0, i + 1);
                     break;
                 }
             }
 
-            // If pattern length is 0, then that means that there are no changing straintimes
-            if (pattern.Count == 0)
-            {
-                refNoteHistory.Reverse();
+            if (pattern == null)
                 return 1;
-            }
 
-            // If longer than half of the refNoteHistory length then just look at how often
-            if (pattern.Count > refNoteHistory.Count / 2.0)
-            {
-                refNoteHistory.Reverse();
-                return (double)pattern.Count / (double)refNoteHistory.Count;
-            }
+            if (pattern.Count > history.Count / 2)
+                return (double)pattern.Count / history.Count;
 
-            int minSize = pattern.Count;
             int maxSize = pattern.Count;
             double maxRepetition = 0;
-            for (int k = minSize; k < refNoteHistory.Count / 2; k++) // See how many times each pattern from reference size to half the main list repeats, get the maximum value
+
+            for (int k = pattern.Count; k < history.Count / 2; k++)
             {
-                pattern = refNoteHistory.Take(k).ToList();
+                var candidate = history.GetRange(0, k);
 
                 int patternInstance = 0;
                 int reversePatternInstance = 0;
-                for (int i = pattern.Count; i < refNoteHistory.Count; i++)
+
+                for (int i = k; i <= history.Count - k; i++)
                 {
-                    List<double> patternCompare = refNoteHistory.Skip(i).Take(pattern.Count).ToList();
+                    bool same = true, reverseSame = true;
 
-                    if (patternCompare.Count != pattern.Count)
-                        break;
-
-                    bool samePattern = true;
-                    for (int j = 0; j < pattern.Count; j++)
+                    for (int j = 0; j < k; j++)
                     {
-                        if (Math.Abs(pattern[j] - patternCompare[j]) > identicalStrainTolerance)
-                        {
-                            samePattern = false;
+                        double a = candidate[j];
+                        double b = history[i + j];
+                        double rb = history[i + k - 1 - j];
+
+                        if (Math.Abs(a - b) > identicalStrainTolerance)
+                            same = false;
+
+                        if (Math.Abs(a - rb) > identicalStrainTolerance)
+                            reverseSame = false;
+
+                        if (!same && !reverseSame)
                             break;
-                        }
                     }
 
-                    if (samePattern)
-                        patternInstance++;
-                    else
-                    {
-                        patternCompare.Reverse();
-                        bool reverseSamePattern = true;
-                        for (int j = 0; j < pattern.Count; j++)
-                        {
-                            if (Math.Abs(pattern[j] - patternCompare[j]) > identicalStrainTolerance)
-                            {
-                                reverseSamePattern = false;
-                                break;
-                            }
-                        }
-
-                        if (reverseSamePattern)
-                            reversePatternInstance++;
-                    }
+                    if (same) patternInstance++;
+                    else if (reverseSame) reversePatternInstance++;
                 }
 
-                int possibleInstances = (int)Math.Ceiling((refNoteHistory.Count - pattern.Count - (pattern.Count - 1)) / 2.0);
-                double ratio = Math.Min(1, (double)Math.Max(patternInstance, reversePatternInstance) / (double)possibleInstances);
-                // There are cases where it's possible the counter makes this ratio more than 1 due to the checking method being if notes
-                // fall within a range of 16 ms. As a result a max is required to cap at 1.
+                int possibleInstances = Math.Max(1, (int)Math.Ceiling((history.Count - 2 * k + 1) / 2.0));
+                double ratio = Math.Min(1, (double)Math.Max(patternInstance, reversePatternInstance) / possibleInstances);
 
                 if (ratio > maxRepetition)
                 {
                     maxRepetition = ratio;
-                    maxSize = pattern.Count;
+                    maxSize = k;
                 }
 
-                // No need to loop anymore since 1 is the highest possible value
                 if (maxRepetition == 1)
                     break;
             }
 
-            // Punish patterns that are longer more, pattern size of 2 gets 0 value while pattern size 8+ get 1
-            double patternLength = Math.Pow(Math.Sin(Math.PI * (Math.Min(maxSize, 8) - 2) / 12), 2.0);
+            double patternLength = DifficultyCalculationUtils.Smoothstep(maxSize, 2, 8);
+            double fractionMultiplier = CompareStrains(strainTime, history[1], prevFractionX, prevFractionY);
 
-            var fractionMultiplier = CompareStrains(strainTime, refNoteHistory[1], prevFractionX, prevFractionY);
-
-            refNoteHistory.Reverse();
             double repetitionVal = Math.Min(1.0, Math.Sqrt(maxRepetition) + patternLength);
 
-            // Check if note even existed before, anomalyVal is high and repetitionVal is low
             if (!exists)
             {
-                // A count of 1 gets 1, a count of 8+ gets 0
-                double uniqueScale = Math.Pow(
-                    Math.Pow(- Math.Min(7.0, anomalyVal - 1.0) / 7.0, 5.0) + 1.0,
-                2.0);
+                double uniqueScale = Math.Pow(Math.Pow(-Math.Min(7.0, anomalyVal - 1.0) / 7.0, 5.0) + 1.0, 2.0);
                 repetitionVal = Math.Max(Math.Min(1, repetitionVal + uniqueScale - fractionMultiplier), 0.0);
             }
 
             return repetitionVal;
         }
+
 
         private static (double, bool) checkAnomaly(List<double> refNoteHistory)
         {

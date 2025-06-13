@@ -19,8 +19,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class FingerControl : OsuStrainSkill
     {
-        private double skillMultiplier => 26.8;
-        private double strainDecayBase => 0.20;
+        private double skillMultiplier => 6.8;
+        private double strainDecayBase => 0.75;
 
         private double currentStrain;
 
