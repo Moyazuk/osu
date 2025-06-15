@@ -1,16 +1,13 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
-// See the LICENCE file in the repository root for full licence text.
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
+using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
-using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
@@ -19,7 +16,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Speed : Skill
     {
-        private double skillMultiplier => 0.95;
+        private double totalMultiplier => 0.675;
+        private double burstMultiplier => 3.025;
+        private double streamMultiplier => 0.085;
+        private double staminaMultiplier => 0.05;
+        private double meanFactor => 1.25;
 
         private readonly List<double> noteDifficulties = new List<double>();
 
@@ -27,26 +28,64 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private readonly List<double> sliderStrains = new List<double>();
 
-        private double currentDifficulty;
-        private double strainDecayBase => 0.3;
+        private double currentBurstStrain;
+        private double currentStreamStrain;
+        private double currentStaminaStrain;
+        private double currentRhythm;
 
-        public Speed(Mod[] mods)
+        public readonly bool WithoutStamina;
+
+        public Speed(Mod[] mods, bool withoutStamina)
             : base(mods)
         {
+            WithoutStamina = withoutStamina;
         }
 
-        private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
+        private double strainDecayBurst(double ms) => Math.Pow(0.025, ms / 1000);
+        private double strainDecayStream(double ms) => Math.Pow(0.01, Math.Pow(ms / 1000, 1.6));
+
+        private double strainDecayStamina(double ms, double staminaValue)
+        {
+            double changeFactor = currentStaminaStrain > 0 ? 1 + Math.Pow(currentStaminaStrain / (staminaValue + currentStaminaStrain), 25) : 1;
+            return Math.Pow(0.05, Math.Pow(ms * changeFactor / 1000, 3.5));
+        }
 
         public override void Process(DifficultyHitObject current)
         {
-            currentDifficulty *= strainDecay(((OsuDifficultyHitObject)current).StrainTime);
+            currentBurstStrain *= strainDecayBurst(((OsuDifficultyHitObject)current).StrainTime);
+            currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
+            currentBurstStrain += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * burstMultiplier;
 
-            currentDifficulty += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * RhythmEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+            if (WithoutStamina)
+            {
+                double totalStrain = currentBurstStrain * currentRhythm;
+
+                if (current.BaseObject is Slider)
+                    sliderStrains.Add(totalStrain);
+
+                noteDifficulties.Add(totalStrain);
+                return;
+            }
+
+            double staminaValue = StaminaEvaluator.EvaluateDifficultyOf(current);
+
+            currentStreamStrain *= strainDecayStream(((OsuDifficultyHitObject)current).StrainTime);
+            currentStreamStrain += staminaValue * streamMultiplier;
+
+            currentStaminaStrain *= strainDecayStamina(((OsuDifficultyHitObject)current).StrainTime, staminaValue * staminaMultiplier);
+            currentStaminaStrain += staminaValue * staminaMultiplier;
+
+            double totalValue =
+                Math.Pow(
+                    Math.Pow(currentBurstStrain * currentRhythm, meanFactor) +
+                    Math.Pow(currentStreamStrain, meanFactor) +
+                    Math.Pow(currentStaminaStrain, meanFactor), 1.0 / meanFactor
+                );
 
             if (current.BaseObject is Slider)
-                sliderStrains.Add(currentDifficulty);
+                sliderStrains.Add(totalValue);
 
-            noteDifficulties.Add(currentDifficulty);
+            noteDifficulties.Add(totalValue * totalMultiplier);
         }
 
         public override double DifficultyValue()
