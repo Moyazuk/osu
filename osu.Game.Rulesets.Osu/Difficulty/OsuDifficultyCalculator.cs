@@ -121,7 +121,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 Math.Pow(
                     Math.Pow(SumMechanicalDifficulty(baseAimPerformance, baseSpeedPerformance), 1.1) +
                     Math.Pow(baseFlashlightPerformance, 1.1) +
-                    Math.Pow(baseReadingPerformance, 1.1, 1.0 / 1.1
+                    Math.Pow(baseReadingPerformance, 1.1), 1.0 / 1.1
                 );
 
             double multiplier = CalculateDifficultyMultiplier(mods, totalHits, spinnerCount);
