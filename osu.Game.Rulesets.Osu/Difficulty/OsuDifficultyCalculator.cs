@@ -95,12 +95,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double readingRating = 0.0;
 
-            double aimRating = computeTotalAimRating(aim.DifficultyValue(), snapAimDifficultyValue, flowAimDifficultyValue, mods, totalHits, approachRate, overallDifficulty);
-            double aimRatingNoSliders = computeTotalAimRating(aimWithoutSliders.DifficultyValue(), snapAimDifficultyValue, flowAimDifficultyValue, mods, totalHits, approachRate, overallDifficulty);
-            double speedRating = computeSpeedRating(speed.DifficultyValue(), mods, totalHits, approachRate, overallDifficulty);
+            double aimRating = computeTotalAimRating(aim.DifficultyValue(), snapAimDifficultyValue, flowAimDifficultyValue, mods, overallDifficulty);
+            double aimRatingNoSliders = computeTotalAimRating(aimWithoutSliders.DifficultyValue(), snapAimDifficultyValue, flowAimDifficultyValue, mods, overallDifficulty);
+            double speedRating = computeSpeedRating(speed.DifficultyValue(), mods, overallDifficulty);
 
-            double snapAimRating = computeSnapAimRating(snapAimDifficultyValue, mods, totalHits, approachRate, overallDifficulty);
-            double flowAimRating = computeFlowAimRating(flowAimDifficultyValue, mods, totalHits, approachRate, overallDifficulty);
+            double snapAimRating = computeSnapAimRating(snapAimDifficultyValue, mods, overallDifficulty);
+            double flowAimRating = computeFlowAimRating(flowAimDifficultyValue, mods, overallDifficulty);
+
             if (reading is not null)
                 readingRating = computeReadingRating(reading.DifficultyValue(), mods, overallDifficulty);
 
@@ -197,7 +198,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return difficulty * base_multiplier;
         }
 
-        private double computeTotalAimRating(double aimDifficultyValue, double snapAimDifficultyValue, double flowAimDifficultyValue, Mod[] mods, int totalHits, double approachRate, double overallDifficulty)
+        private double computeTotalAimRating(double aimDifficultyValue, double snapAimDifficultyValue, double flowAimDifficultyValue, Mod[] mods, double overallDifficulty)
         {
             if (mods.Any(m => m is OsuModAutopilot))
                 return 0;
@@ -222,10 +223,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             aimRating = double.Lerp(aimRating, snapAimRating + flowAimRating, AimVersatilityBonus);
 
-            return computeRawAimRating(aimRating, mods, totalHits, approachRate, overallDifficulty);
+            return computeRawAimRating(aimRating, mods, overallDifficulty);
         }
 
-        private double computeSnapAimRating(double snapAimDifficultyValue, Mod[] mods, int totalHits, double approachRate, double overallDifficulty)
+        private double computeSnapAimRating(double snapAimDifficultyValue, Mod[] mods, double overallDifficulty)
         {
             if (mods.Any(m => m is OsuModAutopilot))
                 return 0;
@@ -239,10 +240,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (mods.Any(m => m is OsuModRelax))
                 snapAimRating *= 0.9;
 
-            return computeRawAimRating(snapAimRating, mods, totalHits, approachRate, overallDifficulty);
+            return computeRawAimRating(snapAimRating, mods, overallDifficulty);
         }
 
-        private double computeFlowAimRating(double flowAimDifficultyValue, Mod[] mods, int totalHits, double approachRate, double overallDifficulty)
+        private double computeFlowAimRating(double flowAimDifficultyValue, Mod[] mods, double overallDifficulty)
         {
             if (mods.Any(m => m is OsuModAutopilot) || mods.Any(m => m is OsuModRelax))
                 return 0;
@@ -253,10 +254,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (mods.Any(m => m is OsuModTouchDevice))
                 flowAimRating = Math.Pow(flowAimRating, 0.83);
 
-            return computeRawAimRating(flowAimRating, mods, totalHits, approachRate, overallDifficulty);
+            return computeRawAimRating(flowAimRating, mods, overallDifficulty);
         }
 
-        private double computeRawAimRating(double aimRating, Mod[] mods, int totalHits, double approachRate, double overallDifficulty)
+        private double computeRawAimRating(double aimRating, Mod[] mods, double overallDifficulty)
         {
             if (mods.Any(m => m is OsuModMagnetised))
             {
