@@ -21,7 +21,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 {
     public class OsuDifficultyCalculator : DifficultyCalculator
     {
-        private const double performance_base_multiplier = 1.23; // This is being adjusted to keep the final pp value scaled around what it used to be when changing things.
+        private const double performance_base_multiplier = 1.15; // This is being adjusted to keep the final pp value scaled around what it used to be when changing things.
         private const double difficulty_multiplier = 0.0675;
         private const double star_rating_multiplier = 0.0272;
 
@@ -183,9 +183,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         // Summation for aim and speed, reducing reward for mixed maps
         public static double SumMechanicalDifficulty(double aim, double speed)
         {
-            const double base_multiplier = 0.87;
-            const double addition_portion = 0.149425;
+            const double addition_portion = 0.15;
+
+            // We take this min to max ratio as a basepoint to be not changed when addition_portion is changed
+            const double balance_base_point = 0.2;
             const double power = 1.1;
+
+            // This is automatically-computed multiplier to avoid manual multiplier balancing when addition_portion is changed
+            double multiplier = Math.Pow(1 + Math.Pow(balance_base_point, power), 1.0 / power) /
+                Math.Pow(
+                    Math.Pow(1 + addition_portion, power) +
+                    Math.Pow(balance_base_point + addition_portion, power), 1.0 / power
+                );
 
             double max = Math.Max(aim, speed);
 
@@ -195,7 +204,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                     Math.Pow(speed + addition_portion * max, power), 1.0 / power
                 );
 
-            return difficulty * base_multiplier;
+            return difficulty * multiplier;
         }
 
         private double computeTotalAimRating(double aimDifficultyValue, double snapAimDifficultyValue, double flowAimDifficultyValue, Mod[] mods, double overallDifficulty)
