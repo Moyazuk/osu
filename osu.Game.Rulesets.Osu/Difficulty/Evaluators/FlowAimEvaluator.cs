@@ -57,10 +57,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
 
             // Flow aim is harder on High BPM
-            // Increase multiplier in the beginning to buff all the scaling
-            // Increase power to increase buff for spaced speedflow
-            // Increase number in the divisor to make steeper scaling with bpm
-            flowDifficulty += 2 * (Math.Pow(osuCurrObj.LazyJumpDistance, 0.7) / osuCurrObj.StrainTime) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - 15) - 1);
+            const double base_speedflow_multiplier = 0.5641;
+            const double spacing_factor = 0.7;
+            const double bpm_factor = 15;
+
+            // Autobalance, it's expected for bonus multiplier to be 1 for the bpm base
+            double bpmBase = DifficultyCalculationUtils.BPMToMilliseconds(220, 4);
+            double bpmFactorMultiplierAtBase = bpmBase / (bpmBase - bpm_factor) - 1;
+            double multiplier = base_speedflow_multiplier / bpmFactorMultiplierAtBase;
+
+            flowDifficulty += multiplier * (Math.Pow(osuCurrObj.LazyJumpDistance, spacing_factor) / osuCurrObj.StrainTime) * (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - bpm_factor) - 1);
 
             double angleBonus = 0;
 
