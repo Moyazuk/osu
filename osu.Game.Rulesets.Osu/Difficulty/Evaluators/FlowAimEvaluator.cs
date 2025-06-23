@@ -57,9 +57,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
 
             // Flow aim is harder on High BPM
-            const double base_speedflow_multiplier = 0.5641;
-            const double spacing_factor = 0.7;
-            const double bpm_factor = 15;
+            const double base_speedflow_multiplier = 0.5641; // Base multiplier for speedflow bonus
+            const double spacing_factor = 0.7; // How much bonus is skewed towards high spacing, 1 means equal buff for any spacing
+            const double bpm_factor = 15; // How steep the bonus is, higher values means more bonus for high BPM
 
             // Autobalance, it's expected for bonus multiplier to be 1 for the bpm base
             double bpmBase = DifficultyCalculationUtils.BPMToMilliseconds(220, 4);
