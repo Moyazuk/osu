@@ -112,6 +112,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         /// </summary>
         public double SmallCircleBonus { get; private set; }
 
+        /// <summary>
+        /// The extra time to hit the circle if cheesed.
+        /// </summary>
+        public double ExtraDeltaTime { get; private set; }
+
         private readonly OsuDifficultyHitObject? lastLastDifficultyObject;
         private readonly OsuDifficultyHitObject? lastDifficultyObject;
 
@@ -126,17 +131,37 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
 
             SmallCircleBonus = Math.Max(1.0, 1.0 + (30 - BaseObject.Radius) / 130);
 
+            double hitWindowOk;
             if (BaseObject is Slider sliderObject)
             {
-                HitWindowGreat = 2 * sliderObject.HeadCircle.HitWindows.WindowFor(HitResult.Great) / clockRate;
+                HitWindowGreat = sliderObject.HeadCircle.HitWindows.WindowFor(HitResult.Great) / clockRate;
+                hitWindowOk = sliderObject.HeadCircle.HitWindows.WindowFor(HitResult.Ok) / clockRate;
             }
             else
             {
-                HitWindowGreat = 2 * BaseObject.HitWindows.WindowFor(HitResult.Great) / clockRate;
+                HitWindowGreat = BaseObject.HitWindows.WindowFor(HitResult.Great) / clockRate;
+                hitWindowOk = BaseObject.HitWindows.WindowFor(HitResult.Ok) / clockRate;
             }
 
             computeSliderCursorPosition();
             setDistances(clockRate);
+
+            // Worst case if the player wanted to cheese notes while still getting 100s.
+            // The extra delta time is repeatedly halved if the delta time says constant.
+            // If a slowdown occurs (deltaTimeDifference > 0), add the slowdown to the extra delta time,
+            // and cap it back to the 50 hit window.
+            if (lastDifficultyObject != null)
+            {
+                double deltaTimeDifference = DeltaTime - lastDifficultyObject.DeltaTime;
+                ExtraDeltaTime = Math.Min(lastDifficultyObject.ExtraDeltaTime / 2.0 + Math.Max(0, deltaTimeDifference), hitWindowOk);
+
+                double cheeseFromOverlap = Math.Min(1, LazyJumpDistance / 100) * (1 - Math.Min(1, lastDifficultyObject.LazyJumpDistance / 100));
+                ExtraDeltaTime = Math.Max(ExtraDeltaTime, hitWindowOk * cheeseFromOverlap);
+            }
+            else
+            {
+                ExtraDeltaTime = hitWindowOk;
+            }
         }
 
         public double OpacityAt(double time, bool hidden)
@@ -179,7 +204,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                 double nextDeltaTime = Math.Max(1, osuNextObj.DeltaTime);
                 double deltaDifference = Math.Abs(nextDeltaTime - currDeltaTime);
                 double speedRatio = currDeltaTime / Math.Max(currDeltaTime, deltaDifference);
-                double windowRatio = Math.Pow(Math.Min(1, currDeltaTime / HitWindowGreat), 2);
+                double windowRatio = Math.Pow(Math.Min(1, currDeltaTime / (2 * HitWindowGreat)), 2);
                 return 1.0 - Math.Pow(speedRatio, 1 - windowRatio);
             }
 

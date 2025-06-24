@@ -37,6 +37,8 @@ namespace osu.Game.Rulesets.Difficulty
         protected const int ATTRIB_ID_CONSISTENCY_FACTOR = 49;
         protected const int ATTRIB_ID_SNAP_AIM_DIFFICULTY = 51;
         protected const int ATTRIB_ID_FLOW_AIM_DIFFICULTY = 53;
+        protected const int ATTRIB_ID_CHEESE_FACTOR = 51;
+        protected const int ATTRIB_ID_INACCURACIES_WITH_CHEESING = 53;
 
         /// <summary>
         /// The mods which were applied to the beatmap.
