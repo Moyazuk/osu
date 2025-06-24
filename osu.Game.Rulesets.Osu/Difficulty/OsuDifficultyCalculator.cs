@@ -217,9 +217,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (mods.Any(m => m is OsuModAutopilot))
                 return 0;
 
-            double aimRating = calculateDifficultyRating(aimDifficultyValue);
-            double snapAimRating = calculateDifficultyRating(snapAimDifficultyValue);
-            double flowAimRating = calculateDifficultyRating(flowAimDifficultyValue);
+            double aimRating = calculateAimDifficultyRating(aimDifficultyValue);
+            double snapAimRating = calculateAimDifficultyRating(snapAimDifficultyValue);
+            double flowAimRating = calculateAimDifficultyRating(flowAimDifficultyValue);
 
             if (mods.Any(m => m is OsuModTouchDevice))
             {
@@ -421,6 +421,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         }
 
         private static double calculateDifficultyRating(double difficultyValue) => Math.Sqrt(difficultyValue) * difficulty_multiplier;
+        private static double calculateAimDifficultyRating(double difficultyValue) => Math.Pow(difficultyValue, 0.65) * difficulty_multiplier;
 
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate)
         {
