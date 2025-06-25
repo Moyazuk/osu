@@ -223,8 +223,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 aimValue *= 1.0 + 0.04 * (12.0 - approachRate);
             }
 
-            aimValue *= accuracy;
-
             return aimValue;
         }
 
