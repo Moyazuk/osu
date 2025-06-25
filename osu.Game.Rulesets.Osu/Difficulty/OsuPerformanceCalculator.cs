@@ -176,7 +176,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private double computeAimValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            if (score.Mods.Any(h => h is OsuModAutopilot) || deviation == null)
+            if (score.Mods.Any(h => h is OsuModAutopilot))
                 return 0.0;
 
             double flowAimHighDeviationMultiplier = calculateFlowAimHighDeviationNerf(attributes);
@@ -203,10 +203,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 aimDifficulty *= sliderNerfFactor;
             }
 
-            double cheesedAimDifficulty = aimDifficulty * attributes.CheeseFactor;
-            double cheesedProbability = calculateCheesePValue(score, attributes);
-            aimDifficulty = double.Lerp(aimDifficulty, cheesedAimDifficulty, cheesedProbability);
-
             double aimValue = OsuStrainSkill.DifficultyToPerformance(aimDifficulty);
 
             if (effectiveMissCount > 0)
@@ -227,6 +223,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 aimValue *= 1.0 + 0.04 * (12.0 - approachRate);
             }
 
+            aimValue *= accuracy;
+
             return aimValue;
         }
 
@@ -239,6 +237,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
                                  (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
+            speedValue *= lengthBonus;
 
             if (effectiveMissCount > 0)
             {
@@ -257,8 +256,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             }
             else if (score.Mods.Any(m => m is OsuModTraceable))
             {
-                // We want to give more reward for lower AR when it comes to aim and HD. This nerfs high AR and buffs lower AR.
-                speedValue *= 1.0 + 0.04 * (12.0 - approachRate);
+                speedValue *= 1.0 + OsuDifficultyCalculator.CalculateVisibilityBonus(score.Mods, approachRate);
             }
 
             // Calculate accuracy assuming the worst case scenario
@@ -468,11 +466,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                     double deviationOnCircles = greatHitWindow / (Math.Sqrt(2) * DifficultyCalculationUtils.ErfInv(pLowerBound));
                     double adjustFor100 = Math.Sqrt(2 / Math.PI) * okHitWindow * Math.Exp(-0.5 * Math.Pow(okHitWindow / deviationOnCircles, 2)) / (deviationOnCircles * DifficultyCalculationUtils.Erf(okHitWindow / (Math.Sqrt(2) * deviationOnCircles)));
 
-            // Tested max precision for the deviation calculation.
-            if (pLowerBound > 0.01)
-            {
-                // Compute deviation assuming greats and oks are normally distributed.
-                deviation = greatHitWindow / (Math.Sqrt(2) * DifficultyCalculationUtils.ErfInv(pLowerBound));
                     deviationOnCircles *= Math.Sqrt(1 - adjustFor100);
 
                     // Value deviation approach as greatCount approaches 0

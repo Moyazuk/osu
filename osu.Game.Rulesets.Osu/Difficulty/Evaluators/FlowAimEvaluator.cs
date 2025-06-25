@@ -13,7 +13,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     public static class FlowAimEvaluator
     {
         // The reason why this exist in evaluator instead of FlowAim skill - it's because it's very important to keep flowaim in the same scaling as snapaim on evaluator level
-        private static double flowMultiplier => 1.24;
+        private static double flowMultiplier => 1.795;
+
+        private const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
         {
@@ -25,8 +27,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
             var osuLast2Obj = (OsuDifficultyHitObject?)current.Previous(2);
             var osuLast3Obj = (OsuDifficultyHitObject?)current.Previous(3);
-
-            const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
 
             // Start with velocity
             double velocity = osuCurrObj.LazyJumpDistance / osuCurrObj.StrainTime;
@@ -48,7 +48,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double comfyness = IdentifyComfyFlow(current);
 
                 // Change those 2 power coeficients to control amount of buff high spaced flow aim has for comfy/uncomfy patterns
-                flowDifficulty *= Math.Pow(osuCurrObj.LazyJumpDistance / diameter, 0.75 - 0.55 * comfyness);
+                flowDifficulty *= Math.Pow(osuCurrObj.LazyJumpDistance / diameter, 0.8 - 0.45 * comfyness);
             }
             else
             {
@@ -57,9 +57,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
 
             // Flow aim is harder on High BPM
-            const double base_speedflow_multiplier = 0.678; // Base multiplier for speedflow bonus
+            const double base_speedflow_multiplier = 0.1117; // Base multiplier for speedflow bonus
             const double spacing_factor = 0.7; // How much bonus is skewed towards high spacing, 1 means equal buff for any spacing
-            const double bpm_factor = 12; // How steep the bonus is, higher values means more bonus for high BPM
+            const double bpm_factor = 15; // How steep the bonus is, higher values means more bonus for high BPM
 
             // Autobalance, it's expected for bonus multiplier to be 1 for the bpm base
             double bpmBase = DifficultyCalculationUtils.BPMToMilliseconds(220, 4);
@@ -108,8 +108,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double summedBonus = angleChangeBonus + acuteAngleBonus;
 
                 angleBonus = double.Lerp(summedBonus, largerBonus, angleChangeConsistencyFactor) * overlappedNotesWeight;
-
-                //angleBonus = Math.Max(angleChangeBonus, acuteAngleBonus) * overlappedNotesWeight;
             }
 
             double velocityChangeBonus = CalculateFlowVelocityChangeBonus(current);
@@ -120,7 +118,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
             {
                 double sliderBonus = osuLast0Obj.TravelDistance / osuLast0Obj.TravelTime;
-                flowDifficulty += sliderBonus * AimEvaluator.SLIDER_MULTIPLIER;
+                flowDifficulty += sliderBonus * 0.2;
             }
 
             return flowDifficulty * osuCurrObj.SmallCircleBonus;
@@ -202,11 +200,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double baseVelocity = double.Lerp(Math.Min(currVelocity, prevVelocity), currVelocity, 0.25);
             double angleChangeBonus = Math.Pow(Math.Sin((currAngle - lastAngle) / 2), 2) * baseVelocity;
 
-            // Remove angle change if previous 2 notes were slower
+            // Remove angle change if previous 2 notes were different
             // IMPORTANT INFORMATION: removing this limitation significantly buffs almost all tech, alt, underweight maps in general
             // BUT it also very significantly buffs ReLief. So it's should be explored how to keep this buff for actually hard patterns but not for ReLief
-            angleChangeBonus *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLast0Obj.StrainTime * 0.55, osuLast0Obj.StrainTime * 0.75);
-            angleChangeBonus *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.StrainTime, osuLast1Obj.StrainTime * 0.55, osuLast1Obj.StrainTime * 0.75);
+            angleChangeBonus *= DifficultyCalculationUtils.ReverseLerpTwoDirectional(osuCurrObj.StrainTime, osuLast0Obj.StrainTime, 0.55, 0.75);
+            angleChangeBonus *= DifficultyCalculationUtils.ReverseLerpTwoDirectional(osuCurrObj.StrainTime, osuLast1Obj.StrainTime, 0.55, 0.75);
 
             double last1Angle = osuLast1Obj.Angle ?? 0;
             double last2Angle = osuLast2Obj?.Angle ?? 0;
