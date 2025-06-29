@@ -11,7 +11,6 @@ using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Scoring;
 using osu.Game.Rulesets.Difficulty;
-using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Skills;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Scoring;
@@ -198,6 +197,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
                                  (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
+            aimValue *= lengthBonus;
 
             if (effectiveMissCount > 0)
             {
@@ -295,7 +295,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             else if (score.Mods.Any(m => m is OsuModHidden || m is OsuModTraceable))
             {
                 // Decrease bonus for AR > 10
-                accuracyValue *= 1 + 0.08 * Math.Clamp((11.5 - approachRate) / (11.5 - 10), 0, 1);
+                accuracyValue *= 1 + 0.08 * DifficultyCalculationUtils.ReverseLerp(approachRate, 11.5, 10);
             }
 
             if (score.Mods.Any(m => m is OsuModFlashlight))
@@ -401,42 +401,43 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         /// will always return the same deviation. Misses are ignored because they are usually due to misaiming.
         /// Greats and oks are assumed to follow a normal distribution, whereas mehs are assumed to follow a uniform distribution.
         /// </summary>
-        private double? calculateDeviation(OsuDifficultyAttributes attributes, double relevantCountGreat, double relevantCountOk, double relevantCountMeh, double relevantCountMiss)
+        private double? calculateDeviation(double relevantCountGreat, double relevantCountOk, double relevantCountMeh)
         {
             if (relevantCountGreat + relevantCountOk + relevantCountMeh <= 0)
                 return null;
 
-            double objectCount = relevantCountGreat + relevantCountOk + relevantCountMeh + relevantCountMiss;
-
-            // The probability that a player hits a circle is unknown, but we can estimate it to be
-            // the number of greats on circles divided by the number of circles, and then add one
-            // to the number of circles as a bias correction.
-            double n = Math.Max(1, objectCount - relevantCountMiss - relevantCountMeh);
-            const double z = 2.32634787404; // 99% critical value for the normal distribution (one-tailed).
-
-            // Proportion of greats hit on circles, ignoring misses and 50s.
+            // The sample proportion of successful hits.
+            double n = Math.Max(1, relevantCountGreat + relevantCountOk);
             double p = relevantCountGreat / n;
 
-            // We can be 99% confident that p is at least this value.
-            double pLowerBound = (n * p + z * z / 2) / (n + z * z) - z / (n + z * z) * Math.Sqrt(n * p * (1 - p) + z * z / 4);
+            // 99% critical value for the normal distribution (one-tailed).
+            const double z = 2.32634787404;
 
-            // Compute the deviation assuming greats and oks are normally distributed, and mehs are uniformly distributed.
-            // Begin with greats and oks first. Ignoring mehs, we can be 99% confident that the deviation is not higher than:
-            double deviation = greatHitWindow / (Math.Sqrt(2) * DifficultyCalculationUtils.ErfInv(pLowerBound));
+            // We can be 99% confident that the population proportion is at least this value.
+            double pLowerBound = Math.Min(p, (n * p + z * z / 2) / (n + z * z) - z / (n + z * z) * Math.Sqrt(n * p * (1 - p) + z * z / 4));
 
-            double randomValue = Math.Sqrt(2 / Math.PI) * okHitWindow * Math.Exp(-0.5 * Math.Pow(okHitWindow / deviation, 2))
-                                 / (deviation * DifficultyCalculationUtils.Erf(okHitWindow / (Math.Sqrt(2) * deviation)));
+            double deviation;
 
-            deviation *= Math.Sqrt(1 - randomValue);
+            // Tested max precision for the deviation calculation.
+            if (pLowerBound > 0.01)
+            {
+                // Compute deviation assuming greats and oks are normally distributed.
+                deviation = greatHitWindow / (Math.Sqrt(2) * DifficultyCalculationUtils.ErfInv(pLowerBound));
 
-            // Value deviation approach as greatCount approaches 0
-            double limitValue = okHitWindow / Math.Sqrt(3);
+                // Subtract the deviation provided by tails that land outside the ok hit window from the deviation computed above.
+                // This is equivalent to calculating the deviation of a normal distribution truncated at +-okHitWindow.
+                double okHitWindowTailAmount = Math.Sqrt(2 / Math.PI) * okHitWindow * Math.Exp(-0.5 * Math.Pow(okHitWindow / deviation, 2))
+                                               / (deviation * DifficultyCalculationUtils.Erf(okHitWindow / (Math.Sqrt(2) * deviation)));
 
-            // If precision is not enough to compute true deviation - use limit value
-            if (Precision.AlmostEquals(pLowerBound, 0.0) || randomValue >= 1 || deviation > limitValue)
-                deviation = limitValue;
+                deviation *= Math.Sqrt(1 - okHitWindowTailAmount);
+            }
+            else
+            {
+                // A tested limit value for the case of a score only containing oks.
+                deviation = okHitWindow / Math.Sqrt(3);
+            }
 
-            // Then compute the variance for mehs.
+            // Compute and add the variance for mehs, assuming that they are uniformly distributed.
             double mehVariance = (mehHitWindow * mehHitWindow + okHitWindow * mehHitWindow + okHitWindow * okHitWindow) / 3;
 
             // Find the total deviation.
