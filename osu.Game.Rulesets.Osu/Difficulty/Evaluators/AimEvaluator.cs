@@ -9,7 +9,7 @@ using osu.Game.Rulesets.Osu.Objects;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
-    public static class SnapAimEvaluator
+    public static class AimEvaluator
     {
         private const double wide_angle_multiplier = 1.5;
         private const double acute_angle_multiplier = 2.24;
@@ -108,7 +108,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 wideAngleBonus *= 1 - wideAngleRepetitionNerf;
 
                 double acuteAngleRepetitionNerf = Math.Pow(CalcAcuteAngleBonus(lastAngle), 3);
-                acuteAngleBonus *= 0.04 + 0.96 * (1 - Math.Min(acuteAngleBonus, acuteAngleRepetitionNerf));
+                acuteAngleBonus *= 0.08 + 0.65 * (1 - Math.Min(acuteAngleBonus, acuteAngleRepetitionNerf));
 
                 // Apply full wide angle bonus for distance more than one diameter
                 wideAngleBonus *= wideVelocityBase * DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, 0, diameter);
@@ -191,11 +191,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             aimStrain += velocityChangeBonus * velocity_change_multiplier;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            aimStrain += Math.Max(acuteAngleBonus * 4.4, wideAngleBonus * 0.65);
+            aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier);
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
-                aimStrain += sliderBonus * 0.2;
+                aimStrain += sliderBonus * SLIDER_MULTIPLIER;
 
             // Apply high circle size bonus
             aimStrain *= osuCurrObj.SmallCircleBonus;

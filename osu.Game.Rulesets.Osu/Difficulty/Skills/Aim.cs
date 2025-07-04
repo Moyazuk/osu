@@ -7,7 +7,6 @@ using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
-using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
@@ -18,13 +17,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to correctly aim at every object in the map with a uniform CircleSize and normalized distances.
     /// </summary>
-    public class Aim : OsuTimeSkill
+    public abstract class Aim : OsuTimeSkill
     {
         public readonly bool IncludeSliders;
-        public Aim(Mod[] mods, bool includeSliders)
         public readonly bool WithCheesability;
 
-        public Aim(Mod[] mods, bool includeSliders, bool withCheesability)
+        protected Aim(Mod[] mods, bool includeSliders, bool withCheesability)
             : base(mods)
         {
             IncludeSliders = includeSliders;
@@ -36,8 +34,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double maxStrain = 0;
         private double currentStrain;
 
-        private double skillMultiplier => 125;
-        private double strainDecayBase => 0.55;
+        private double skillMultiplier => 37.1;
+        private double strainDecayBase => 0.15;
 
         private readonly List<double> sliderStrains = new List<double>();
 
@@ -56,11 +54,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
 
+        protected abstract double StrainValueOf(DifficultyHitObject current);
+
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * 38.5;
-            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
-            double currentDifficulty = Math.Min(snapDifficulty, flowDifficulty);
+
+            double currentDifficulty = StrainValueOf(current) * skillMultiplier;
             previousStrains.Add(((OsuDifficultyHitObject)current, currentDifficulty));
             currentStrain = getCurrentStrainValue((OsuDifficultyHitObject)current, previousStrains) * 2.5;
 

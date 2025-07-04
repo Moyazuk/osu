@@ -129,7 +129,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
             // Capped to 25ms to prevent difficulty calculation breaking from simultaneous objects.
             StrainTime = Math.Max(DeltaTime, MIN_DELTA_TIME);
 
-            SmallCircleBonus = Math.Max(1.0, 1.0 + (30 - BaseObject.Radius) / 40);
+            SmallCircleBonus = Math.Max(1.0, 1.0 + (30 - BaseObject.Radius) / 180);
 
             double hitWindowOk;
             if (BaseObject is Slider sliderObject)
@@ -390,6 +390,26 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         private Vector2 getEndCursorPosition(OsuDifficultyHitObject difficultyHitObject)
         {
             return difficultyHitObject.LazyEndPosition ?? difficultyHitObject.BaseObject.StackedPosition;
+        }
+
+        public static bool IsValid(DifficultyHitObject current, int notesBackward, int notesForward = 0)
+        {
+            if (current.Index < notesBackward || current.IndexFromEnd < notesForward || current.BaseObject is Spinner)
+                return false;
+
+            for (int i = 0; i < notesBackward; i++)
+            {
+                if (current.Previous(i).BaseObject is Spinner)
+                    return false;
+            }
+
+            for (int i = 0; i < notesForward; i++)
+            {
+                if (current.Next(i).BaseObject is Spinner)
+                    return false;
+            }
+
+            return true;
         }
     }
 }

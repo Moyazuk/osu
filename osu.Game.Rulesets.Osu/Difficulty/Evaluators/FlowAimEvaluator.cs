@@ -13,7 +13,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     public static class FlowAimEvaluator
     {
         // The reason why this exist in evaluator instead of FlowAim skill - it's because it's very important to keep flowaim in the same scaling as snapaim on evaluator level
-        private static double flowMultiplier => 56.14;
+        private static double flowMultiplier => 1.91;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
         {
@@ -57,7 +57,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
 
             // Flow aim is harder on High BPM
-            const double base_speedflow_multiplier = 0.418; // Base multiplier for speedflow bonus
+            const double base_speedflow_multiplier = 0.118; // Base multiplier for speedflow bonus
             const double spacing_factor = 0.7; // How much bonus is skewed towards high spacing, 1 means equal buff for any spacing
             const double bpm_factor = 12; // How steep the bonus is, higher values means more bonus for high BPM
 
@@ -120,7 +120,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
             {
                 double sliderBonus = osuLast0Obj.TravelDistance / osuLast0Obj.TravelTime;
-                flowDifficulty += sliderBonus * 0.3;
+                flowDifficulty += sliderBonus * 0;
             }
 
             return flowDifficulty * osuCurrObj.SmallCircleBonus;
@@ -154,8 +154,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double last1Angle = osuLast1Obj.Angle ?? 0;
             double last2Angle = osuLast2Obj?.Angle ?? 0;
 
-            double currAngleBonus = SnapAimEvaluator.CalcAcuteAngleBonus(currAngle);
-            double prevAngleBonus = SnapAimEvaluator.CalcAcuteAngleBonus(last2Angle);
+            double currAngleBonus = AimEvaluator.CalcAcuteAngleBonus(currAngle);
+            double prevAngleBonus = AimEvaluator.CalcAcuteAngleBonus(last2Angle);
 
             double currVelocity = osuCurrObj.LazyJumpDistance / osuCurrObj.StrainTime;
             double acuteAngleBonus = currVelocity * currAngleBonus;
@@ -214,7 +214,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double deltaAngle = Math.Abs(last1Angle - last2Angle);
             double isSameAngle = DifficultyCalculationUtils.Smoothstep(deltaAngle, 0.25, 0.15); // =1 if there's no angle change
 
-            double prevAngleBonus = SnapAimEvaluator.CalcAcuteAngleBonus(last2Angle);
+            double prevAngleBonus = AimEvaluator.CalcAcuteAngleBonus(last2Angle);
 
             // Decrease buffs from angle bonus if it's not repeating too often
             // Multiply nerf by difference in bonus to not nerf repeating high angle bonuse
