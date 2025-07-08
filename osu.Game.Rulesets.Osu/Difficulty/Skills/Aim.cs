@@ -45,7 +45,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         protected override double StrainValueAt(DifficultyHitObject current)
         {
 
-            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * 56;
+            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * 54;
             previousStrains.Add(((OsuDifficultyHitObject)current, currentDifficulty));
             currentStrain = getCurrentStrainValue((OsuDifficultyHitObject)current, previousStrains) * 2.5;
 
