@@ -30,7 +30,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private readonly List<double> noteWeights = new List<double>();
 
         private readonly List<double> sliderStrains = new List<double>();
-        public readonly bool WithoutStamina;
 
         private double currentBurstStrain;
         private double currentStreamStrain;
