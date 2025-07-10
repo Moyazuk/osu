@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Speed : Skill
     {
-        private double totalMultiplier => 1.0;
+        private double totalMultiplier => 0.623;
         private double burstMultiplier => 1.92;
         private double streamMultiplier => 0.165;
         private double staminaMultiplier => 0.045;
@@ -140,6 +140,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
             if (noteDifficulties.Count == 0)
                 return 0;
+
+            DifficultyValue();
 
             double maxStrain = noteDifficulties.Max();
             if (maxStrain == 0)
