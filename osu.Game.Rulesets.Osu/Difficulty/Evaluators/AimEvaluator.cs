@@ -95,6 +95,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 double wideVelocityBase = Math.Min(sliderlessCurrVelocity, prevVelocity); // Don't reward wide angle bonus to sliders
 
+                wideVelocityBase /= Math.Pow(Math.Max(osuLastObj.StrainTime, osuCurrObj.StrainTime), 1.6);
+
                 // Nerf high spaced wide angles to compensate part of wide angled bonus being in snapping difficulty
                 double velocityThreshold = diameter * 2.3 / osuCurrObj.StrainTime;
                 wideVelocityBase = Math.Min(wideVelocityBase, velocityThreshold + 0.4 * (wideVelocityBase - velocityThreshold));
@@ -191,11 +193,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             aimStrain += velocityChangeBonus * velocity_change_multiplier;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier);
+            aimStrain += Math.Max(acuteAngleBonus * 8.6, wideAngleBonus * 3622);
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
-                aimStrain += sliderBonus * SLIDER_MULTIPLIER;
+                aimStrain += sliderBonus * 0;
 
             // Apply high circle size bonus
             aimStrain *= osuCurrObj.SmallCircleBonus;

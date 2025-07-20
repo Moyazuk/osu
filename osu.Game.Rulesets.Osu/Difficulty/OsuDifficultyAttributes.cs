@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Collections.Generic;
@@ -76,22 +76,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("speed_top_weighted_slider_factor")]
         public double SpeedTopWeightedSliderFactor { get; set; }
 
-        /// <summary>
-        /// Describes how much of <see cref="AimDifficulty"/> is cheesable.
-        /// A value closer to 1.0 indicates most of <see cref="AimDifficulty"/> is non-cheesable.
-        /// A value closer to 0.0 indicates most of <see cref="AimDifficulty"/> is cheesable.
-        /// </summary>
-        [JsonProperty("cheese_factor")]
-        public double CheeseFactor { get; set; }
-
-        [JsonProperty("inaccuracies_with_cheesing")]
-        public double InaccuraciesWithCheesing { get; set; }
-
         [JsonProperty("aim_difficult_strain_count")]
         public double AimDifficultStrainCount { get; set; }
 
         [JsonProperty("speed_difficult_strain_count")]
         public double SpeedDifficultStrainCount { get; set; }
+
+        [JsonProperty("snap_aim")]
+        public double SnapAimDifficulty { get; set; }
+
+        [JsonProperty("flow_aim")]
+        public double FlowAimDifficulty { get; set; }
 
         [JsonProperty("nested_score_per_object")]
         public double NestedScorePerObject { get; set; }
@@ -135,7 +130,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 yield return (ATTRIB_ID_FLASHLIGHT, FlashlightDifficulty);
 
             yield return (ATTRIB_ID_SLIDER_FACTOR, SliderFactor);
-            yield return (ATTRIB_ID_CHEESE_FACTOR, CheeseFactor);
 
             yield return (ATTRIB_ID_AIM_DIFFICULT_STRAIN_COUNT, AimDifficultStrainCount);
             yield return (ATTRIB_ID_SPEED_DIFFICULT_STRAIN_COUNT, SpeedDifficultStrainCount);
@@ -146,6 +140,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             yield return (ATTRIB_ID_NESTED_SCORE_PER_OBJECT, NestedScorePerObject);
             yield return (ATTRIB_ID_LEGACY_SCORE_BASE_MULTIPLIER, LegacyScoreBaseMultiplier);
             yield return (ATTRIB_ID_MAXIMUM_LEGACY_COMBO_SCORE, MaximumLegacyComboScore);
+            yield return (ATTRIB_ID_SNAP_AIM_DIFFICULTY, SnapAimDifficulty);
+            yield return (ATTRIB_ID_FLOW_AIM_DIFFICULTY, FlowAimDifficulty);
         }
 
         public override void FromDatabaseAttributes(IReadOnlyDictionary<int, double> values, IBeatmapOnlineInfo onlineInfo)
@@ -157,8 +153,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             StarRating = values[ATTRIB_ID_DIFFICULTY];
             FlashlightDifficulty = values.GetValueOrDefault(ATTRIB_ID_FLASHLIGHT);
             SliderFactor = values[ATTRIB_ID_SLIDER_FACTOR];
-            CheeseFactor = values[ATTRIB_ID_CHEESE_FACTOR];
-            InaccuraciesWithCheesing = values[ATTRIB_ID_INACCURACIES_WITH_CHEESING];
             AimDifficultStrainCount = values[ATTRIB_ID_AIM_DIFFICULT_STRAIN_COUNT];
             SpeedDifficultStrainCount = values[ATTRIB_ID_SPEED_DIFFICULT_STRAIN_COUNT];
             SpeedNoteCount = values[ATTRIB_ID_SPEED_NOTE_COUNT];
@@ -168,6 +162,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             NestedScorePerObject = values[ATTRIB_ID_NESTED_SCORE_PER_OBJECT];
             LegacyScoreBaseMultiplier = values[ATTRIB_ID_LEGACY_SCORE_BASE_MULTIPLIER];
             MaximumLegacyComboScore = values[ATTRIB_ID_MAXIMUM_LEGACY_COMBO_SCORE];
+            SnapAimDifficulty = values[ATTRIB_ID_SNAP_AIM_DIFFICULTY];
+            FlowAimDifficulty = values[ATTRIB_ID_FLOW_AIM_DIFFICULTY];
             DrainRate = onlineInfo.DrainRate;
             HitCircleCount = onlineInfo.CircleCount;
             SliderCount = onlineInfo.SliderCount;

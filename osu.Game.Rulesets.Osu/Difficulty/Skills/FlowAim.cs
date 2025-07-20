@@ -11,7 +11,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public class FlowAim : Aim
     {
         public FlowAim(Mod[] mods)
-            : base(mods, false, false)
+            : base(mods, false)
         {
         }
 

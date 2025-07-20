@@ -22,19 +22,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         public readonly bool IncludeSliders;
         public readonly bool WithCheesability;
 
-        protected Aim(Mod[] mods, bool includeSliders, bool withCheesability)
+        protected Aim(Mod[] mods, bool includeSliders)
             : base(mods)
         {
             IncludeSliders = includeSliders;
             previousStrains = new List<(OsuDifficultyHitObject, double)>();
-            WithCheesability = withCheesability;
         }
 
         private double inaccuraciesWhileCheesing = 0;
         private double maxStrain = 0;
         private double currentStrain;
 
-        private double skillMultiplier => 37.1;
+        private double skillMultiplier => 131.1;
         private double strainDecayBase => 0.15;
 
         private readonly List<double> sliderStrains = new List<double>();
@@ -61,14 +60,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             double currentDifficulty = StrainValueOf(current) * skillMultiplier;
             previousStrains.Add(((OsuDifficultyHitObject)current, currentDifficulty));
-            currentStrain = getCurrentStrainValue((OsuDifficultyHitObject)current, previousStrains) * 2.5;
+            currentStrain = getCurrentStrainValue((OsuDifficultyHitObject)current, previousStrains) * 5.25;
 
             if (current.BaseObject is Slider)
             {
                 sliderStrains.Add(currentStrain);
             }
 
-            inaccuraciesWhileCheesing += isInaccurateWhileCheesed(current) * currentStrain;
             if (currentStrain > maxStrain)
                 maxStrain = currentStrain;
 
@@ -135,20 +133,5 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return sortedStrains.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / maxSliderStrain * 12.0 - 6.0))));
         }
         public double CountTopWeightedSliders() => OsuStrainUtils.CountTopWeightedSliders(sliderStrains, DifficultyValue());
-
-
-        public double GetInaccuraciesWithCheesing() => maxStrain > 0 ? inaccuraciesWhileCheesing / maxStrain : 0;
-
-        // Check if cheesing the current object still results in a great.
-        private static int isInaccurateWhileCheesed(DifficultyHitObject current)
-        {
-            var osuCurrObj = (OsuDifficultyHitObject)current;
-
-            // Assume even on Lazer that cheesing does not happen on sliders
-            if (osuCurrObj.BaseObject is Slider)
-                return 0;
-
-            return osuCurrObj.ExtraDeltaTime > osuCurrObj.HitWindowGreat ? 1 : 0;
-        }
     }
 }
