@@ -120,7 +120,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
             {
                 double sliderBonus = osuLast0Obj.TravelDistance / osuLast0Obj.TravelTime;
-                flowDifficulty += sliderBonus * 0;
+                flowDifficulty += sliderBonus * 0.2;
             }
 
             return flowDifficulty * osuCurrObj.SmallCircleBonus;

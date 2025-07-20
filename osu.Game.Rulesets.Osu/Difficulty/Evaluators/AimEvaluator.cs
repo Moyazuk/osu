@@ -197,7 +197,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
-                aimStrain += sliderBonus * 0;
+                aimStrain += sliderBonus * 0.2;
 
             // Apply high circle size bonus
             aimStrain *= osuCurrObj.SmallCircleBonus;
