@@ -106,7 +106,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimRatingNoSliders = osuRatingCalculator.ComputeAimRating(aimNoSlidersDifficultyValue);
             double speedRating = osuRatingCalculator.ComputeSpeedRating(speedDifficultyValue);
 
-            double speedRatingNoStamina = computeSpeedRating(speedWithoutStamina.DifficultyValue(), mods, totalHits, approachRate, overallDifficulty);
+            double speedRatingNoStamina = osuRatingCalculator.ComputeSpeedRating(speedWithoutStamina.DifficultyValue());
             double staminaFactor = speedRating > 0 ? speedRatingNoStamina / speedRating : 1;
 
             double flashlightRating = 0.0;
