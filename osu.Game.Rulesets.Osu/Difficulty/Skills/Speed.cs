@@ -18,7 +18,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Speed : OsuStrainSkill
     {
-        private double skillMultiplier => 1.47;
+        private double skillMultiplier => 1.45;
         private double strainDecayBase => 0.3;
 
         private double currentStrain;
@@ -49,10 +49,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
 
-            currentAim *= aimDecay(((OsuDifficultyHitObject)current).StrainTime);
-            currentAim += SpeedAimEvaluator.EvaluateDifficultyOf(current, Mods) * aimMultiplier;
+            //currentAim *= aimDecay(((OsuDifficultyHitObject)current).StrainTime);
+            //currentAim += SpeedAimEvaluator.EvaluateDifficultyOf(current, Mods) * aimMultiplier;
 
-            double totalStrain = (currentStrain + currentAim) * currentRhythm;
+            double totalStrain = (currentStrain) * currentRhythm;
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(totalStrain);
