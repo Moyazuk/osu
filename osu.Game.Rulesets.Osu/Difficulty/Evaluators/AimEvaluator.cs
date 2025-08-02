@@ -67,7 +67,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double sliderBonus = 0;
             double velocityChangeBonus = 0;
             double wiggleBonus = 0;
-            double lowBPMNerf = 0;
 
             double aimStrain = currVelocity; // Start strain with regular velocity.
 
@@ -119,15 +118,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                               * Math.Pow(DifficultyCalculationUtils.ReverseLerp(osuLastObj.LazyJumpDistance, diameter * 3, diameter), 1.8)
                               * DifficultyCalculationUtils.Smootherstep(lastAngle, double.DegreesToRadians(110), double.DegreesToRadians(60));
 
-                lowBPMNerf = calcAcuteAngleBonus(currAngle);
-
-                lowBPMNerf *= (1 / (nerfedAngleBase + 1)) *
-                              (DifficultyCalculationUtils.Smootherstep(DifficultyCalculationUtils.MillisecondsToBPM(osuCurrObj.StrainTime, 2), 170, 190) *
-                               (1.0 - DifficultyCalculationUtils.Smootherstep(DifficultyCalculationUtils.MillisecondsToBPM(osuCurrObj.StrainTime, 2), 230, 240)));
-
-                // Penalize angle repetition.
-                lowBPMNerf *= 0.8 + 0.2 * Math.Min(lowBPMNerf, Math.Pow(calcAcuteAngleBonus(lastAngle), 3));
-
                 if (osuLast2Obj != null)
                 {
                     // If objects just go back and forth through a middle point - don't give as much wide bonus
@@ -175,8 +165,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
             aimStrain += Math.Max(acuteAngleBonus * 265080, wideAngleBonus * 49322);
-
-            aimStrain -= lowBPMNerf * 1.1;
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
