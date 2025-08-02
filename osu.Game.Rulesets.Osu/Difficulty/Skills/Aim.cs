@@ -33,10 +33,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double aimDecayBase => 0.15;
         private double currentAim;
 
-        private double skillMultiplier => 172.25;
+        private double skillMultiplier => 151.25;
         private double strainDecayBase => 0.55;
 
-        private double aimMultiplier => 8.75;
+        private double aimMultiplier => 11.75;
 
 
         private readonly List<double> sliderStrains = new List<double>();

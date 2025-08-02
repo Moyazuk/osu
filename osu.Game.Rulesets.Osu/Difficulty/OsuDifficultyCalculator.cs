@@ -81,7 +81,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
 
             double speedNotes = speed.RelevantNoteCount();
-            double speedDifficultStrainCount = speed.CountTopWeightedStrains();
+            double speedDifficultStrainCount = speed.CountTopWeightedNotes();
 
             double aimNoSlidersDifficultStrainCount = aimWithoutSliders.CountTopWeightedStrains();
             double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders();
