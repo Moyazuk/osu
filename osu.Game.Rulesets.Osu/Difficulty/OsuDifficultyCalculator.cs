@@ -81,7 +81,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
 
             double speedNotes = speed.RelevantNoteCount();
-            double speedDifficultStrainCount = speed.CountTopWeightedNotes();
+            double speedDifficultStrainCount = speed.CountTopWeightedStrains();
 
             double aimNoSlidersDifficultStrainCount = aimWithoutSliders.CountTopWeightedStrains();
             double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders();
@@ -338,7 +338,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private static double calculateDifficultyRating(double difficultyValue) => Math.Sqrt(difficultyValue) * difficulty_multiplier;
 
-        private static double calculateAimDifficultyRating(double difficultyValue) => Math.Pow(difficultyValue, 0.65) * difficulty_multiplier;
+        private static double calculateAimDifficultyRating(double difficultyValue) => Math.Pow(difficultyValue, 0.5) * difficulty_multiplier;
 
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate)
         {

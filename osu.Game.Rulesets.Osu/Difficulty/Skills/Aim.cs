@@ -30,12 +30,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
-        private double skillMultiplier => 125;
+        private double aimDecayBase => 0.15;
+        private double currentAim;
+
+        private double skillMultiplier => 172.25;
         private double strainDecayBase => 0.55;
+
+        private double aimMultiplier => 8.75;
+
 
         private readonly List<double> sliderStrains = new List<double>();
 
         private readonly List<(OsuDifficultyHitObject, double)> previousStrains;
+
+        private double aimDecay(double ms) => Math.Pow(aimDecayBase, ms / 1000);
 
         // How far back notes should influence strain.
         private const double backwards_strain_influence = 1000;
@@ -52,18 +60,24 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * 38.5;
-            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
-            double currentDifficulty = Math.Min(snapDifficulty, flowDifficulty);
+            var osuCurrent = (OsuDifficultyHitObject)current;
+
+            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
+
+            currentAim *= aimDecay(current.DeltaTime);
+            currentAim += SpeedAimEvaluator.EvaluateDifficultyOf(current, Mods) * aimMultiplier;
+
             previousStrains.Add(((OsuDifficultyHitObject)current, currentDifficulty));
             currentStrain = getCurrentStrainValue((OsuDifficultyHitObject)current, previousStrains) * 2.5;
 
+            double totalStrain = (currentStrain + currentAim);
+
             if (current.BaseObject is Slider)
             {
-                sliderStrains.Add(currentStrain);
+                sliderStrains.Add(totalStrain + currentDifficulty);
             }
 
-            return currentStrain;
+            return totalStrain + currentDifficulty;
         }
 
         private double getCurrentStrainValue(OsuDifficultyHitObject current, List<(OsuDifficultyHitObject Note, double Diff)> previousDifficulties, double offset = 0)
