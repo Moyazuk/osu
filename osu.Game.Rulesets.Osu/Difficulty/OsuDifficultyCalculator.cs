@@ -65,7 +65,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             var aim = skills.OfType<Aim>().Single(a => a.IncludeSliders);
             var aimWithoutSliders = skills.OfType<Aim>().Single(a => !a.IncludeSliders);
             var speed = skills.OfType<Speed>().Single();
-            var fingerControl = skills.OfType<FingerControl>().SingleOrDefault();
+            var fingerControl = skills.OfType<FingerControl>().Single();
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
 
             double speedNotes = speed.RelevantNoteCount();
@@ -106,6 +106,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimRating = osuRatingCalculator.ComputeAimRating(aimDifficultyValue);
             double aimRatingNoSliders = osuRatingCalculator.ComputeAimRating(aimNoSlidersDifficultyValue);
             double speedRating = osuRatingCalculator.ComputeSpeedRating(speedDifficultyValue);
+            double fingerControlRating = osuRatingCalculator.ComputeFingerControlRating(fingerControlDifficultyValue);
 
             double flashlightRating = 0.0;
 
