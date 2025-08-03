@@ -64,6 +64,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             var aim = skills.OfType<Aim>().Single(a => a.IncludeSliders);
             var aimWithoutSliders = skills.OfType<Aim>().Single(a => !a.IncludeSliders);
+            var fingerControl = skills.OfType<FingerControl>().Single();
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
 
             var speed = skills.OfType<Speed>().Single(s => !s.WithoutStamina);
@@ -72,6 +73,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double aimDifficultStrainCount = aim.CountTopWeightedStrains();
             double speedDifficultStrainCount = speed.CountTopWeightedNotes();
+            double fingerControlDifficultNoteCount = fingerControl.CountTopWeightedNotes();
 
             double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders();
             double aimNoSlidersDifficultStrainCount = aimWithoutSliders.CountTopWeightedStrains();
@@ -97,6 +99,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimDifficultyValue = aim.DifficultyValue();
             double aimNoSlidersDifficultyValue = aimWithoutSliders.DifficultyValue();
             double speedDifficultyValue = speed.DifficultyValue();
+            double fingerControlDifficultyValue = fingerControl.DifficultyValue();
 
             double mechanicalDifficultyRating = calculateMechanicalDifficultyRating(aimDifficultyValue, speedDifficultyValue);
 
@@ -105,6 +108,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimRating = osuRatingCalculator.ComputeAimRating(aimDifficultyValue);
             double aimRatingNoSliders = osuRatingCalculator.ComputeAimRating(aimNoSlidersDifficultyValue);
             double speedRating = osuRatingCalculator.ComputeSpeedRating(speedDifficultyValue);
+            double fingerControlRating = osuRatingCalculator.ComputeFingerControlRating(fingerControlDifficultyValue);
 
             double speedRatingNoStamina = osuRatingCalculator.ComputeSpeedRating(speedWithoutStamina.DifficultyValue());
             double staminaFactor = speedRating > 0 ? speedRatingNoStamina / speedRating : 1;
@@ -124,13 +128,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);
             double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating);
+            double baseFingerControlPerformance = OsuStrainSkill.DifficultyToPerformance(fingerControlRating);
             double baseFlashlightPerformance = Flashlight.DifficultyToPerformance(flashlightRating);
 
             double basePerformance =
                 Math.Pow(
                     Math.Pow(baseAimPerformance, 1.1) +
                     Math.Pow(baseSpeedPerformance, 1.1) +
-                    Math.Pow(baseFlashlightPerformance, 1.1), 1.0 / 1.1
+                    Math.Pow(baseFlashlightPerformance, 1.1) +
+                    Math.Pow(baseFingerControlPerformance, 1.1), 1.0 / 1.1
                 );
 
             double multiplier = CalculateDifficultyMultiplier(mods, totalHits, spinnerCount);
@@ -144,11 +150,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 AimDifficultSliderCount = difficultSliders,
                 SpeedDifficulty = speedRating,
                 SpeedNoteCount = speedNotes,
+                FingerControlDifficulty = fingerControlRating,
                 StaminaFactor = staminaFactor,
                 FlashlightDifficulty = flashlightRating,
                 SliderFactor = sliderFactor,
                 AimDifficultStrainCount = aimDifficultStrainCount,
                 SpeedDifficultStrainCount = speedDifficultStrainCount,
+                FingerControlDifficultNoteCount = fingerControlDifficultNoteCount,
                 AimTopWeightedSliderFactor = aimTopWeightedSliderFactor,
                 SpeedTopWeightedSliderFactor = speedTopWeightedSliderFactor,
                 DrainRate = drainRate,
@@ -204,6 +212,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 new Aim(mods, false),
                 new Speed(mods, false),
                 new Speed(mods, true)
+                new FingerControl(mods)
             };
 
             if (mods.Any(h => h is OsuModFlashlight))
