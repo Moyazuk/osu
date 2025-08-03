@@ -81,6 +81,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("speed_difficult_strain_count")]
         public double SpeedDifficultStrainCount { get; set; }
 
+        public double FingerControlDifficultNoteCount { get; set; }
+
         [JsonProperty("nested_score_per_object")]
         public double NestedScorePerObject { get; set; }
 

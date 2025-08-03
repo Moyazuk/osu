@@ -269,19 +269,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private double computeFingerControlValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            if (score.Mods.Any(h => h is OsuModRelax) || speedDeviation == null)
+            if (score.Mods.Any(h => h is OsuModRelax))
                 return 0.0;
 
             double fingerControlValue = OsuStrainSkill.DifficultyToPerformance(attributes.FingerControlDifficulty);
 
-            double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
-                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-            fingerControlValue *= lengthBonus;
-
             if (effectiveMissCount > 0)
             {
-                speedEstimatedSliderBreaks = calculateEstimatedSliderBreaks(attributes.SpeedTopWeightedSliderFactor, attributes);
-                fingerControlValue *= calculateMissPenalty(effectiveMissCount + speedEstimatedSliderBreaks, attributes.SpeedDifficultStrainCount);
+                fingerControlValue *= calculateMissPenalty(effectiveMissCount + speedEstimatedSliderBreaks, attributes.FingerControlDifficultNoteCount);
             }
 
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
@@ -295,18 +290,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 fingerControlValue *= 1.0 + OsuRatingCalculator.CalculateVisibilityBonus(score.Mods, approachRate);
             }
 
-            double speedHighDeviationMultiplier = calculateSpeedHighDeviationNerf(attributes);
-            fingerControlValue *= speedHighDeviationMultiplier;
-
-            // Calculate accuracy assuming the worst case scenario
-            double relevantTotalDiff = Math.Max(0, totalHits - attributes.SpeedNoteCount);
-            double relevantCountGreat = Math.Max(0, countGreat - relevantTotalDiff);
-            double relevantCountOk = Math.Max(0, countOk - Math.Max(0, relevantTotalDiff - countGreat));
-            double relevantCountMeh = Math.Max(0, countMeh - Math.Max(0, relevantTotalDiff - countGreat - countOk));
-            double relevantAccuracy = attributes.SpeedNoteCount == 0 ? 0 : (relevantCountGreat * 6.0 + relevantCountOk * 2.0 + relevantCountMeh) / (attributes.SpeedNoteCount * 6.0);
-
             // Scale the speed value with accuracy and OD.
-            fingerControlValue *= Math.Pow((accuracy + relevantAccuracy) / 2.0, (14.5 - overallDifficulty) / 2);
+            fingerControlValue *= Math.Pow(accuracy, 3);
 
             return fingerControlValue;
         }
