@@ -211,7 +211,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 new Aim(mods, true),
                 new Aim(mods, false),
                 new Speed(mods, false),
-                new Speed(mods, true)
+                new Speed(mods, true),
                 new FingerControl(mods)
             };
 
