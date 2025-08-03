@@ -93,7 +93,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 return 0;
 
             // Use a weighted sum of all notes. Constants are arbitrary and give nice values
-            return noteDifficulties.Sum(s => 1.1 / (1 + Math.Exp(-5 * (s / consistentTopNote - 2))));
+            return noteDifficulties.Sum(s => 1.1 / (1 + Math.Exp(-5 * (s / consistentTopNote - 0.8))));
         }
 
         public double CountTopWeightedSliders()
