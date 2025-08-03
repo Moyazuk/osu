@@ -32,7 +32,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 adjustedDistanceScale = 0.8 + angularVelocityBonus * 0.3;
             }
 
-            return difficulty * adjustedDistanceScale * 8;
+            return difficulty * adjustedDistanceScale * 0;
         }
     }
 }

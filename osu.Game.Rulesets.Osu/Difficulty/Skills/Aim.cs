@@ -33,7 +33,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentflowStrain;
 
-        private double skillMultiplier => 20.5;
+        private double skillMultiplier => 23.5;
         private double strainDecayBase => 0.15;
 
         private const double backwards_strain_influence = 1000;
@@ -79,8 +79,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 //for flow aim, we want the strain contribution to be solely from the FlowStrainEvaluator, and we only want to update the value of
                 // currentFlowStrain when the current note is flow-aimed
             {
-                currentDifficulty = flowDifficulty * 62;
-                currentflowStrain += flowStrainDifficulty * 4.8;
+                currentDifficulty = flowDifficulty * skillMultiplier;
+                currentflowStrain += flowStrainDifficulty * skillMultiplier;
                 auxiliaryStrainValue = currentflowStrain;
                 currentStrainDifficulty = 0;
 
