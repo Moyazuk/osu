@@ -7,6 +7,7 @@ using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
+using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Objects;
 
@@ -20,70 +21,105 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         public Aim(Mod[] mods, bool withSliders)
             : base(mods)
         {
-            this.IncludeSliders = withSliders;
+            IncludeSliders = withSliders;
+            previousStrains = new List<(double, double)>();
         }
+
+        private double skillMultiplier => 26;
 
         public readonly bool IncludeSliders;
 
         private readonly List<double> sliderStrains = new List<double>();
 
-        private readonly List<double> previousStrains = new List<double>();
+        private readonly List<(double, double)> previousStrains;
 
         private double currentStrain;
         private double currentAngleStrain;
 
+
+        private const double backwards_strain_influence = 1000;
+
         private double strainDecayBase => 0.15;
-        private double strainDecayBaseAngle => 0.45;
-        private double strainIncreaseRate => 10;
-        private double strainDecreaseRate => 3;
-        private double strainInfluence => 6.0 / 1;
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
-        private double strainDecayAngle(double ms) => Math.Pow(strainDecayBaseAngle, ms / 1000);
-        protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => currentStrain * strainDecay(time - current.Previous(0).StartTime);
+        protected override double CalculateInitialStrain(double offset, DifficultyHitObject current)
+        {
+            var osuCurrent = (OsuDifficultyHitObject)current;
+
+            double strain = getCurrentStrainValue(offset, previousStrains);
+
+
+            return strain;
+        }
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * 4.650;
+            var osuCurrent = (OsuDifficultyHitObject)current;
 
-            double priorDifficulty = highestPreviousStrain(current, current.DeltaTime);
+            currentAngleStrain *= strainDecay(current.DeltaTime);
+            currentAngleStrain += AngleEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
 
-            currentStrain = getStrainValueOf(currentDifficulty, priorDifficulty);
-            previousStrains.Add(currentStrain);
+            double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
+
+            currentStrain = getCurrentStrainValue(osuCurrent.StartTime, previousStrains) * 3.95;
+            previousStrains.Add((osuCurrent.StartTime, currentDifficulty));
 
             if (current.BaseObject is Slider)
             {
                 sliderStrains.Add(currentStrain);
             }
 
-            return currentDifficulty + currentStrain * strainInfluence;
+            return currentDifficulty + currentStrain + currentAngleStrain;
         }
 
-        private double getStrainValueOf(double currentDifficulty, double priorDifficulty) => currentDifficulty > priorDifficulty
-            ? (priorDifficulty * strainIncreaseRate + currentDifficulty) / (strainIncreaseRate + 1)
-            : (priorDifficulty * strainDecreaseRate + currentDifficulty) / (strainDecreaseRate + 1);
-
-        private double highestPreviousStrain(DifficultyHitObject current, double time)
+        private double getCurrentStrainValue(double endTime, List<(double Time, double Diff)> previousDifficulties)
         {
-            double hardestPreviousDifficulty = 0;
-            double cumulativeDeltaTime = time;
+            if (previousDifficulties.Count < 2)
+                return 0;
 
-            double timeDecay(double ms) => Math.Pow(strainDecayBase, Math.Pow(ms / 900, 7));
+            double sum = 0;
 
-            for (int i = 0; i < previousStrains.Count; i++)
+            double highestNoteVal = 0;
+            double prevDeltaTime = 0;
+
+            int index = 1;
+
+            while (index < previousDifficulties.Count)
             {
-                if (cumulativeDeltaTime > 1200)
+                double prevTime = previousDifficulties[index - 1].Time;
+                double currTime = previousDifficulties[index].Time;
+
+                double deltaTime = currTime - prevTime;
+                double prevDifficulty = previousDifficulties[index - 1].Diff;
+
+                // How much of the current deltaTime does not fall under the backwards strain influence value.
+                double startTimeOffset = Math.Max(0, endTime - prevTime - backwards_strain_influence);
+
+                // If the deltaTime doesn't fall into the backwards strain influence value at all, we can remove its corresponding difficulty.
+                // We don't iterate index because the list moves backwards.
+                if (startTimeOffset > deltaTime)
                 {
-                    previousStrains.RemoveRange(0, i);
-                    break;
+                    previousDifficulties.RemoveAt(0);
+
+                    continue;
                 }
 
-                hardestPreviousDifficulty = Math.Max(hardestPreviousDifficulty, previousStrains[^(i + 1)] * timeDecay(cumulativeDeltaTime));
+                highestNoteVal = Math.Max(prevDifficulty, strainDecay(prevDeltaTime));
+                prevDeltaTime = deltaTime;
 
-                cumulativeDeltaTime += current.Previous(i).DeltaTime;
+                sum += highestNoteVal * (strainDecayAntiderivative(startTimeOffset) - strainDecayAntiderivative(deltaTime));
+
+                index++;
             }
 
-            return hardestPreviousDifficulty;
+            // CalculateInitialStrain stuff
+            highestNoteVal = Math.Max(previousDifficulties.Last().Diff, highestNoteVal);
+            double lastTime = previousDifficulties.Last().Time;
+            sum += (strainDecayAntiderivative(0) - strainDecayAntiderivative(endTime - lastTime)) * highestNoteVal;
+
+            return sum;
+
+            double strainDecayAntiderivative(double t) => Math.Pow(strainDecayBase, t / 1000) / Math.Log(1.0 / strainDecayBase);
         }
         public double GetDifficultSliders()
         {

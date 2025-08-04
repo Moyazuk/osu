@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -9,66 +9,31 @@ using osu.Game.Rulesets.Osu.Objects;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
-    public static class AimEvaluator
+    public static class AngleEvaluator
     {
-        private const double wide_angle_multiplier = 1.5;
-        private const double acute_angle_multiplier = 2.55;
-        private const double slider_multiplier = 1.35;
-        private const double velocity_change_multiplier = 0.75;
-        private const double wiggle_multiplier = 1.02;
-
-        /// <summary>
-        /// Evaluates the difficulty of aiming the current object, based on:
-        /// <list type="bullet">
-        /// <item><description>cursor velocity to the current object,</description></item>
-        /// <item><description>angle difficulty,</description></item>
-        /// <item><description>sharp velocity increases,</description></item>
-        /// <item><description>and slider difficulty.</description></item>
-        /// </list>
-        /// </summary>
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
-            if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
+            if (current.Index <= 2 ||
+                current.BaseObject is Spinner ||
+                current.Previous(0).BaseObject is Spinner ||
+                current.Previous(1).BaseObject is Spinner)
                 return 0;
 
+            const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
+            const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
             var osuLastLastObj = (OsuDifficultyHitObject)current.Previous(1);
             var osuLast2Obj = (OsuDifficultyHitObject)current.Previous(2);
 
-            const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
-            const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
-
-            // Calculate the velocity to the current hitobject, which starts with a base distance / time assuming the last object is a hitcircle.
             double currVelocity = osuCurrObj.LazyJumpDistance / osuCurrObj.StrainTime;
-
-            // But if the last object is a slider, then we extend the travel velocity through the slider into the current object.
-            if (osuLastObj.BaseObject is Slider && withSliderTravelDistance)
-            {
-                double travelVelocity = osuLastObj.TravelDistance / osuLastObj.TravelTime; // calculate the slider velocity from slider head to slider end.
-                double movementVelocity = osuCurrObj.MinimumJumpDistance / osuCurrObj.MinimumJumpTime; // calculate the movement velocity from slider end to current object
-
-                currVelocity = Math.Max(currVelocity, movementVelocity + travelVelocity); // take the larger total combined velocity.
-            }
-
-            // As above, do the same for the previous hitobject.
-            double prevVelocity = osuLastObj.LazyJumpDistance / osuLastObj.StrainTime;
-
-            if (osuLastLastObj.BaseObject is Slider && withSliderTravelDistance)
-            {
-                double travelVelocity = osuLastLastObj.TravelDistance / osuLastLastObj.TravelTime;
-                double movementVelocity = osuLastObj.MinimumJumpDistance / osuLastObj.MinimumJumpTime;
-
-                prevVelocity = Math.Max(prevVelocity, movementVelocity + travelVelocity);
-            }
-
-            double wideAngleBonus = 0;
+            double prevVelocity = osuLastObj.LazyJumpDistance / (osuLastObj.StrainTime);
+            double currTime = osuCurrObj.StrainTime;
+            double prevTime = osuLastObj.StrainTime;
             double acuteAngleBonus = 0;
-            double sliderBonus = 0;
-            double velocityChangeBonus = 0;
+            double wideAngleBonus = 0;
             double wiggleBonus = 0;
-
-            double aimStrain = currVelocity; // Start strain with regular velocity.
+            double velocityChangeBonus = 0;
 
             if (osuCurrObj.Angle != null && osuLastObj.Angle != null)
             {
@@ -143,26 +108,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 velocityChangeBonus *= Math.Pow(Math.Min(osuCurrObj.StrainTime, osuLastObj.StrainTime) / Math.Max(osuCurrObj.StrainTime, osuLastObj.StrainTime), 2);
             }
 
-            if (osuLastObj.BaseObject is Slider)
-            {
-                // Reward sliders based on velocity.
-                sliderBonus = osuLastObj.TravelDistance / osuLastObj.TravelTime;
-            }
-
-            aimStrain += wiggleBonus * wiggle_multiplier;
-
-            // Apply high circle size bonus
-            aimStrain *= osuCurrObj.SmallCircleBonus;
-
-            // Add in additional slider velocity bonus.
-            if (withSliderTravelDistance)
-                aimStrain += sliderBonus * 0.25;
-
-            return aimStrain;
+            return (Math.Max(acuteAngleBonus * 3.95, wideAngleBonus * 1.5) + velocityChangeBonus * 0.75) * osuCurrObj.SmallCircleBonus;
         }
 
-        private static double calcWideAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(40), double.DegreesToRadians(140));
-
         private static double calcAcuteAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(140), double.DegreesToRadians(40));
+        private static double calcWideAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(40), double.DegreesToRadians(140));
     }
 }
