@@ -33,33 +33,47 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 difficulty = Math.Max(difficulty, movementVelocity + travelVelocity); // take the larger total combined velocity.
             }
 
-            return difficulty * 10000000;
+            return difficulty * 2.25 * osuCurrObj.SmallCircleBonus;
         }
+
+        /// <summary>
+        /// Approximate the amount of unnecessary distance the cursor will travel in an arc attempting to flow between notes
+        /// </summary>
+        /// <param name="current"></param>
+        /// <returns></returns>
 
         public static double AdjustFlowDistance(DifficultyHitObject current)
         {
             var osuCurr = (OsuDifficultyHitObject)current;
             var osuPrev = (OsuDifficultyHitObject)current.Previous(0);
 
-            // If angle is missing, no bonus is applied
+            // If angle is missing, it's just distance
             if (!osuCurr.Angle.HasValue)
                 return osuCurr.LazyJumpDistance;
 
+            const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
+
             double angle = osuCurr.Angle.Value;
-            double lazyDistance = osuCurr.LazyJumpDistance;
+            double distanceTravelled = osuCurr.LazyJumpDistance;
 
             double maxBonusAngle = double.DegreesToRadians(120);
 
             if (angle >= maxBonusAngle)
-                return lazyDistance;
+                return distanceTravelled;
 
+            //extra distance is a function of previous velocity, your arc will be less tight if you're coming in hot
             double previousVelocity = osuPrev.LazyJumpDistance / osuPrev.StrainTime;
 
+            //the sharper the angle, the more inefficient the real path will be
             double angleScale = 1.0 - DifficultyCalculationUtils.Smootherstep(angle, 0, maxBonusAngle);
 
-            double velocityBonus = 1 + previousVelocity * angleScale * 0.0;
+            //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
+            angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius * 1, radius * 4);
 
-            return lazyDistance * velocityBonus;
+
+            double velocityBonus = 1 + previousVelocity * angleScale * 1.4;
+
+            return Math.Pow(distanceTravelled, velocityBonus);
         }
     }
 }
