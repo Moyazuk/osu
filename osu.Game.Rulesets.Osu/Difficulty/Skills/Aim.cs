@@ -36,6 +36,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double skillMultiplier => 26;
         private double strainDecayBase => 0.15;
 
+        private double agilityStrainDecayBase => 0.15;
+
         private const double backwards_strain_influence = 1000;
 
         private readonly List<(double, double)> previousStrains;
@@ -44,15 +46,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
 
+        private double agilityStrainDecay(double ms) => Math.Pow(agilityStrainDecayBase, ms / 1000);
+
         protected override double CalculateInitialStrain(double offset, DifficultyHitObject current)
         {
             var osuCurrent = (OsuDifficultyHitObject)current;
 
             double strain = getCurrentStrainValue(offset, previousStrains);
 
-            currentAgilityStrain *= strainDecay(offset - current.Previous(0).StartTime);
-            currentflowStrain *= strainDecay(offset - current.Previous(0).StartTime);
-
+            currentAgilityStrain *= agilityStrainDecay(offset - current.Previous(0).StartTime);
 
             return strain;
         }
@@ -60,8 +62,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         protected override double StrainValueAt(DifficultyHitObject current)
         {
             //we decay both supplimental strain values irrespective of whether a given note is snapped or flowed
-            currentflowStrain *= strainDecay(current.DeltaTime);
-            currentAgilityStrain *= strainDecay(current.DeltaTime);
+            currentAgilityStrain *= agilityStrainDecay(current.DeltaTime);
 
             var osuCurrent = (OsuDifficultyHitObject)current;
             double auxiliaryStrainValue = 0;
