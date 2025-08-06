@@ -25,19 +25,22 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             : base(mods)
         {
             IncludeSliders = includeSliders;
-            previousStrains = new List<(OsuDifficultyHitObject, double)>();
+            previousStrains = new List<(double, double)>();
         }
 
         private double currentStrain;
 
-        private double skillMultiplier => 125;
-        private double strainDecayBase => 0.55;
+        private double currentAgilityStrain;
 
-        private readonly List<double> sliderStrains = new List<double>();
+        private double currentflowStrain;
 
-        private readonly List<(OsuDifficultyHitObject, double)> previousStrains;
+        private bool? previousWasFlow = null;
 
-        // How far back notes should influence strain.
+        private double skillMultiplier => 118;
+        private double strainDecayBase => 0.15;
+
+        private double agilityStrainDecayBase => 0.15;
+
         private const double backwards_strain_influence = 1000;
 
         protected override double HitProbability(double skill, double difficulty)
@@ -48,25 +51,60 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return DifficultyCalculationUtils.Erf(skill / (Math.Sqrt(2) * difficulty));
         }
 
+        private readonly List<(double, double)> previousStrains;
+
+        private readonly List<double> sliderStrains = new List<double>();
+
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
+
+        private double agilityStrainDecay(double ms) => Math.Pow(agilityStrainDecayBase, ms / 1000);
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * 38.5;
-            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
-            double currentDifficulty = Math.Min(snapDifficulty, flowDifficulty);
-            previousStrains.Add(((OsuDifficultyHitObject)current, currentDifficulty));
-            currentStrain = getCurrentStrainValue((OsuDifficultyHitObject)current, previousStrains) * 2.5;
+            //we decay both supplimental strain values irrespective of whether a given note is snapped or flowed
+            currentAgilityStrain *= agilityStrainDecay(current.DeltaTime);
+
+            var osuCurrent = (OsuDifficultyHitObject)current;
+            double auxiliaryStrainValue = 0;
+            double currentStrainDifficulty = 0;
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+            double snapBaseDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
+            double snapDifficulty = snapBaseDifficulty + (agilityDifficulty + currentAgilityStrain);
+
+            double snapTransitionBonus = previousWasFlow.HasValue && previousWasFlow.Value ? 1.5 : 1.0;
+            double flowTransitionBonus = previousWasFlow.HasValue && !previousWasFlow.Value ? 1.5 : 1.0;
+
+            bool isFlow = flowDifficulty * flowTransitionBonus + currentStrain < snapDifficulty * snapTransitionBonus + currentStrain;
+
+            double currentDifficulty = isFlow ? flowDifficulty * flowTransitionBonus : snapDifficulty * snapTransitionBonus;
+
+            currentStrain = getCurrentStrainValue(osuCurrent.StartTime, previousStrains) * 4.10;
+
+
+            if (!isFlow)
+            {
+                currentDifficulty = snapDifficulty;
+                currentAgilityStrain += agilityDifficulty;
+            }
+            else
+            {
+                currentDifficulty = flowDifficulty;
+                auxiliaryStrainValue = 0;
+            }
+
+            previousStrains.Add((osuCurrent.StartTime, currentDifficulty));
+            previousWasFlow = isFlow;
 
             if (current.BaseObject is Slider)
             {
                 sliderStrains.Add(currentStrain);
             }
 
-            return currentStrain;
+            return currentStrain + currentDifficulty;
         }
 
-        private double getCurrentStrainValue(OsuDifficultyHitObject current, List<(OsuDifficultyHitObject Note, double Diff)> previousDifficulties, double offset = 0)
+        private double getCurrentStrainValue(double endTime, List<(double Time, double Diff)> previousDifficulties)
         {
             if (previousDifficulties.Count < 2)
                 return 0;
@@ -80,15 +118,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             while (index < previousDifficulties.Count)
             {
-                OsuDifficultyHitObject note = previousDifficulties[index].Note;
+                double prevTime = previousDifficulties[index - 1].Time;
+                double currTime = previousDifficulties[index].Time;
+
+                double deltaTime = currTime - prevTime;
                 double prevDifficulty = previousDifficulties[index - 1].Diff;
 
                 // How much of the current deltaTime does not fall under the backwards strain influence value.
-                double startTimeOffset = Math.Max(0, note.DeltaTime + (current.StartTime - note.StartTime) - backwards_strain_influence);
+                double startTimeOffset = Math.Max(0, endTime - prevTime - backwards_strain_influence);
 
                 // If the deltaTime doesn't fall into the backwards strain influence value at all, we can remove its corresponding difficulty.
                 // We don't iterate index because the list moves backwards.
-                if (startTimeOffset > note.DeltaTime)
+                if (startTimeOffset > deltaTime)
                 {
                     previousDifficulties.RemoveAt(0);
 
@@ -96,16 +137,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 }
 
                 highestNoteVal = Math.Max(prevDifficulty, strainDecay(prevDeltaTime));
-                prevDeltaTime = note.DeltaTime;
+                prevDeltaTime = deltaTime;
 
-                sum += highestNoteVal * (strainDecayAntiderivative(startTimeOffset) - strainDecayAntiderivative(note.DeltaTime));
+                sum += highestNoteVal * (strainDecayAntiderivative(startTimeOffset) - strainDecayAntiderivative(deltaTime));
 
                 index++;
             }
 
             // CalculateInitialStrain stuff
             highestNoteVal = Math.Max(previousDifficulties.Last().Diff, highestNoteVal);
-            sum += (strainDecayAntiderivative(0) - strainDecayAntiderivative(offset)) * highestNoteVal;
+            double lastTime = previousDifficulties.Last().Time;
+            sum += (strainDecayAntiderivative(0) - strainDecayAntiderivative(endTime - lastTime)) * highestNoteVal;
 
             return sum;
 
