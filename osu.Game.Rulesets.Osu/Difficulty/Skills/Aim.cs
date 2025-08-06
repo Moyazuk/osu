@@ -33,6 +33,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentflowStrain;
 
+        private bool? previousWasFlow = null;
+
         private double skillMultiplier => 26;
         private double strainDecayBase => 0.15;
 
@@ -73,9 +75,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double snapDifficulty = snapBaseDifficulty + (agilityDifficulty + currentAgilityStrain);
             double flowStrainDifficulty = FlowStrainEvaluator.EvaluateDifficultyOf(current);
 
-            bool isFlow = flowDifficulty + currentStrain < snapDifficulty + currentStrain;
+            double snapTransitionBonus = previousWasFlow.HasValue && previousWasFlow.Value ? 1.5 : 1.0;
+            double flowTransitionBonus = previousWasFlow.HasValue && !previousWasFlow.Value ? 1.5 : 1.0;
 
-            double currentDifficulty = isFlow ? flowDifficulty : snapDifficulty;
+            bool isFlow = flowDifficulty * flowTransitionBonus + currentStrain < snapDifficulty * snapTransitionBonus + currentStrain;
+
+            double currentDifficulty = isFlow ? flowDifficulty * flowTransitionBonus : snapDifficulty * snapTransitionBonus;
 
             currentStrain = getCurrentStrainValue(osuCurrent.StartTime, previousStrains) * 4.10;
 
@@ -92,6 +97,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             }
 
             previousStrains.Add((osuCurrent.StartTime, currentDifficulty));
+            previousWasFlow = isFlow;
 
             if (current.BaseObject is Slider)
             {
