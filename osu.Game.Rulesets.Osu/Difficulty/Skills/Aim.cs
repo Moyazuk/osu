@@ -27,19 +27,47 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
-        private double skillMultiplier => 26;
+        private double currentAgilityStrain;
+
+        private double skillMultiplier => 27.35;
         private double strainDecayBase => 0.15;
+
+        private double agilityStrainDecayBase => 0.15;
 
         private readonly List<double> sliderStrains = new List<double>();
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
 
+        private double agilityStrainDecay(double ms) => Math.Pow(agilityStrainDecayBase, ms / 1000);
+
         protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => currentStrain * strainDecay(time - current.Previous(0).StartTime);
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
+
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+            double snapBaseDifficulty = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
+            double snapDifficulty = snapBaseDifficulty + (agilityDifficulty + currentAgilityStrain);
+
             currentStrain *= strainDecay(current.DeltaTime);
-            currentStrain += AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
+            currentAgilityStrain *= agilityStrainDecay(current.DeltaTime);
+
+
+            bool isFlow = flowDifficulty + currentStrain < snapDifficulty + currentStrain;
+
+            double currentDifficulty = isFlow ? flowDifficulty : snapDifficulty;
+
+
+            if (!isFlow)
+            {
+                currentStrain += snapDifficulty;
+                currentAgilityStrain += agilityDifficulty;
+            }
+            else
+            {
+                currentStrain += flowDifficulty;
+            }
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentStrain);

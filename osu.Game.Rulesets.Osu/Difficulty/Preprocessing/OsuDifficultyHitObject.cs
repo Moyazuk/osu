@@ -363,5 +363,25 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         {
             return difficultyHitObject.LazyEndPosition ?? difficultyHitObject.BaseObject.StackedPosition;
         }
+
+        public static bool IsValid(DifficultyHitObject current, int notesBackward, int notesForward = 0)
+        {
+            if (current.Index < notesBackward || current.IndexFromEnd < notesForward || current.BaseObject is Spinner)
+                return false;
+
+            for (int i = 0; i < notesBackward; i++)
+            {
+                if (current.Previous(i).BaseObject is Spinner)
+                    return false;
+            }
+
+            for (int i = 0; i < notesForward; i++)
+            {
+                if (current.Next(i).BaseObject is Spinner)
+                    return false;
+            }
+
+            return true;
+        }
     }
 }

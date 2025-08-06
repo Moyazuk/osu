@@ -58,7 +58,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             distance = Math.Min(distance, single_spacing_threshold);
 
             // Max distance bonus is 1 * `distance_multiplier` at single_spacing_threshold
-            double distanceBonus = Math.Pow(distance / single_spacing_threshold, 3.95) * distance_multiplier;
+            double distanceBonus = Math.Pow(distance / single_spacing_threshold, 3.95) * 0;
 
             // Apply reduced small circle bonus because flow aim difficulty on small circles doesn't scale as hard as jumps
             distanceBonus *= Math.Sqrt(osuCurrObj.SmallCircleBonus);
