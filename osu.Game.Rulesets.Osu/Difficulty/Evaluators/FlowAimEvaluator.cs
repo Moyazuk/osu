@@ -29,7 +29,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double angleDifferenceAdjusted = Math.Sin(angleDifference / 2) * 180.0;
                 double angularVelocity = angleDifferenceAdjusted / (0.1 * osuCurrObj.StrainTime);
                 double angularVelocityBonus = Math.Max(0.0, Math.Pow(angularVelocity, 0.5) - 1.0);
-                adjustedDistanceScale = 1 + angularVelocityBonus * 0.055;
+                adjustedDistanceScale = 1 + angularVelocityBonus * 0.05;
             }
 
             var currLazyJumpDistance = AdjustFlowDistance(osuCurrObj);
@@ -84,7 +84,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius * 1, radius * 3);
 
 
-            double velocityBonus = 1 + previousVelocity * angleScale * 0.6;
+            double velocityBonus = 1 + previousVelocity * angleScale * 0.55;
 
             return Math.Pow(distanceTravelled, velocityBonus);
         }
