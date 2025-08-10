@@ -38,7 +38,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
         private double rhythmStrainDecay(double ms) => Math.Pow(rhythmStrainDecayBase, ms / 1000);
 
-        protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => (currentStrain + rhythmStrain) * strainDecay(time - current.Previous(0).StartTime);
+        protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => currentStrain * strainDecay(time - current.Previous(0).StartTime) + rhythmStrain * rhythmStrainDecay(time - current.Previous(0).StartTime);
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
