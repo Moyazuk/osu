@@ -42,7 +42,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double prevStrainTime = osuPrev != null ? osuPrev.StrainTime / 1000 : 0;
             double prevVirtualStrainTime = osuPrev != null ? calculateVirtualStrainTime(osuPrev) : 0;
             double virtualStrainTime = calculateVirtualStrainTime(osuCurrent);
-            identicalStrainTolerance = osuCurrent.HitWindowGreat / 2000;
+            identicalStrainTolerance = osuCurrent.HitWindowGreat / 1900;
 
             int index = -1; // Start from current
 
@@ -64,7 +64,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 note_history_virtual.Add(virtualStrainT);
                 timeElapsed += strainT;
 
-                if (timeElapsed > 2 || note_history.Count > 12)
+                if (timeElapsed > 2 || note_history.Count > 16)
                     break;
 
                 if (note_history.Count < note_history_virtual.Count)
@@ -82,10 +82,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (note_history.Count > 2)
             {
                 double repetition = 1.0 - calculateExpectancy(note_history);
-
-                // Added arbitrary buffer to virtualRepetition because slider endtimes are not a consistent rhythmic reference point due to leniency (also makes values better)
-
-                double virtualRepetition = 1.5 - calculateExpectancy(note_history_virtual);
+                double virtualRepetition = 1.0 - calculateExpectancy(note_history_virtual);
                 double repetitionExponent = Math.Min(2.0, 66.25 * Math.Min(strainTime, virtualStrainTime) - 1.65625);
                 repetitionVal = Math.Pow(Math.Min(repetition, virtualRepetition), repetitionExponent);
 
@@ -98,7 +95,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 // When there's a ton of unique strains that means that it's a wild BPM area
                 (double uniqueVal, _) = checkAnomaly(note_history);
                 (double virtualUniqueVal, _) = checkAnomaly(note_history_virtual);
-                uniqueScale = 1.0 + Math.Pow((Math.Min(uniqueVal, virtualUniqueVal) - 1.0) / 11.0, 4.0);
+                uniqueScale = 1.0 + Math.Pow((Math.Min(uniqueVal, virtualUniqueVal) - 1.0) / 5.0, 4.0);
             }
 
             double multiplier = Math.Min(
