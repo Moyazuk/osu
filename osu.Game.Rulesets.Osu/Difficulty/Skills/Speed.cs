@@ -20,8 +20,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public class Speed : Skill
     {
         private double totalMultiplier => 0.623;
-        private double burstMultiplier => 1.92;
-        private double streamMultiplier => 0.165;
+        private double burstMultiplier => 2.85;
+        private double streamMultiplier => 0.065;
         private double staminaMultiplier => 0.045;
         private double meanExponent => 1.25;
 
@@ -44,7 +44,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             WithoutStamina = withoutStamina;
         }
 
-        private double strainDecayBurst(double ms) => Math.Pow(0.14, ms / 1000);
+        private double strainDecayBurst(double ms) => Math.Pow(0.05, ms / 1000);
         private double strainDecayStream(double ms) => Math.Pow(0.01, Math.Pow(ms / 1000, 1.6));
 
         private double strainDecayStamina(double ms, double staminaValue)
@@ -53,11 +53,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return Math.Pow(0.05, Math.Pow(ms * changeFactor / 1000, 3.5));
         }
 
+        private double strainDecayRhythm(double ms) => Math.Pow(0.025, ms / 1000);
+
         public override void Process(DifficultyHitObject current)
         {
             currentBurstStrain *= strainDecayBurst(((OsuDifficultyHitObject)current).StrainTime);
-            rhythmStrain *= strainDecayBurst(((OsuDifficultyHitObject)current).StrainTime);
-            rhythmStrain += RhythmEvaluator.EvaluateDifficultyOf(current);
+            rhythmStrain *= strainDecayRhythm(((OsuDifficultyHitObject)current).StrainTime);
+            rhythmStrain += RhythmEvaluator.EvaluateDifficultyOf(current) * 5;
             currentBurstStrain += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * burstMultiplier + rhythmStrain;
 
             if (WithoutStamina)
