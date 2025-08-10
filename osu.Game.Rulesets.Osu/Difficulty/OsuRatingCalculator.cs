@@ -154,7 +154,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 ratingMultiplier *= 1.0 + CalculateVisibilityBonus(mods, approachRate, visibilityFactor);
             }
 
-            ratingMultiplier *= 0.95 + Math.Pow(Math.Max(0, overallDifficulty), 2) / 750;
+            ratingMultiplier *= 0.75 + Math.Pow(Math.Max(0, overallDifficulty), 2.2) / 800;
 
             return fingerControlRating * Math.Cbrt(ratingMultiplier);
         }

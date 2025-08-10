@@ -46,7 +46,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             int index = -1; // Start from current
 
-            double runningTotal = 0;
+            double timeElapsed = 0; // Time elapsed in seconds
 
             while (true)
             {
@@ -62,9 +62,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 note_history.Add(strainT);
                 note_history_virtual.Add(virtualStrainT);
-                runningTotal += strainT;
+                timeElapsed += strainT;
 
-                if (runningTotal > 2 || note_history.Count > 12)
+                if (timeElapsed > 2 || note_history.Count > 12)
                     break;
 
                 if (note_history.Count < note_history_virtual.Count)
@@ -113,22 +113,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double strain = repetitionVal * multiplier * downtimeScale * appearanceScale * uniqueScale / strainTime;
 
-            if (osuNext != null)
-            {
-                double nextTime = osuNext.StrainTime / 1000.0;
-                double nextVirtualStrainTime = 0;
-                if (current.BaseObject is Slider currSlider)
-                    nextVirtualStrainTime = Math.Max((nextTime - currSlider.EndTime / 1000.0), 0.025);
+            if (osuNext == null) return strain;
 
-                double nextMultiplier = Math.Min(
-                    Math.Min(compareStrains(strainTime, nextTime, next_fraction_x, next_fraction_y), compareStrains(strainTime, nextVirtualStrainTime, next_fraction_x, next_fraction_y)),
-                    Math.Min(compareStrains(virtualStrainTime, nextTime, next_fraction_x, next_fraction_y), compareStrains(virtualStrainTime, nextVirtualStrainTime, next_fraction_x, next_fraction_y))
-                );
-                if (osuNext.BaseObject is Slider)
-                    nextMultiplier /= 2;
+            double nextTime = osuNext.StrainTime / 1000.0;
+            double nextVirtualStrainTime = 0;
+            if (current.BaseObject is Slider currSlider)
+                nextVirtualStrainTime = Math.Max(nextTime - currSlider.EndTime / 1000.0, 0.025);
 
-                strain *= nextMultiplier;
-            }
+            double nextMultiplier = Math.Min(
+                Math.Min(compareStrains(strainTime, nextTime, next_fraction_x, next_fraction_y), compareStrains(strainTime, nextVirtualStrainTime, next_fraction_x, next_fraction_y)),
+                Math.Min(compareStrains(virtualStrainTime, nextTime, next_fraction_x, next_fraction_y), compareStrains(virtualStrainTime, nextVirtualStrainTime, next_fraction_x, next_fraction_y))
+            );
+            if (osuNext.BaseObject is Slider)
+                nextMultiplier /= 2;
+
+            strain *= nextMultiplier;
 
             // Console.WriteLine($"strain: {strain}, repetitionVal: {repetitionVal}, multiplier: {multiplier}, nextMult: {nextMultiplier}, downtimeScale: {downtimeScale}, appearanceScale {appearanceScale}, uniqueScale, {uniqueScale}");
             return strain;
@@ -136,13 +135,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
         private static double calculateDowntime(double strainTime, List<double> refNoteHistory)
         {
-            int longNoteCount = 0;
-
-            for (int i = 0; i < refNoteHistory.Count; i++)
-            {
-                if (refNoteHistory[i] > strainTime * 2 - identicalStrainTolerance)
-                    longNoteCount++;
-            }
+            int longNoteCount = refNoteHistory.Count(t => t > strainTime * 2 - identicalStrainTolerance);
 
             double longNoteFraction = Math.Max(0.5, longNoteCount / (double)refNoteHistory.Count);
 
@@ -152,18 +145,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
         private static double strainAppearance(double strainTime, List<double> refNoteHistory)
         {
-            int strainApperance = 0;
+            int strainAppearance = refNoteHistory.Count(t => Math.Abs(t - strainTime) < identicalStrainTolerance);
 
-            for (int i = 0; i < refNoteHistory.Count; i++)
-            {
-                if (Math.Abs(refNoteHistory[i] - strainTime) < identicalStrainTolerance)
-                    strainApperance++;
-            }
-
-            if (strainApperance == refNoteHistory.Count)
+            if (strainAppearance == refNoteHistory.Count)
                 return 0;
 
-            double strainAppearanceFraction = Math.Max(0.5, strainApperance / (double)refNoteHistory.Count);
+            double strainAppearanceFraction = Math.Max(0.5, strainAppearance / (double)refNoteHistory.Count);
 
             double result = 1.0 - DifficultyCalculationUtils.Smoothstep(strainAppearanceFraction, 0.5, 1.0);
             return result;
@@ -258,11 +245,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double repetitionVal = Math.Min(1.0, Math.Sqrt(maxRepetition) + patternLength);
 
-            if (!exists)
-            {
-                double uniqueScale = Math.Pow(Math.Pow(-Math.Min(7.0, anomalyVal - 1.0) / 7.0, 5.0) + 1.0, 2.0);
-                repetitionVal = Math.Max(Math.Min(1, repetitionVal + uniqueScale - fractionMultiplier), 0.0);
-            }
+            if (exists) return repetitionVal;
+
+            double uniqueScale = Math.Pow(Math.Pow(-Math.Min(7.0, anomalyVal - 1.0) / 7.0, 5.0) + 1.0, 2.0);
+            repetitionVal = Math.Max(Math.Min(1, repetitionVal + uniqueScale - fractionMultiplier), 0.0);
 
             return repetitionVal;
         }

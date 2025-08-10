@@ -34,6 +34,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double currentBurstStrain;
         private double currentStreamStrain;
         private double currentStaminaStrain;
+        private double rhythmStrain;
 
         public readonly bool WithoutStamina;
 
@@ -55,7 +56,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         public override void Process(DifficultyHitObject current)
         {
             currentBurstStrain *= strainDecayBurst(((OsuDifficultyHitObject)current).StrainTime);
-            currentBurstStrain += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * burstMultiplier;
+            rhythmStrain *= strainDecayBurst(((OsuDifficultyHitObject)current).StrainTime);
+            rhythmStrain += RhythmEvaluator.EvaluateDifficultyOf(current);
+            currentBurstStrain += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * burstMultiplier + rhythmStrain;
 
             if (WithoutStamina)
             {
