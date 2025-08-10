@@ -20,9 +20,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public class Speed : Skill
     {
         private double totalMultiplier => 0.623;
-        private double burstMultiplier => 2.85;
-        private double streamMultiplier => 0.065;
-        private double staminaMultiplier => 0.045;
+        private double burstMultiplier => 2.90;
+        private double streamMultiplier => 0.125;
+        private double staminaMultiplier => 0.05;
         private double meanExponent => 1.25;
 
         private readonly List<double> noteDifficulties = new List<double>();
@@ -44,7 +44,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             WithoutStamina = withoutStamina;
         }
 
-        private double strainDecayBurst(double ms) => Math.Pow(0.05, ms / 1000);
+        private double strainDecayBurst(double ms) => Math.Pow(0.035, ms / 1000);
         private double strainDecayStream(double ms) => Math.Pow(0.01, Math.Pow(ms / 1000, 1.6));
 
         private double strainDecayStamina(double ms, double staminaValue)
@@ -59,7 +59,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
             currentBurstStrain *= strainDecayBurst(((OsuDifficultyHitObject)current).StrainTime);
             rhythmStrain *= strainDecayRhythm(((OsuDifficultyHitObject)current).StrainTime);
-            rhythmStrain += RhythmEvaluator.EvaluateDifficultyOf(current) * 5;
+            rhythmStrain += RhythmEvaluator.EvaluateDifficultyOf(current) * 4;
             currentBurstStrain += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * burstMultiplier + rhythmStrain;
 
             if (WithoutStamina)

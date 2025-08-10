@@ -21,7 +21,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double bpmBonus = 0.0;
 
             if (DifficultyCalculationUtils.MillisecondsToBPM(osuCurrObj.StrainTime) > 240)
-                bpmBonus = Math.Pow((DifficultyCalculationUtils.BPMToMilliseconds(240) - osuCurrObj.StrainTime) / 16.5, 1.1);
+                bpmBonus = Math.Pow((DifficultyCalculationUtils.BPMToMilliseconds(240) - osuCurrObj.StrainTime) / 12.5, 1.1);
 
             double finalValue = (1 + bpmBonus) * 1000 / osuCurrObj.StrainTime;
 
