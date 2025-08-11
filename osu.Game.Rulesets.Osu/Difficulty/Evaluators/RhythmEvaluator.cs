@@ -95,7 +95,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 // When there's a ton of unique strains that means that it's a wild BPM area
                 (double uniqueVal, _) = checkAnomaly(note_history);
                 (double virtualUniqueVal, _) = checkAnomaly(note_history_virtual);
-                uniqueScale = 1.0 + Math.Pow((Math.Min(uniqueVal, virtualUniqueVal) - 1.0) / 5.0, 4.0);
+                uniqueScale = 1.0 + Math.Pow((Math.Min(uniqueVal, virtualUniqueVal) - 1) / 5.0, 4.0);
             }
 
             double multiplier = Math.Min(
