@@ -5,7 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
@@ -16,7 +18,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to correctly aim at every object in the map with a uniform CircleSize and normalized distances.
     /// </summary>
-    public class Aim : OsuStrainSkill
+    public class Aim : OsuTimeSkill
     {
         public readonly bool IncludeSliders;
 
@@ -35,7 +37,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private bool? previousWasFlow = null;
 
-        private double skillMultiplier => 26;
+        private double skillMultiplier => 128;
         private double strainDecayBase => 0.15;
 
         private const double backwards_strain_influence = 1000;
@@ -46,17 +48,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
 
-        protected override double CalculateInitialStrain(double offset, DifficultyHitObject current)
+        protected override double HitProbability(double skill, double difficulty)
         {
-            var osuCurrent = (OsuDifficultyHitObject)current;
+            if (difficulty <= 0) return 1;
+            if (skill <= 0) return 0;
 
-            double strain = getCurrentStrainValue(offset, previousStrains);
-
-            currentAgilityStrain *= strainDecay(offset - current.Previous(0).StartTime);
-            currentflowStrain *= strainDecay(offset - current.Previous(0).StartTime);
-
-
-            return strain;
+            return DifficultyCalculationUtils.Erf(skill / (Math.Sqrt(2) * difficulty));
         }
 
         protected override double StrainValueAt(DifficultyHitObject current)
@@ -72,7 +69,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double transitionBonus = 0;
             double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
             double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
-            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current);
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
 
             double snapTransitionBonus = previousWasFlow.HasValue && previousWasFlow.Value ? 1.25 : 1.0;
             double flowTransitionBonus = previousWasFlow.HasValue && !previousWasFlow.Value ? 1.25 : 1.0;

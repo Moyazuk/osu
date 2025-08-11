@@ -40,7 +40,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Agility bonus of 1 at base BPM.
             double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 4) - 1);
 
-            return agilityBonus * 14;
+            return agilityBonus * 0.5;
         }
     }
 }
