@@ -76,6 +76,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("speed_top_weighted_slider_factor")]
         public double SpeedTopWeightedSliderFactor { get; set; }
 
+        /// <summary>
+        /// Describes how much of <see cref="AimDifficulty"/> is cheesable.
+        /// A value closer to 1.0 indicates most of <see cref="AimDifficulty"/> is non-cheesable.
+        /// A value closer to 0.0 indicates most of <see cref="AimDifficulty"/> is cheesable.
+        /// </summary>
+        [JsonProperty("cheese_factor")]
+        public double CheeseFactor { get; set; }
+
         [JsonProperty("aim_difficult_strain_count")]
         public double AimDifficultStrainCount { get; set; }
 
@@ -124,6 +132,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 yield return (ATTRIB_ID_FLASHLIGHT, FlashlightDifficulty);
 
             yield return (ATTRIB_ID_SLIDER_FACTOR, SliderFactor);
+            yield return (ATTRIB_ID_CHEESE_FACTOR, CheeseFactor);
 
             yield return (ATTRIB_ID_AIM_DIFFICULT_STRAIN_COUNT, AimDifficultStrainCount);
             yield return (ATTRIB_ID_SPEED_DIFFICULT_STRAIN_COUNT, SpeedDifficultStrainCount);
@@ -145,6 +154,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             StarRating = values[ATTRIB_ID_DIFFICULTY];
             FlashlightDifficulty = values.GetValueOrDefault(ATTRIB_ID_FLASHLIGHT);
             SliderFactor = values[ATTRIB_ID_SLIDER_FACTOR];
+            CheeseFactor = values[ATTRIB_ID_CHEESE_FACTOR];
             AimDifficultStrainCount = values[ATTRIB_ID_AIM_DIFFICULT_STRAIN_COUNT];
             SpeedDifficultStrainCount = values[ATTRIB_ID_SPEED_DIFFICULT_STRAIN_COUNT];
             SpeedNoteCount = values[ATTRIB_ID_SPEED_NOTE_COUNT];

@@ -21,12 +21,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public class Aim : OsuTimeSkill
     {
         public readonly bool IncludeSliders;
+        public readonly bool WithCheesability;
 
-        public Aim(Mod[] mods, bool includeSliders)
+        public Aim(Mod[] mods, bool includeSliders, bool withCheesability)
             : base(mods)
         {
             previousStrains = new List<(double, double)>();
             IncludeSliders = includeSliders;
+            WithCheesability = withCheesability;
         }
 
         private double currentStrain;

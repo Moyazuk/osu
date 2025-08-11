@@ -5,11 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Extensions.IEnumerableExtensions;
+using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Scoring;
 using osu.Game.Rulesets.Difficulty;
-using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Skills;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Scoring;
@@ -52,6 +52,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         private double overallDifficulty;
         private double approachRate;
 
+        private double? deviation;
         private double? speedDeviation;
 
         private double aimEstimatedSliderBreaks;
@@ -92,8 +93,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             okHitWindow = hitWindows.WindowFor(HitResult.Ok) / clockRate;
             mehHitWindow = hitWindows.WindowFor(HitResult.Meh) / clockRate;
 
-            approachRate = OsuDifficultyCalculator.CalculateRateAdjustedApproachRate(difficulty.ApproachRate, clockRate);
-            overallDifficulty = OsuDifficultyCalculator.CalculateRateAdjustedOverallDifficulty(difficulty.OverallDifficulty, clockRate);
+            if (score.Mods.Any(h => h is OsuModClassic))
+            {
+                greatHitWindow = (Math.Floor(greatHitWindow * clockRate) - 0.5) / clockRate;
+                okHitWindow = (Math.Floor(okHitWindow * clockRate) - 0.5) / clockRate;
+                mehHitWindow = (Math.Floor(mehHitWindow * clockRate) - 0.5) / clockRate;
+            }
+
+            double preempt = IBeatmapDifficultyInfo.DifficultyRange(difficulty.ApproachRate, 1800, 1200, 450) / clockRate;
+
+            overallDifficulty = (80 - greatHitWindow) / 6;
+            approachRate = preempt > 1200 ? (1800 - preempt) / 120 : (1200 - preempt) / 150 + 5;
 
             double comboBasedEstimatedMissCount = calculateComboBasedEstimatedMissCount(osuAttributes);
             double? scoreBasedEstimatedMissCount = null;
@@ -132,10 +142,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             }
 
             speedDeviation = calculateSpeedDeviation(osuAttributes);
+            deviation = calculateDeviation(score, osuAttributes);
 
             double aimValue = computeAimValue(score, osuAttributes);
             double speedValue = computeSpeedValue(score, osuAttributes);
-            double accuracyValue = computeAccuracyValue(score, osuAttributes);
+            double accuracyValue = computeAccuracyValue(score);
             double flashlightValue = computeFlashlightValue(score, osuAttributes);
 
             double totalValue =
@@ -164,7 +175,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private double computeAimValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            if (score.Mods.Any(h => h is OsuModAutopilot))
+            if (score.Mods.Any(h => h is OsuModAutopilot) || deviation == null)
                 return 0.0;
 
             double aimDifficulty = attributes.AimDifficulty;
@@ -194,11 +205,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
                                  (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
+            aimValue *= lengthBonus;
 
             if (effectiveMissCount > 0)
             {
                 aimEstimatedSliderBreaks = calculateEstimatedSliderBreaks(attributes.AimTopWeightedSliderFactor, attributes);
-                aimValue *= calculateCurveFittedMissPenalty(effectiveMissCount + aimEstimatedSliderBreaks, attributes.AimMissPenaltyCurve);
+                aimValue *= calculateMissPenalty(effectiveMissCount + aimEstimatedSliderBreaks, attributes.AimDifficultStrainCount);
             }
 
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
@@ -209,7 +221,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 aimValue *= 1.0 + OsuDifficultyCalculator.CalculateVisibilityBonus(score.Mods, approachRate);
             }
 
-            aimValue *= accuracy;
+            // Scale the aim value by how cheesable it is.
+            double cheesedAimValue = aimValue * Math.Pow(attributes.CheeseFactor, 3);
+            aimValue = double.Lerp(cheesedAimValue, aimValue, DifficultyCalculationUtils.Erf(20 / (Math.Sqrt(2) * (double)deviation)));
 
             return aimValue;
         }
@@ -223,11 +237,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
                                  (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
+            speedValue *= lengthBonus;
 
             if (effectiveMissCount > 0)
             {
                 speedEstimatedSliderBreaks = calculateEstimatedSliderBreaks(attributes.SpeedTopWeightedSliderFactor, attributes);
-                speedValue *= calculateStrainCountMissPenalty(effectiveMissCount + speedEstimatedSliderBreaks, attributes.SpeedDifficultStrainCount);
+                speedValue *= calculateMissPenalty(effectiveMissCount + speedEstimatedSliderBreaks, attributes.SpeedDifficultStrainCount);
             }
 
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
@@ -251,38 +266,25 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double relevantCountMeh = Math.Max(0, countMeh - Math.Max(0, relevantTotalDiff - countGreat - countOk));
             double relevantAccuracy = attributes.SpeedNoteCount == 0 ? 0 : (relevantCountGreat * 6.0 + relevantCountOk * 2.0 + relevantCountMeh) / (attributes.SpeedNoteCount * 6.0);
 
-            // Scale the speed value with accuracy and OD.
-            speedValue *= Math.Pow((accuracy + relevantAccuracy) / 2.0, (14.5 - overallDifficulty) / 2);
+            // An effective hit window is created based on the speed SR. The higher the speed difficulty, the shorter the hit window.
+            // For example, a speed SR of 3.0 leads to an effective hit window of 20ms, which is OD 10.
+            double effectiveHitWindow = Math.Sqrt(20 * 60 / attributes.SpeedDifficulty);
+
+            // Find the proportion of 300s on speed notes assuming the hit window was the effective hit window.
+            double effectiveAccuracy = DifficultyCalculationUtils.Erf(effectiveHitWindow / (double)speedDeviation);
+
+            // Scale speed value by normalized accuracy.
+            speedValue *= Math.Pow(effectiveAccuracy, 2);
 
             return speedValue;
         }
 
-        private double computeAccuracyValue(ScoreInfo score, OsuDifficultyAttributes attributes)
+        private double computeAccuracyValue(ScoreInfo score)
         {
-            if (score.Mods.Any(h => h is OsuModRelax))
+            if (score.Mods.Any(h => h is OsuModRelax) || deviation == null)
                 return 0.0;
 
-            // This percentage only considers HitCircles of any value - in this part of the calculation we focus on hitting the timing hit window.
-            double betterAccuracyPercentage;
-            int amountHitObjectsWithAccuracy = attributes.HitCircleCount;
-            if (!usingClassicSliderAccuracy || usingScoreV2)
-                amountHitObjectsWithAccuracy += attributes.SliderCount;
-
-            if (amountHitObjectsWithAccuracy > 0)
-                betterAccuracyPercentage = ((countGreat - Math.Max(totalHits - amountHitObjectsWithAccuracy, 0)) * 6 + countOk * 2 + countMeh) / (double)(amountHitObjectsWithAccuracy * 6);
-            else
-                betterAccuracyPercentage = 0;
-
-            // It is possible to reach a negative accuracy with this formula. Cap it at zero - zero points.
-            if (betterAccuracyPercentage < 0)
-                betterAccuracyPercentage = 0;
-
-            // Lots of arbitrary values from testing.
-            // Considering to use derivation from perfect accuracy in a probabilistic manner - assume normal distribution.
-            double accuracyValue = Math.Pow(1.52163, overallDifficulty) * Math.Pow(betterAccuracyPercentage, 24) * 2.83;
-
-            // Bonus for many hitcircles - it's harder to keep good accuracy up for longer.
-            accuracyValue *= Math.Min(1.15, Math.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.3));
+            double accuracyValue = 120 * Math.Pow(7.5 / (double)deviation, 2);
 
             // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
             if (score.Mods.Any(m => m is OsuModBlinds))
@@ -290,7 +292,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             else if (score.Mods.Any(m => m is OsuModHidden || m is OsuModTraceable))
             {
                 // Decrease bonus for AR > 10
-                accuracyValue *= 1 + 0.08 * DifficultyCalculationUtils.ReverseLerp(approachRate, 11.5, 10);
+                accuracyValue *= 1 + 0.08 * Math.Clamp((11.5 - approachRate) / (11.5 - 10), 0, 1);
             }
 
             if (score.Mods.Any(m => m is OsuModFlashlight))
@@ -301,7 +303,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private double computeFlashlightValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            if (!score.Mods.Any(h => h is OsuModFlashlight))
+            if (!score.Mods.Any(h => h is OsuModFlashlight) || deviation == null)
                 return 0.0;
 
             double flashlightValue = Flashlight.DifficultyToPerformance(attributes.FlashlightDifficulty);
@@ -312,8 +314,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             flashlightValue *= getComboScalingFactor(attributes);
 
-            // Scale the flashlight value with accuracy _slightly_.
-            flashlightValue *= 0.5 + accuracy / 2.0;
+            // Account for shorter maps having a higher ratio of 0 combo/100 combo flashlight radius.
+            flashlightValue *= 0.7 + 0.1 * Math.Min(1.0, totalHits / 200.0) +
+                               (totalHits > 200 ? 0.2 * Math.Min(1.0, (totalHits - 200) / 200.0) : 0.0);
 
             return flashlightValue;
         }
@@ -369,7 +372,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         }
 
         /// <summary>
-        /// Estimates player's deviation on speed notes using <see cref="calculateDeviation"/>, assuming worst-case.
+        /// Estimates player's deviation on speed notes.
         /// Treats all speed notes as hit circles.
         /// </summary>
         private double? calculateSpeedDeviation(OsuDifficultyAttributes attributes)
@@ -379,66 +382,146 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             // Calculate accuracy assuming the worst case scenario
             double speedNoteCount = attributes.SpeedNoteCount;
-            speedNoteCount += (totalHits - attributes.SpeedNoteCount) * 0.1;
+            double relevantTotalDiff = totalHits - attributes.SpeedNoteCount;
+            double relevantCountGreat = Math.Max(0, countGreat - relevantTotalDiff);
+            double relevantCountOk = Math.Max(0, countOk - Math.Max(0, relevantTotalDiff - countGreat));
+            double relevantCountMeh = Math.Max(0, countMeh - Math.Max(0, relevantTotalDiff - countGreat - countOk));
+            double relevantCountMiss = Math.Max(0, countMiss - Math.Max(0, relevantTotalDiff - countGreat - countOk - countMeh));
 
-            // Assume worst case: all mistakes were on speed notes
-            double relevantCountMiss = Math.Min(countMiss, speedNoteCount);
-            double relevantCountMeh = Math.Min(countMeh, speedNoteCount - relevantCountMiss);
-            double relevantCountOk = Math.Min(countOk, speedNoteCount - relevantCountMiss - relevantCountMeh);
-            double relevantCountGreat = Math.Max(0, speedNoteCount - relevantCountMiss - relevantCountMeh - relevantCountOk);
+            // Assume 100s, 50s, and misses happen on circles. If there are less non-300s on circles than 300s,
+            // compute the deviation on circles.
+            if (relevantCountGreat > 0)
+            {
+                // The probability that a player hits a circle is unknown, but we can estimate it to be
+                // the number of greats on circles divided by the number of circles, and then add one
+                // to the number of circles as a bias correction.
+                double greatProbabilityCircle = relevantCountGreat / (speedNoteCount - relevantCountMiss - relevantCountMeh + 1.0);
 
-            return calculateDeviation(relevantCountGreat, relevantCountOk, relevantCountMeh);
+                // Compute the deviation assuming 300s and 100s are normally distributed, and 50s are uniformly distributed.
+                // Begin with the normal distribution first.
+                double deviationOnCircles = greatHitWindow / (Math.Sqrt(2) * DifficultyCalculationUtils.ErfInv(greatProbabilityCircle));
+
+                // Then compute the variance for 50s.
+                double mehVariance = (mehHitWindow * mehHitWindow + okHitWindow * mehHitWindow + okHitWindow * okHitWindow) / 3;
+
+                // Find the total deviation.
+                deviationOnCircles = Math.Sqrt(((relevantCountGreat + relevantCountOk) * Math.Pow(deviationOnCircles, 2) + relevantCountMeh * mehVariance) / (relevantCountGreat + relevantCountOk + relevantCountMeh));
+
+                return deviationOnCircles;
+            }
+
+            return null;
         }
 
         /// <summary>
         /// Estimates the player's tap deviation based on the OD, given number of greats, oks, mehs and misses,
         /// assuming the player's mean hit error is 0. The estimation is consistent in that two SS scores on the same map with the same settings
         /// will always return the same deviation. Misses are ignored because they are usually due to misaiming.
+        /// This method actually gives an upper bound for deviation; i.e. we can be 99% confident that deviation is below this value.
+        /// This is so long maps can be less harshly nerfed.
         /// Greats and oks are assumed to follow a normal distribution, whereas mehs are assumed to follow a uniform distribution.
         /// </summary>
-        private double? calculateDeviation(double relevantCountGreat, double relevantCountOk, double relevantCountMeh)
+        private double? calculateDeviation(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            if (relevantCountGreat + relevantCountOk + relevantCountMeh <= 0)
+            if (totalSuccessfulHits == 0)
                 return null;
 
-            // The sample proportion of successful hits.
-            double n = Math.Max(1, relevantCountGreat + relevantCountOk);
-            double p = relevantCountGreat / n;
+            const double z = 2.32634787404; // 99% critical value for the normal distribution (one-tailed).
 
-            // 99% critical value for the normal distribution (one-tailed).
-            const double z = 2.32634787404;
-
-            // We can be 99% confident that the population proportion is at least this value.
-            double pLowerBound = Math.Min(p, (n * p + z * z / 2) / (n + z * z) - z / (n + z * z) * Math.Sqrt(n * p * (1 - p) + z * z / 4));
-
-            double deviation;
-
-            // Tested max precision for the deviation calculation.
-            if (pLowerBound > 0.01)
+            if (score.Mods.Any(m => m is OsuModClassic))
             {
-                // Compute deviation assuming greats and oks are normally distributed.
-                deviation = greatHitWindow / (Math.Sqrt(2) * DifficultyCalculationUtils.ErfInv(pLowerBound));
+                int circleCount = attributes.HitCircleCount;
+                int missCountCircles = Math.Min(countMiss, circleCount);
+                int mehCountCircles = Math.Min(countMeh, circleCount - missCountCircles);
+                int okCountCircles = Math.Min(countOk, circleCount - missCountCircles - mehCountCircles);
+                int greatCountCircles = Math.Max(0, circleCount - missCountCircles - mehCountCircles - okCountCircles);
 
-                // Subtract the deviation provided by tails that land outside the ok hit window from the deviation computed above.
-                // This is equivalent to calculating the deviation of a normal distribution truncated at +-okHitWindow.
-                double okHitWindowTailAmount = Math.Sqrt(2 / Math.PI) * okHitWindow * Math.Exp(-0.5 * Math.Pow(okHitWindow / deviation, 2))
-                                               / (deviation * DifficultyCalculationUtils.Erf(okHitWindow / (Math.Sqrt(2) * deviation)));
+                // Assume 100s, 50s, and misses happen on circles. If there are less non-300s on circles than 300s,
+                // compute the deviation on circles.
+                if (greatCountCircles > 0)
+                {
+                    double n = circleCount - missCountCircles - mehCountCircles;
 
-                deviation *= Math.Sqrt(1 - okHitWindowTailAmount);
+                    // Proportion of greats hit on circles, ignoring misses and 50s.
+                    double p = greatCountCircles / n;
+
+                    // We can be 99% confident that p is at least this value.
+                    double pLowerBound = (n * p + z * z / 2) / (n + z * z) - z / (n + z * z) * Math.Sqrt(n * p * (1 - p) + z * z / 4);
+
+                    // Compute the deviation assuming 300s and 100s are normally distributed, and 50s are uniformly distributed.
+                    // Begin with 300s and 100s first. Ignoring 50s, we can be 99% confident that the deviation is not higher than:
+                    double deviationOnCircles = greatHitWindow / (Math.Sqrt(2) * DifficultyCalculationUtils.ErfInv(pLowerBound));
+                    double adjustFor100 = Math.Sqrt(2 / Math.PI) * okHitWindow * Math.Exp(-0.5 * Math.Pow(okHitWindow / deviationOnCircles, 2)) / (deviationOnCircles * DifficultyCalculationUtils.Erf(okHitWindow / (Math.Sqrt(2) * deviationOnCircles)));
+
+                    deviationOnCircles *= Math.Sqrt(1 - adjustFor100);
+
+                    // Value deviation approach as greatCount approaches 0
+                    double limitValue = okHitWindow / Math.Sqrt(3);
+
+                    // If precision is not enough to compute true deviation - use limit value
+                    if (pLowerBound == 0 || adjustFor100 >= 1 || deviation > limitValue)
+                        deviationOnCircles = limitValue;
+
+                    // Then compute the variance for 50s.
+                    double mehVariance = (mehHitWindow * mehHitWindow + okHitWindow * mehHitWindow + okHitWindow * okHitWindow) / 3;
+
+                    // Find the total deviation.
+                    deviationOnCircles = Math.Sqrt(((greatCountCircles + okCountCircles) * Math.Pow(deviationOnCircles, 2) + mehCountCircles * mehVariance) / (greatCountCircles + okCountCircles + mehCountCircles));
+
+                    return deviationOnCircles;
+                }
+
+                // If there are more non-300s than there are circles, compute the deviation on sliders instead.
+                // Here, all that matters is whether or not the slider was missed, since it is impossible
+                // to get a 100 or 50 on a slider by mis-tapping it.
+                int sliderCount = attributes.SliderCount;
+                int missCountSliders = Math.Min(sliderCount, countMiss - missCountCircles);
+                int greatCountSliders = sliderCount - missCountSliders;
+
+                // We only get here if nothing was hit. In this case, there is no estimate for deviation.
+                // Note that this is never negative, so checking if this is only equal to 0 makes sense.
+                if (greatCountSliders == 0)
+                {
+                    return null;
+                }
+
+                double greatProbabilitySlider = greatCountSliders / (sliderCount + 1.0);
+                double deviationOnSliders = mehHitWindow / (Math.Sqrt(2) * DifficultyCalculationUtils.ErfInv(greatProbabilitySlider));
+
+                return deviationOnSliders;
             }
             else
             {
-                // A tested limit value for the case of a score only containing oks.
-                deviation = okHitWindow / Math.Sqrt(3);
+                double n = countGreat + countOk;
+
+                // Proportion of greats hit on circles, ignoring misses and 50s.
+                double p = countGreat / n;
+
+                // We can be 99% confident that p is at least this value.
+                double pLowerBound = (n * p + z * z / 2) / (n + z * z) - z / (n + z * z) * Math.Sqrt(n * p * (1 - p) + z * z / 4);
+
+                // Compute the deviation assuming 300s and 100s are normally distributed, and 50s are uniformly distributed.
+                // Begin with 300s and 100s first. Ignoring 50s, we can be 99% confident that the deviation is not higher than:
+                double deviation = greatHitWindow / (Math.Sqrt(2) * DifficultyCalculationUtils.ErfInv(pLowerBound));
+                double adjustFor100 = Math.Sqrt(2 / Math.PI) * okHitWindow * Math.Exp(-0.5 * Math.Pow(okHitWindow / deviation, 2)) / (deviation * DifficultyCalculationUtils.Erf(okHitWindow / (Math.Sqrt(2) * deviation)));
+
+                deviation *= Math.Sqrt(1 - adjustFor100);
+
+                // Value deviation approach as greatCount approaches 0
+                double limitValue = okHitWindow / Math.Sqrt(3);
+
+                // If precision is not enough to compute true deviation - use limit value
+                if (pLowerBound == 0 || adjustFor100 >= 1 || deviation > limitValue)
+                    deviation = limitValue;
+
+                // Then compute the variance for 50s.
+                double mehVariance = (mehHitWindow * mehHitWindow + okHitWindow * mehHitWindow + okHitWindow * okHitWindow) / 3;
+
+                // Find the total deviation.
+                deviation = Math.Sqrt(((countGreat + countOk) * Math.Pow(deviation, 2) + countMeh * mehVariance) / (countGreat + countOk + countMeh));
+
+                return deviation;
             }
-
-            // Compute and add the variance for mehs, assuming that they are uniformly distributed.
-            double mehVariance = (mehHitWindow * mehHitWindow + okHitWindow * mehHitWindow + okHitWindow * okHitWindow) / 3;
-
-            // Find the total deviation.
-            deviation = Math.Sqrt(((relevantCountGreat + relevantCountOk) * Math.Pow(deviation, 2) + relevantCountMeh * mehVariance) / (relevantCountGreat + relevantCountOk + relevantCountMeh));
-
-            return deviation;
         }
 
         // Calculates multiplier for speed to account for improper tapping based on the deviation and speed difficulty
@@ -467,17 +550,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return adjustedSpeedValue / speedValue;
         }
 
-        // Due to the unavailability of miss location in PP, the following formulas assume that a player will miss on the hardest parts of a map.
-
-        // With the curve fitted miss penalty, we use a pre-computed curve of skill levels for each miss count, raised to the power of 1.5 as
-        // the multiple of the exponents on star rating and PP. This power should be changed if either SR or PP begin to use a different exponent.
-        // As a result, this exponent is not subject to balance.
-        private double calculateCurveFittedMissPenalty(double missCount, Polynomial curve) => Math.Pow(1 - curve.GetPenaltyAt(Math.Log(missCount + 1)), 1.5);
-
-        // With the strain count miss penalty, we use the amount of relatively difficult sections to adjust the miss penalty,
-        // to make it more punishing on maps with lower amount of hard sections. This formula is subject to balance.
-        private double calculateStrainCountMissPenalty(double missCount, double difficultStrainCount) => 0.96 / (missCount / (4 * Math.Pow(Math.Log(difficultStrainCount), 0.94)) + 1);
-
+        // Miss penalty assumes that a player will miss on the hardest parts of a map,
+        // so we use the amount of relatively difficult sections to adjust miss penalty
+        // to make it more punishing on maps with lower amount of hard sections.
+        private double calculateMissPenalty(double missCount, double difficultStrainCount) => 0.96 / ((missCount / (4 * Math.Pow(Math.Log(difficultStrainCount), 0.94))) + 1);
         private double getComboScalingFactor(OsuDifficultyAttributes attributes) => attributes.MaxCombo <= 0 ? 1.0 : Math.Min(Math.Pow(scoreMaxCombo, 0.8) / Math.Pow(attributes.MaxCombo, 0.8), 1.0);
 
         private int totalHits => countGreat + countOk + countMeh + countMiss;
