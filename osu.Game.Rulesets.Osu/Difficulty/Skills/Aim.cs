@@ -6,9 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
-using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
-using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Objects;
@@ -18,14 +16,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to correctly aim at every object in the map with a uniform CircleSize and normalized distances.
     /// </summary>
-    public class Aim : OsuTimeSkill
+    public class Aim : OsuStrainSkill
     {
         public readonly bool IncludeSliders;
+
         public Aim(Mod[] mods, bool includeSliders)
             : base(mods)
         {
-            IncludeSliders = includeSliders;
             previousStrains = new List<(double, double)>();
+            IncludeSliders = includeSliders;
         }
 
         private double currentStrain;
@@ -36,20 +35,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private bool? previousWasFlow = null;
 
-        private double skillMultiplier => 128;
+        private double skillMultiplier => 26;
         private double strainDecayBase => 0.15;
 
-        private double agilityStrainDecayBase => 0.15;
-
         private const double backwards_strain_influence = 1000;
-
-        protected override double HitProbability(double skill, double difficulty)
-        {
-            if (difficulty <= 0) return 1;
-            if (skill <= 0) return 0;
-
-            return DifficultyCalculationUtils.Erf(skill / (Math.Sqrt(2) * difficulty));
-        }
 
         private readonly List<(double, double)> previousStrains;
 
@@ -57,43 +46,63 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
 
-        private double agilityStrainDecay(double ms) => Math.Pow(agilityStrainDecayBase, ms / 1000);
+        protected override double CalculateInitialStrain(double offset, DifficultyHitObject current)
+        {
+            var osuCurrent = (OsuDifficultyHitObject)current;
+
+            double strain = getCurrentStrainValue(offset, previousStrains);
+
+            currentAgilityStrain *= strainDecay(offset - current.Previous(0).StartTime);
+            currentflowStrain *= strainDecay(offset - current.Previous(0).StartTime);
+
+
+            return strain;
+        }
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
             //we decay both supplimental strain values irrespective of whether a given note is snapped or flowed
-            currentAgilityStrain *= agilityStrainDecay(current.DeltaTime);
+            currentflowStrain *= strainDecay(current.DeltaTime);
+            currentAgilityStrain *= strainDecay(current.DeltaTime);
 
             var osuCurrent = (OsuDifficultyHitObject)current;
+            double currentDifficulty = 0;
             double auxiliaryStrainValue = 0;
             double currentStrainDifficulty = 0;
+            double transitionBonus = 0;
+            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
             double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
-            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
-            double snapBaseDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
-            double snapDifficulty = snapBaseDifficulty + (agilityDifficulty + currentAgilityStrain);
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current);
 
-            double snapTransitionBonus = previousWasFlow.HasValue && previousWasFlow.Value ? 1.5 : 1.0;
-            double flowTransitionBonus = previousWasFlow.HasValue && !previousWasFlow.Value ? 1.5 : 1.0;
+            double snapTransitionBonus = previousWasFlow.HasValue && previousWasFlow.Value ? 1.25 : 1.0;
+            double flowTransitionBonus = previousWasFlow.HasValue && !previousWasFlow.Value ? 1.25 : 1.0;
 
-            bool isFlow = flowDifficulty * flowTransitionBonus + currentStrain < snapDifficulty * snapTransitionBonus + currentStrain;
+            bool isFlow = (flowDifficulty) * flowTransitionBonus < (snapDifficulty + currentAgilityStrain + agilityDifficulty) * snapTransitionBonus;
 
-            double currentDifficulty = isFlow ? flowDifficulty * flowTransitionBonus : snapDifficulty * snapTransitionBonus;
+            if (isFlow)
 
-            currentStrain = getCurrentStrainValue(osuCurrent.StartTime, previousStrains) * 4.10;
+                //for flow aim, we want the strain contribution to be solely from the FlowStrainEvaluator, and we only want to update the value of
+                // currentFlowStrain when the current note is flow-aimed
+            {
+                currentDifficulty = flowDifficulty;
+                currentStrainDifficulty = currentDifficulty;
+                auxiliaryStrainValue = 0;
+                transitionBonus = flowTransitionBonus;
 
-
-            if (!isFlow)
+            }
+                //for snap aim, the notes difficulty itself contributes to strain and we update the value of agilityStrain only when the note is snapped
+            else
             {
                 currentDifficulty = snapDifficulty;
                 currentAgilityStrain += agilityDifficulty;
-            }
-            else
-            {
-                currentDifficulty = flowDifficulty;
-                auxiliaryStrainValue = 0;
+                auxiliaryStrainValue = currentAgilityStrain;
+                currentStrainDifficulty = snapDifficulty;
+                transitionBonus = snapTransitionBonus;
             }
 
-            previousStrains.Add((osuCurrent.StartTime, currentDifficulty));
+            currentStrain = getCurrentStrainValue(osuCurrent.StartTime, previousStrains) * 4.25;
+            previousStrains.Add((osuCurrent.StartTime, currentStrainDifficulty));
+
             previousWasFlow = isFlow;
 
             if (current.BaseObject is Slider)
@@ -101,7 +110,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 sliderStrains.Add(currentStrain);
             }
 
-            return currentStrain + currentDifficulty;
+            return (currentDifficulty + currentStrain + auxiliaryStrainValue) * transitionBonus;
         }
 
         private double getCurrentStrainValue(double endTime, List<(double Time, double Diff)> previousDifficulties)
@@ -159,15 +168,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (sliderStrains.Count == 0)
                 return 0;
 
-            double[] sortedStrains = sliderStrains.OrderDescending().ToArray();
+            double maxSliderStrain = sliderStrains.Max();
 
-            double maxSliderStrain = sortedStrains.Max();
             if (maxSliderStrain == 0)
                 return 0;
 
-            return sortedStrains.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / maxSliderStrain * 12.0 - 6.0))));
+            return sliderStrains.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / maxSliderStrain * 12.0 - 6.0))));
         }
-        public double CountTopWeightedSliders() => OsuStrainUtils.CountTopWeightedSliders(sliderStrains, DifficultyValue());
 
+        public double CountTopWeightedSliders() => OsuStrainUtils.CountTopWeightedSliders(sliderStrains, DifficultyValue());
     }
 }
