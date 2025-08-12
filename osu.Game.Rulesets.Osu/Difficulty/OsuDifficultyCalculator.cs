@@ -96,10 +96,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             var aimCheesed = skills.OfType<Aim>().Single(a => a.IncludeSliders && a.WithCheesability);
             var speed = skills.OfType<Speed>().Single();
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
+            var reading = skills.OfType<Reading>().Single();
 
             double speedNotes = speed.RelevantNoteCount();
             double speedDifficultStrainCount = speed.CountTopWeightedNotes();
 
+            double aimDifficultStrainCount = aim.CountTopWeightedStrains();
+            double speedDifficultStrainCount = speed.CountTopWeightedStrains();
+            double readingDifficultNoteCount = reading.CountTopWeightedNotes();
+
+            double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders();
             double aimNoSlidersDifficultStrainCount = aimWithoutSliders.CountTopWeightedStrains();
             double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders();
             Polynomial aimMissPenaltyCurve = ((OsuTimeSkill)skills[0]).GetMissPenaltyCurve();
@@ -126,6 +132,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimNoSlidersDifficultyValue = aimWithoutSliders.DifficultyValue();
             double cheesedAimDifficultyValue = aimCheesed.DifficultyValue();
             double speedDifficultyValue = speed.DifficultyValue();
+            double readingDifficultyValue = reading.DifficultyValue();
 
             mechanicalDifficultyRating = calculateMechanicalDifficultyRating(aimDifficultyValue, speedDifficultyValue);
 
@@ -144,13 +151,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);
             double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating);
+            double baseReadingPerformance = Reading.DifficultyToPerformance(readingRating);
             double baseFlashlightPerformance = Flashlight.DifficultyToPerformance(flashlightRating);
 
             double basePerformance =
                 Math.Pow(
                     Math.Pow(baseAimPerformance, 1.1) +
                     Math.Pow(baseSpeedPerformance, 1.1) +
-                    Math.Pow(baseFlashlightPerformance, 1.1), 1.0 / 1.1
+                    Math.Pow(baseFlashlightPerformance, 1.1) +
+                    Math.Pow(baseReadingPerformance, 1.1), 1.0 / 1.1
                 );
 
             double multiplier = CalculateDifficultyMultiplier(mods, totalHits, spinnerCount);
@@ -171,10 +180,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 SpeedDifficulty = speedRating,
                 SpeedNoteCount = speedNotes,
                 FlashlightDifficulty = flashlightRating,
+                ReadingDifficulty = readingRating,
                 SliderFactor = sliderFactor,
                 AimMissPenaltyCurve = aimMissPenaltyCurve,
                 CheeseFactor = cheeseFactor,
                 SpeedDifficultStrainCount = speedDifficultStrainCount,
+                ReadingDifficultNoteCount = readingDifficultNoteCount,
                 AimTopWeightedSliderFactor = aimTopWeightedSliderFactor,
                 SpeedTopWeightedSliderFactor = speedTopWeightedSliderFactor,
                 DrainRate = drainRate,
@@ -376,6 +387,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 new Aim(mods, false, false),
                 new Speed(mods),
                 new Aim(mods, true, true),
+                new Speed(mods),
+                new Reading(beatmap, mods, clockRate)
             };
 
             if (mods.Any(h => h is OsuModFlashlight))

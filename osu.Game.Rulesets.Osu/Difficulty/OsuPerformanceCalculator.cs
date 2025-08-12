@@ -149,13 +149,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double speedValue = computeSpeedValue(score, osuAttributes);
             double accuracyValue = computeAccuracyValue(score);
             double flashlightValue = computeFlashlightValue(score, osuAttributes);
-
+            double readingValue = computeReadingValue(osuAttributes);
             double totalValue =
                 Math.Pow(
                     Math.Pow(aimValue, 1.1) +
                     Math.Pow(speedValue, 1.1) +
                     Math.Pow(accuracyValue, 1.1) +
-                    Math.Pow(flashlightValue, 1.1), 1.0 / 1.1
+                    Math.Pow(flashlightValue, 1.1) +
+                    Math.Pow(readingValue, 1.1), 1.0 / 1.1
                 ) * multiplier;
 
             return new OsuPerformanceAttributes
@@ -164,6 +165,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 Speed = speedValue,
                 Accuracy = accuracyValue,
                 Flashlight = flashlightValue,
+                Reading = readingValue,
                 EffectiveMissCount = effectiveMissCount,
                 ComboBasedEstimatedMissCount = comboBasedEstimatedMissCount,
                 ScoreBasedEstimatedMissCount = scoreBasedEstimatedMissCount,
@@ -216,9 +218,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
             if (score.Mods.Any(m => m is OsuModBlinds))
                 aimValue *= 1.3 + (totalHits * (0.0016 / (1 + 2 * effectiveMissCount)) * Math.Pow(accuracy, 16)) * (1 - 0.003 * attributes.DrainRate * attributes.DrainRate);
-            else if (score.Mods.Any(m => m is OsuModTraceable))
+            else if (score.Mods.OfType<OsuModHidden>().Any(m => m.OnlyFadeApproachCircles.Value) || score.Mods.Any(m => m is OsuModTraceable))
             {
-                aimValue *= 1.0 + OsuDifficultyCalculator.CalculateVisibilityBonus(score.Mods, approachRate);
+                aimValue *= 1.0 + OsuRatingCalculator.CalculateVisibilityBonus(approachRate, attributes.SliderFactor);
             }
 
             // Scale the aim value by how cheesable it is.
@@ -250,9 +252,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 // Increasing the speed value by object count for Blinds isn't ideal, so the minimum buff is given.
                 speedValue *= 1.12;
             }
-            else if (score.Mods.Any(m => m is OsuModTraceable))
+            else if (score.Mods.OfType<OsuModHidden>().Any(m => m.OnlyFadeApproachCircles.Value) || score.Mods.Any(m => m is OsuModTraceable))
             {
-                speedValue *= 1.0 + OsuDifficultyCalculator.CalculateVisibilityBonus(score.Mods, approachRate);
+                speedValue *= 1.0 + OsuRatingCalculator.CalculateVisibilityBonus(approachRate);
             }
 
             double speedHighDeviationMultiplier = calculateSpeedHighDeviationNerf(attributes);
@@ -288,7 +290,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
             if (score.Mods.Any(m => m is OsuModBlinds))
                 accuracyValue *= 1.14;
-            else if (score.Mods.Any(m => m is OsuModHidden || m is OsuModTraceable))
+            else if (score.Mods.Any(m => m is OsuModTraceable))
             {
                 // Decrease bonus for AR > 10
                 accuracyValue *= 1 + 0.08 * Math.Clamp((11.5 - approachRate) / (11.5 - 10), 0, 1);
@@ -320,6 +322,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return flashlightValue;
         }
 
+        private double computeReadingValue(OsuDifficultyAttributes attributes)
+        {
+            double readingValue = Reading.DifficultyToPerformance(attributes.ReadingDifficulty);
+
+            if (effectiveMissCount > 0)
+            {
+                readingValue *= calculateMissPenalty(effectiveMissCount + aimEstimatedSliderBreaks, attributes.ReadingDifficultNoteCount);
+            }
+
+            // Scale the reading value with accuracy _harshly_.
+            readingValue *= Math.Pow(accuracy, 3);
+
+            return readingValue;
+        }
+
         private double calculateComboBasedEstimatedMissCount(OsuDifficultyAttributes attributes)
         {
             if (attributes.SliderCount <= 0)
@@ -338,6 +355,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
                 // In classic scores there can't be more misses than a sum of all non-perfect judgements
                 missCount = Math.Min(missCount, totalImperfectHits);
+
+                // Every slider has *at least* 2 combo attributed in classic mechanics.
+                // If they broke on a slider with a tick, then this still works since they would have lost at least 2 combo (the tick and the end)
+                // Using this as a max means a score that loses 1 combo on a map can't possibly have been a slider break.
+                // It must have been a slider end.
+                int maxPossibleSliderBreaks = Math.Min(attributes.SliderCount, (attributes.MaxCombo - scoreMaxCombo) / 2);
+
+                double sliderBreaks = missCount - countMiss;
+
+                if (sliderBreaks > maxPossibleSliderBreaks)
+                    missCount = countMiss + maxPossibleSliderBreaks;
             }
             else
             {
