@@ -33,7 +33,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double angularVelocityBonus = Math.Max(0.0, Math.Pow(angularVelocity, 0.5) - 1.0);
                 //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
                 angularVelocityBonus *= DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, radius * 0.5, radius * 4);
-                adjustedDistanceScale = 1 + angularVelocityBonus * 0.045;
+                adjustedDistanceScale = 1 + angularVelocityBonus * 0.075;
             }
 
             var currLazyJumpDistance = AdjustFlowDistance(osuCurrObj);
@@ -47,10 +47,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double travelVelocity = osuPrevObj.TravelDistance / osuPrevObj.TravelTime; // calculate the slider velocity from slider head to slider end.
                 double movementVelocity = osuCurrObj.MinimumJumpDistance / osuCurrObj.MinimumJumpTime; // calculate the movement velocity from slider end to current object
 
-                difficulty = Math.Max(difficulty, movementVelocity + travelVelocity * 0.6); // take the larger total combined velocity.
+                difficulty = Math.Max(difficulty, movementVelocity + travelVelocity); // take the larger total combined velocity.
             }
 
-            return difficulty * 2 * osuCurrObj.SmallCircleBonus;
+            return difficulty * 1.90 * osuCurrObj.SmallCircleBonus;
         }
 
         /// <summary>
@@ -85,10 +85,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double angleScale = 1.0 - DifficultyCalculationUtils.Smootherstep(angle, 0, maxBonusAngle);
 
             //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
-            angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius * 2, radius * 2.5);
+            angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius * 1, radius * 6);
 
 
-            double velocityBonus = 1 + previousVelocity * angleScale * 0.15;
+            double velocityBonus = 1 + Math.Pow(previousVelocity, 3) * angleScale * 0.725;
 
             return Math.Pow(distanceTravelled, velocityBonus);
         }

@@ -47,23 +47,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (DifficultyCalculationUtils.MillisecondsToBPM(strainTime) > min_speed_bonus)
                 speedBonus = 0.75 * Math.Pow((DifficultyCalculationUtils.BPMToMilliseconds(min_speed_bonus) - strainTime) / speed_balancing_factor, 2);
 
-            double travelDistance = osuPrevObj?.TravelDistance ?? 0;
-            double distance = travelDistance + osuCurrObj.MinimumJumpDistance;
-
-            // Cap distance at single_spacing_threshold
-            distance = Math.Min(distance, single_spacing_threshold);
-
-            // Max distance bonus is 1 * `distance_multiplier` at single_spacing_threshold
-            double distanceBonus = Math.Pow(distance / single_spacing_threshold, 3.95) * 0;
-
-            // Apply reduced small circle bonus because flow aim difficulty on small circles doesn't scale as hard as jumps
-            distanceBonus *= Math.Sqrt(osuCurrObj.SmallCircleBonus);
-
-            if (mods.OfType<OsuModAutopilot>().Any())
-                distanceBonus = 0;
-
             // Base difficulty with all bonuses
-            double difficulty = (1 + speedBonus + distanceBonus) * 1000 / strainTime;
+            double difficulty = (1 + speedBonus) * 1000 / strainTime;
 
             // Apply penalty if there's doubletappable doubles
             return difficulty * doubletapness;
