@@ -47,7 +47,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double travelVelocity = osuPrevObj.TravelDistance / osuPrevObj.TravelTime; // calculate the slider velocity from slider head to slider end.
                 double movementVelocity = osuCurrObj.MinimumJumpDistance / osuCurrObj.MinimumJumpTime; // calculate the movement velocity from slider end to current object
 
-                difficulty = Math.Max(difficulty, movementVelocity + travelVelocity * 0.6); // take the larger total combined velocity.
+                difficulty = Math.Max(difficulty, movementVelocity + travelVelocity); // take the larger total combined velocity.
             }
 
             return difficulty * 2.1 * osuCurrObj.SmallCircleBonus;
