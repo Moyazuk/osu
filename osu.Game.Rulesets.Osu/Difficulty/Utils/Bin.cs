@@ -10,74 +10,53 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
     public struct Bin
     {
         public double Difficulty;
-        public double Time;
-
         public double Count;
 
         /// <summary>
-        /// Create a 2-dimensional array of equally spaced bins. Count is linearly interpolated on each dimension into the nearest bins.
-        /// For example, on one dimension if we have bins with values [1,2,3,4,5] and want to insert the value 3.2,
-        /// we will add 0.8 total to the count of 3's on that dimension and 0.2 total to the count of 4's.
+        /// Create an array of spaced bins. Count is linearly interpolated into each bin.
+        /// For example, if we have bins with values [1,2,3,4,5] and want to insert the value 3.2,
+        /// we will add 0.8 to the count of 3's and 0.2 to the count of 4's
         /// </summary>
-        public static List<Bin> CreateBins(List<double> difficulties, List<double> times, int difficultyDimensionLength, int timeDimensionLength)
+        public static List<Bin> CreateBins(List<double> difficulties, int totalBins)
         {
             double maxDifficulty = difficulties.Max();
-            double endTime = times.Max();
 
-            var binsArray = new Bin[timeDimensionLength * difficultyDimensionLength];
+            var binsArray = new Bin[totalBins];
 
-            for (int i = 0; i < timeDimensionLength; i++)
+            for (int i = 0; i < totalBins; i++)
             {
-                double time = endTime * i / (timeDimensionLength - 1);
-
-                for (int j = 0; j < difficultyDimensionLength; j++)
-                {
-                    binsArray[difficultyDimensionLength * i + j].Time = time;
-
-                    // We don't create a 0 difficulty bin because 0 difficulty notes don't contribute to star rating.
-                    binsArray[difficultyDimensionLength * i + j].Difficulty = maxDifficulty * (j + 1) / difficultyDimensionLength;
-                }
+                binsArray[i].Difficulty = maxDifficulty * (i + 1) / totalBins;
             }
 
-            for (int i = 0; i < difficulties.Count; i++)
+            foreach (double d in difficulties)
             {
-                double timeBinIndex = timeDimensionLength * (times[i] / endTime);
-                double difficultyBinIndex = difficultyDimensionLength * (difficulties[i] / maxDifficulty) - 1;
+                double binIndex = totalBins * (d / maxDifficulty) - 1;
 
-                int timeLowerBound = Math.Min((int)timeBinIndex, timeDimensionLength - 1);
-                int timeUpperBound = Math.Min(timeLowerBound + 1, timeDimensionLength - 1);
-                double tt = timeBinIndex - timeLowerBound;
+                int lowerBound = (int)Math.Floor(binIndex);
+                double t = binIndex - lowerBound;
 
-                int difficultyLowerBound = fastFloor(difficultyBinIndex);
-                int difficultyUpperBound = Math.Min(difficultyLowerBound + 1, difficultyDimensionLength - 1);
-                double dt = difficultyBinIndex - difficultyLowerBound;
-
-                // The lower bound of difficulty can be -1, corresponding to buckets with 0 difficulty.
-                // We don't store those since they don't contribute to star rating.
-                if (difficultyLowerBound >= 0)
+                //This can be -1, corresponding to the zero difficulty bucket.
+                //We don't store that since it doesn't contribute to difficulty
+                if (lowerBound >= 0)
                 {
-                    binsArray[difficultyDimensionLength * timeLowerBound + difficultyLowerBound].Count += (1 - tt) * (1 - dt);
+                    binsArray[lowerBound].Count += (1 - t);
                 }
 
-                if (difficultyLowerBound >= 0)
+                int upperBound = lowerBound + 1;
+
+                // this can be == bin_count for the maximum difficulty object, in which case t will be 0 anyway
+                if (upperBound < totalBins)
                 {
-                    binsArray[difficultyDimensionLength * timeUpperBound + difficultyLowerBound].Count += tt * (1 - dt);
+                    binsArray[upperBound].Count += t;
                 }
-
-                binsArray[difficultyDimensionLength * timeLowerBound + difficultyUpperBound].Count += (1 - tt) * dt;
-
-                binsArray[difficultyDimensionLength * timeUpperBound + difficultyUpperBound].Count += tt * dt;
             }
 
             var binsList = binsArray.ToList();
 
             // For a slight performance improvement, we remove bins that don't contribute to difficulty.
-            // binsList.RemoveAll(bin => bin.Count == 0);
+            binsList.RemoveAll(bin => bin.Count == 0);
 
             return binsList;
         }
-
-        // Faster implementation of the floor function to speed up binning times.
-        private static int fastFloor(double x) => x >= 0 || x == -1 ? (int)x : (int)(x - 1);
     }
 }

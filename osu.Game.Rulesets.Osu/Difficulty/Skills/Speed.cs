@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Speed : Skill
     {
-        private double skillMultiplier => 0.95;
+        private double skillMultiplier => 0.9;
 
         private readonly List<double> noteDifficulties = new List<double>();
 

@@ -18,7 +18,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to correctly aim at every object in the map with a uniform CircleSize and normalized distances.
     /// </summary>
-    public class Aim : OsuTimeSkill
+    public class Aim : OsuProbabilitySkill
     {
         public readonly bool IncludeSliders;
         public readonly bool WithCheesability;
@@ -39,7 +39,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private bool? previousWasFlow = null;
 
-        private double skillMultiplier => 128;
+        private double skillMultiplier => 137;
         private double strainDecayBase => 0.15;
 
         private const double backwards_strain_influence = 1000;

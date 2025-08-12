@@ -167,7 +167,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             aimStrain += velocityChangeBonus * velocity_change_multiplier;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            aimStrain += wideAngleBonus * wide_angle_multiplier;
+            aimStrain += wideAngleBonus * 1.15;
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)

@@ -50,7 +50,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 difficulty = Math.Max(difficulty, movementVelocity + travelVelocity * 0.6); // take the larger total combined velocity.
             }
 
-            return difficulty * 2 * osuCurrObj.SmallCircleBonus;
+            return difficulty * 2.1 * osuCurrObj.SmallCircleBonus;
         }
 
         /// <summary>
