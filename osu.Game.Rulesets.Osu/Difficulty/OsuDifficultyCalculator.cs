@@ -100,6 +100,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double speedNotes = speed.RelevantNoteCount();
             double speedDifficultStrainCount = speed.CountTopWeightedNotes();
 
+            double aimDifficultStrainCount = aim.CountTopWeightedStrains();
+            double speedDifficultStrainCount = speed.CountTopWeightedStrains();
+
+            double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders();
             double aimNoSlidersDifficultStrainCount = aimWithoutSliders.CountTopWeightedStrains();
             double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders();
             Polynomial aimMissPenaltyCurve = ((OsuProbabilitySkill)skills[0]).GetMissPenaltyCurve();
@@ -127,20 +131,31 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double cheesedAimDifficultyValue = aimCheesed.DifficultyValue();
             double speedDifficultyValue = speed.DifficultyValue();
 
-            mechanicalDifficultyRating = calculateMechanicalDifficultyRating(aimDifficultyValue, speedDifficultyValue);
+            double mechanicalDifficultyRating = calculateMechanicalDifficultyRating(aimDifficultyValue, speedDifficultyValue);
+            double sliderFactor = aimDifficultyValue > 0 ? OsuRatingCalculator.CalculateDifficultyRating(aimNoSlidersDifficultyValue) / OsuRatingCalculator.CalculateDifficultyRating(aimDifficultyValue) : 1;
 
             double aimRating = computeAimRating(aimDifficultyValue, mods, totalHits, approachRate);
             double aimRatingNoSliders = computeAimRating(aimNoSlidersDifficultyValue, mods, totalHits, approachRate);
             double aimRatingCheesed = computeAimRating(cheesedAimDifficultyValue, mods, totalHits, approachRate);
             double speedRating = computeSpeedRating(speedDifficultyValue, mods, totalHits, approachRate);
+            var osuRatingCalculator = new OsuRatingCalculator(mods, totalHits, approachRate, overallDifficulty, mechanicalDifficultyRating, sliderFactor);
+
+            double aimRating = osuRatingCalculator.ComputeAimRating(aimDifficultyValue);
+            double speedRating = osuRatingCalculator.ComputeSpeedRating(speedDifficultyValue);
 
             double flashlightRating = 0.0;
 
             if (flashlight is not null)
                 flashlightRating = computeFlashlightRating(flashlight.DifficultyValue(), mods, totalHits);
+                flashlightRating = osuRatingCalculator.ComputeFlashlightRating(flashlight.DifficultyValue());
 
             double sliderFactor = aimRating > 0 ? aimRatingNoSliders / aimRating : 1;
             double cheeseFactor = aimRating > 0 ? aimRatingCheesed / aimRating : 1;
+            double sliderNestedScorePerObject = LegacyScoreUtils.CalculateNestedScorePerObject(beatmap, totalHits);
+            double legacyScoreBaseMultiplier = LegacyScoreUtils.CalculateDifficultyPeppyStars(beatmap);
+
+            var simulator = new OsuLegacyScoreSimulator();
+            var scoreAttributes = simulator.Simulate(WorkingBeatmap, beatmap);
 
             double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);
             double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating);
