@@ -10,6 +10,7 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Skills;
@@ -215,12 +216,46 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate)
         {
             List<DifficultyHitObject> objects = new List<DifficultyHitObject>();
+            List<DifficultyHitObject> tapObjects = new List<DifficultyHitObject>();
 
             // The first jump is formed by the first two hitobjects of the map.
             // If the map has less than two OsuHitObjects, the enumerator will not return anything.
             for (int i = 1; i < beatmap.HitObjects.Count; i++)
             {
-                objects.Add(new OsuDifficultyHitObject(beatmap.HitObjects[i], beatmap.HitObjects[i - 1], clockRate, objects, objects.Count));
+                if (beatmap.HitObjects[i] is Slider slider)
+                {
+                    IList<HitObject> nestedObjects = slider.NestedHitObjects;
+
+                    // Add slider head as tap object
+                    if (objects.Count > 0)
+                        objects.Add(new OsuDifficultyHitObject(slider, objects.Last().BaseObject, clockRate, objects, objects.Count, tapObjects, tapObjects.Count));
+                    else
+                        objects.Add(new OsuDifficultyHitObject(slider, beatmap.HitObjects[i - 1], clockRate, objects, objects.Count, tapObjects, tapObjects.Count));
+                    tapObjects.Add(objects.Last());
+
+                    // tapObjects not included in args since nested objects past head don't require a tap
+                    // Includes slider ticks, reverse arrows, and slider tails
+                    // Ticks are ignored if they're too close to the previous tick to avoid inflating strain
+                    OsuHitObject lastTick = slider;
+
+                    for (int j = 1; j < nestedObjects.Count; j++)
+                    {
+                        if (nestedObjects[j] is not SliderTick || OsuDifficultyHitObject.IsTickFarEnough(lastTick, (SliderTick)nestedObjects[j]))
+                        {
+                            objects.Add(new OsuDifficultyHitObject(nestedObjects[j], lastTick, clockRate, objects, objects.Count, parent: tapObjects.Last()));
+
+                            lastTick = (OsuHitObject)nestedObjects[j];
+                        }
+                    }
+                }
+                else
+                {
+                    if (objects.Count > 0)
+                        objects.Add(new OsuDifficultyHitObject(beatmap.HitObjects[i], objects.Last().BaseObject, clockRate, objects, objects.Count, tapObjects, tapObjects.Count));
+                    else
+                        objects.Add(new OsuDifficultyHitObject(beatmap.HitObjects[i], beatmap.HitObjects[i - 1], clockRate, objects, objects.Count, tapObjects, tapObjects.Count));
+                    tapObjects.Add(objects.Last());
+                }
             }
 
             return objects;

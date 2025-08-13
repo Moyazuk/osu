@@ -41,15 +41,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Base snap difficulty is velocity.
             double difficulty = Math.Pow(currLazyJumpDistance, adjustedDistanceScale) / osuCurrObj.StrainTime;
 
-            // But if the last object is a slider, then we extend the travel velocity through the slider into the current object.
-            if (osuPrevObj.BaseObject is Slider && withSliderTravelDistance)
-            {
-                double travelVelocity = osuPrevObj.TravelDistance / osuPrevObj.TravelTime; // calculate the slider velocity from slider head to slider end.
-                double movementVelocity = osuCurrObj.MinimumJumpDistance / osuCurrObj.MinimumJumpTime; // calculate the movement velocity from slider end to current object
-
-                difficulty = Math.Max(difficulty, movementVelocity + travelVelocity); // take the larger total combined velocity.
-            }
-
             return difficulty * 2.1 * osuCurrObj.SmallCircleBonus;
         }
 
