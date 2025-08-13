@@ -25,6 +25,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         {
             if (current.BaseObject is Spinner)
                 return 0;
+            if (!((OsuDifficultyHitObject)current).IsTapObject)
+                return 1;
 
             double rhythmComplexitySum = 0;
 
@@ -41,20 +43,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             bool firstDeltaSwitch = false;
 
-            int historicalNoteCount = Math.Min(current.Index, history_objects_max);
+            int historicalNoteCount = Math.Min((int)((OsuDifficultyHitObject)current).TapIndex!, history_objects_max);
 
             int rhythmStart = 0;
 
-            while (rhythmStart < historicalNoteCount - 2 && current.StartTime - current.Previous(rhythmStart).StartTime < history_time_max)
+            while (rhythmStart < historicalNoteCount - 2 && current.StartTime - ((OsuDifficultyHitObject)current).PreviousTap(rhythmStart).StartTime < history_time_max)
                 rhythmStart++;
 
-            OsuDifficultyHitObject prevObj = (OsuDifficultyHitObject)current.Previous(rhythmStart);
-            OsuDifficultyHitObject lastObj = (OsuDifficultyHitObject)current.Previous(rhythmStart + 1);
+            OsuDifficultyHitObject prevObj = (OsuDifficultyHitObject)((OsuDifficultyHitObject)current).PreviousTap(rhythmStart);
+            OsuDifficultyHitObject lastObj = (OsuDifficultyHitObject)((OsuDifficultyHitObject)current).PreviousTap(rhythmStart + 1);
 
             // we go from the furthest object back to the current one
             for (int i = rhythmStart; i > 0; i--)
             {
-                OsuDifficultyHitObject currObj = (OsuDifficultyHitObject)current.Previous(i - 1);
+                OsuDifficultyHitObject currObj = (OsuDifficultyHitObject)((OsuDifficultyHitObject)current).PreviousTap(i - 1);
 
                 // scales note 0 to 1 from history to now
                 double timeDecay = (history_time_max - (current.StartTime - currObj.StartTime)) / history_time_max;
@@ -62,9 +64,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 double currHistoricalDecay = Math.Min(noteDecay, timeDecay); // either we're limited by time or limited by object count.
 
-                double currDelta = currObj.StrainTime;
-                double prevDelta = prevObj.StrainTime;
-                double lastDelta = lastObj.StrainTime;
+                double currDelta = currObj.TapStrainTime;
+                double prevDelta = prevObj.TapStrainTime;
+                double lastDelta = lastObj.TapStrainTime;
 
                 // calculate how much current delta difference deserves a rhythm bonus
                 // this function is meant to reduce rhythm bonus for deltas that are multiples of each other (i.e 100 and 200)

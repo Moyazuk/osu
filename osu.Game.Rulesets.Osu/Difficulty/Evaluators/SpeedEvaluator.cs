@@ -35,19 +35,42 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             // derive strainTime for calculation
             var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj = current.Index > 0 ? (OsuDifficultyHitObject)current.Previous(0) : null;
+            var osuPrevObj = osuCurrObj.TapIndex is > 0 ? (OsuDifficultyHitObject)osuCurrObj.PreviousTap(0) : null;
 
-            double strainTime = osuCurrObj.StrainTime;
-            double doubletapness = 1.0 - osuCurrObj.GetDoubletapness((OsuDifficultyHitObject?)osuCurrObj.Next(0));
+            if (!osuCurrObj.IsTapObject)
+                return 0;
+
+            double strainTime = osuCurrObj.TapStrainTime;
+            double doubletapness = osuCurrObj.IsTapObject ? 1.0 - osuCurrObj.GetDoubletapness((OsuDifficultyHitObject?)osuCurrObj.NextTap(0)) : 1;
+
+            // Cap deltatime to the OD 300 hitwindow.
+            // 0.93 is derived from making sure 260bpm OD8 streams aren't nerfed harshly, whilst 0.92 limits the effect of the cap.
+            strainTime /= Math.Clamp((strainTime / osuCurrObj.HitWindowGreat) / 0.93, 0.92, 1);
 
             // speedBonus will be 0.0 for BPM < 200
             double speedBonus = 0.0;
 
             // Add additional scaling bonus for streams/bursts higher than 200bpm
             if (DifficultyCalculationUtils.MillisecondsToBPM(strainTime) > min_speed_bonus)
-                speedBonus = 0.75 * Math.Pow((DifficultyCalculationUtils.BPMToMilliseconds(min_speed_bonus) - strainTime) / speed_balancing_factor, 2);
+                speedBonus += 0.75 * Math.Pow((DifficultyCalculationUtils.BPMToMilliseconds(min_speed_bonus) - strainTime) / speed_balancing_factor, 2);
+
+            double travelDistance = osuPrevObj?.TravelDistance ?? 0;
+            double distance = osuCurrObj.LazyJumpDistance + travelDistance;
+
+            // Cap distance at single_spacing_threshold
+            distance = Math.Min(distance, single_spacing_threshold);
+
+            // Max distance bonus is 1 * `distance_multiplier` at single_spacing_threshold
+            double distanceBonus = Math.Pow(distance / single_spacing_threshold, 3.95) * distance_multiplier;
+
+            // Apply reduced small circle bonus because flow aim difficulty on small circles doesn't scale as hard as jumps
+            distanceBonus *= Math.Sqrt(osuCurrObj.SmallCircleBonus);
+
+            if (mods.OfType<OsuModAutopilot>().Any())
+                distanceBonus = 0;
+
             // Base difficulty with all bonuses
-            double difficulty = (1 + speedBonus) * 1000 / strainTime;
+            double difficulty = (1.0 + speedBonus + distanceBonus) * 1000 / strainTime;
 
             // Apply penalty if there's doubletappable doubles
             return difficulty * doubletapness;

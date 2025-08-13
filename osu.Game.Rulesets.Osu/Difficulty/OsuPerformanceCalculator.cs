@@ -188,7 +188,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 if (usingClassicSliderAccuracy)
                 {
                     // When the score is considered classic (regardless if it was made on old client or not) we consider all missing combo to be dropped difficult sliders
-                    int maximumPossibleDroppedSliders = totalImperfectHits;
+                    int maximumPossibleDroppedSliders = countOk + (countMeh + countMiss) * 3;
                     estimateImproperlyFollowedDifficultSliders = Math.Clamp(Math.Min(maximumPossibleDroppedSliders, attributes.MaxCombo - scoreMaxCombo), 0, attributes.AimDifficultSliderCount);
                 }
                 else
