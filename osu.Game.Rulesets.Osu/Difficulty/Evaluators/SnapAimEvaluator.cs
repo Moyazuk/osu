@@ -164,10 +164,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
 
             aimStrain += wiggleBonus * wiggle_multiplier;
-            aimStrain += velocityChangeBonus * velocity_change_multiplier;
+            aimStrain += velocityChangeBonus * 1;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            aimStrain += wideAngleBonus * wide_angle_multiplier;
+            aimStrain += wideAngleBonus * 1.25;
 
             // Apply high circle size bonus
             aimStrain *= osuCurrObj.SmallCircleBonus;
