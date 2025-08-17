@@ -25,7 +25,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             previousStrains = new List<(double, double)>();
         }
 
-        private double skillMultiplier => 26;
+        private double skillMultiplier => 39;
 
         public readonly bool IncludeSliders;
 
@@ -61,7 +61,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             double currentDifficulty = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
 
-            currentStrain = getCurrentStrainValue(osuCurrent.StartTime, previousStrains) * 3.95;
+            currentStrain = getCurrentStrainValue(osuCurrent.StartTime, previousStrains) * 2.25;
             previousStrains.Add((osuCurrent.StartTime, currentDifficulty));
 
             if (current.BaseObject is Slider)
