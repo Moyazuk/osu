@@ -107,11 +107,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 velocityChangeBonus = overlapVelocityBuff * distRatio;
 
+                velocityChangeBonus /= Math.Pow(Math.Max(osuLastObj.StrainTime, osuCurrObj.StrainTime), 1.6);
+
                 // Penalize for rhythm changes.
                 velocityChangeBonus *= Math.Pow(Math.Min(osuCurrObj.StrainTime, osuLastObj.StrainTime) / Math.Max(osuCurrObj.StrainTime, osuLastObj.StrainTime), 2);
             }
 
-            return (Math.Max(acuteAngleBonus * 2.6, wideAngleBonus * 365) + velocityChangeBonus * 0.35 + wiggleBonus * 1.02) * osuCurrObj.SmallCircleBonus;
+            return (Math.Max(acuteAngleBonus * 2.6, wideAngleBonus * 365) + velocityChangeBonus * 480 + wiggleBonus * 1.02) * osuCurrObj.SmallCircleBonus;
         }
 
         private static double calcAcuteAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(140), double.DegreesToRadians(40));
