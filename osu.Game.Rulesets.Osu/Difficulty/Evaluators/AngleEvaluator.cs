@@ -42,6 +42,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 // Rewarding angles, take the smaller velocity as base.
                 double angleBonus = Math.Min(currVelocity, prevVelocity);
+                double wideAngleBase = Math.Min(currVelocity, prevVelocity);
 
                 if (Math.Max(osuCurrObj.StrainTime, osuLastObj.StrainTime) < 1.25 * Math.Min(osuCurrObj.StrainTime, osuLastObj.StrainTime)) // If rhythms are the same.
                 {
@@ -56,13 +57,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                                        DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, diameter, diameter * 2);
                 }
 
+                wideAngleBase /= Math.Pow(Math.Max(osuLastObj.StrainTime, osuCurrObj.StrainTime), 1.2);
+
                 wideAngleBonus = calcWideAngleBonus(currAngle);
 
                 // Penalize angle repetition.
                 wideAngleBonus *= 1 - Math.Min(wideAngleBonus, Math.Pow(calcWideAngleBonus(lastAngle), 3));
 
                 // Apply full wide angle bonus for distance more than one diameter
-                wideAngleBonus *= angleBonus * DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, 0, diameter);
+                wideAngleBonus *= wideAngleBase * DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, 0.5, diameter * 2);
 
                 // Apply wiggle bonus for jumps that are [radius, 3*diameter] in distance, with < 110 angle
                 // https://www.desmos.com/calculator/dp0v0nvowc
@@ -108,7 +111,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 velocityChangeBonus *= Math.Pow(Math.Min(osuCurrObj.StrainTime, osuLastObj.StrainTime) / Math.Max(osuCurrObj.StrainTime, osuLastObj.StrainTime), 2);
             }
 
-            return (Math.Max(acuteAngleBonus * 2.6, wideAngleBonus * 0.95) + velocityChangeBonus * 0.35 + wiggleBonus * 1.02) * osuCurrObj.SmallCircleBonus;
+            return (Math.Max(acuteAngleBonus * 2.6, wideAngleBonus * 365) + velocityChangeBonus * 0.35 + wiggleBonus * 1.02) * osuCurrObj.SmallCircleBonus;
         }
 
         private static double calcAcuteAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(140), double.DegreesToRadians(40));
