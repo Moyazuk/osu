@@ -30,10 +30,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             OsuDifficultyHitObject osuNext = (OsuDifficultyHitObject)current.Next(0);
 
             double[] prev_fraction_x = { 1.0, 1.5, 2.0, 3.0, 4.0 };
-            double[] prev_fraction_y = { 3, 0.15, 0.5, 0.25, 0.0 };
+            double[] prev_fraction_y = { 2.0, 2.0, 1.5, 2.0, 0.0 };
 
             double[] next_fraction_x = { 1.0, 7.0 / 6.0, 1.5, 1.75, 2.0, 3.0, 4.0 };
-            double[] next_fraction_y = { 0.05, 0.75, 4, 1.0, 0.05, 0.0, 0.0 };
+            double[] next_fraction_y = { 0.05, 2.0, 2, 1.0, 0.05, 0.0, 0.0 };
 
             note_history.Clear();
             note_history_virtual.Clear();
@@ -42,7 +42,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double prevStrainTime = osuPrev != null ? osuPrev.StrainTime / 1000 : 0;
             double prevVirtualStrainTime = osuPrev != null ? calculateVirtualStrainTime(osuPrev) : 0;
             double virtualStrainTime = calculateVirtualStrainTime(osuCurrent);
-            identicalStrainTolerance = osuCurrent.HitWindowGreat / 2000;
+            identicalStrainTolerance = osuCurrent.HitWindowGreat / 1850;
 
             int index = -1; // Start from current
 
@@ -64,7 +64,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 note_history_virtual.Add(virtualStrainT);
                 timeElapsed += strainT;
 
-                if (timeElapsed > 2 || note_history.Count > 16)
+                if (timeElapsed > 2 || note_history.Count > 12)
                     break;
 
                 if (note_history.Count < note_history_virtual.Count)
@@ -82,8 +82,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (note_history.Count > 2)
             {
                 double repetition = 1.0 - calculateExpectancy(note_history, prev_fraction_x, prev_fraction_y);
-
-                // Added arbitrary buffer to virtualRepetition because slider endtimes are not a consistent rhythmic reference point due to leniency (also makes values better)
 
                 double virtualRepetition = 1.0 - calculateExpectancy(note_history_virtual, prev_fraction_x, prev_fraction_y);
                 double repetitionExponent = Math.Min(2.0, 66.25 * Math.Min(strainTime, virtualStrainTime) - 1.65625);
