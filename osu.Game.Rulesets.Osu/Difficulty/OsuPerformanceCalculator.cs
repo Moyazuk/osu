@@ -269,7 +269,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private double computeFingerControlValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            if (score.Mods.Any(h => h is OsuModRelax))
+            if (score.Mods.Any(h => h is OsuModRelax) || speedDeviation == null)
                 return 0.0;
 
             double fingerControlValue = OsuStrainSkill.DifficultyToPerformance(attributes.FingerControlDifficulty);
@@ -290,13 +290,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 fingerControlValue *= 1.0 + OsuRatingCalculator.CalculateVisibilityBonus(score.Mods, approachRate);
             }
 
-            // Calculate accuracy assuming the worst case scenario
-            double relevantTotalDiff = Math.Max(0, totalHits - attributes.FingerControlDifficultNoteCount);
-            double relevantCountGreat = Math.Max(0, countGreat - relevantTotalDiff);
-            double relevantCountOk = Math.Max(0, countOk - Math.Max(0, relevantTotalDiff - countGreat));
-            double relevantCountMeh = Math.Max(0, countMeh - Math.Max(0, relevantTotalDiff - countGreat - countOk));
-            double relevantAccuracy = attributes.SpeedNoteCount == 0 ? 0 : (relevantCountGreat * 6.0 + relevantCountOk * 2.0 + relevantCountMeh) / (attributes.FingerControlDifficultNoteCount * 6.0);
-
             // An effective hit window is created based on the speed SR. The higher the speed difficulty, the shorter the hit window.
             // For example, a speed SR of 3.0 leads to an effective hit window of 20ms, which is OD 10.
             double effectiveHitWindow = Math.Sqrt(20 * 60 / attributes.FingerControlDifficulty);
@@ -305,8 +298,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double effectiveAccuracy = DifficultyCalculationUtils.Erf(effectiveHitWindow / (double)speedDeviation);
 
             // Scale speed value by normalized accuracy.
-            fingerControlValue *= Math.Pow(effectiveAccuracy, 2);
-
+            fingerControlValue *= Math.Pow(effectiveAccuracy, 3);
 
             return fingerControlValue;
         }

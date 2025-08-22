@@ -23,7 +23,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private readonly List<double> noteDifficulties = new List<double>();
 
-        private readonly List<double> noteWeights = new List<double>();
+        private double noteWeightSum;
 
         private readonly List<double> sliderStrains = new List<double>();
 
@@ -70,7 +70,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 // https://www.desmos.com/calculator/gquji01mlg
                 double weight = (1.0 + (50.0 / (1 + index))) / (index + 1.0 + (50.0 / (1.0 + index)));
 
-                noteWeights.Add(weight);
+                noteWeightSum += weight;
 
                 difficulty += note * weight;
                 index += 1;
@@ -87,10 +87,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (noteDifficulties.Count == 0)
                 return 0.0;
 
-            double consistentTopNote = DifficultyValue() / noteWeights.Sum(); // What would the top note be if all note values were identical
+            double consistentTopNote = DifficultyValue() / noteWeightSum; // What would the top note be if all note values were identical
 
             if (consistentTopNote == 0)
                 return 0;
+
+            if (noteWeightSum == 0)
+                return 0.0;
 
             // Use a weighted sum of all notes. Constants are arbitrary and give nice values
             return noteDifficulties.Sum(s => 1.1 / (1 + Math.Exp(-5 * (s / consistentTopNote - 0.8))));
@@ -101,10 +104,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (sliderStrains.Count == 0)
                 return 0;
 
-            double consistentTopNote = DifficultyValue() / noteWeights.Sum(); // What would the top strain be if all strain values were identical
+            double consistentTopNote = DifficultyValue() / noteWeightSum; // What would the top strain be if all strain values were identical
 
             if (consistentTopNote == 0)
                 return 0;
+
+            if (noteWeightSum == 0)
+                return 0.0;
 
             // Use a weighted sum of all strains. Constants are arbitrary and give nice values
             return sliderStrains.Sum(s => DifficultyCalculationUtils.Logistic(s / consistentTopNote, 3, 5, 1.1));
