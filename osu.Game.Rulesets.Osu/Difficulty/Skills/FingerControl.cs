@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class FingerControl : Skill
     {
-        private double skillMultiplier => 20.0;
+        private double skillMultiplier => 7.0;
 
         private readonly List<double> noteDifficulties = new List<double>();
 
@@ -28,7 +28,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private readonly List<double> sliderStrains = new List<double>();
 
         private double currentDifficulty;
-        private double strainDecayBase => 0.5;
+        private double strainDecayBase => 0.75;
 
         public FingerControl(Mod[] mods)
             : base(mods)
