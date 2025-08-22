@@ -64,7 +64,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 note_history_virtual.Add(virtualStrainT);
                 timeElapsed += strainT;
 
-                if (timeElapsed > 2 || note_history.Count > 12)
+                if (timeElapsed > 2 || note_history.Count > 16)
                     break;
 
                 if (note_history.Count < note_history_virtual.Count)
