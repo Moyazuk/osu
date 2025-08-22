@@ -19,9 +19,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public class Speed : OsuStrainSkill
     {
         private double skillMultiplier => 1.47;
-        private double rhythmMultiplier => 0.3;
+        private double rhythmMultiplier => 0;
         private double strainDecayBase => 0.3;
-        private double rhythmStrainDecayBase => 0.7;
+        private double rhythmStrainDecayBase => 0.15;
 
         private double currentStrain;
         private double rhythmStrain;
@@ -36,7 +36,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         }
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
-        private double rhythmStrainDecay(double ms) => Math.Pow(rhythmStrainDecayBase, ms / 1000);
+        private double rhythmStrainDecay(double ms) => Math.Pow(0.075, ms / 1000);
 
         protected override double CalculateInitialStrain(double time, DifficultyHitObject current) => currentStrain * strainDecay(time - current.Previous(0).StartTime) + rhythmStrain * rhythmStrainDecay(time - current.Previous(0).StartTime);
 
@@ -44,7 +44,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
             currentStrain *= strainDecay(((OsuDifficultyHitObject)current).StrainTime);
             rhythmStrain *= rhythmStrainDecay(((OsuDifficultyHitObject)current).StrainTime);
-            rhythmStrain += RhythmEvaluator.EvaluateDifficultyOf(current) * rhythmMultiplier;
+            rhythmStrain += RhythmEvaluator.EvaluateDifficultyOf(current) * 0;
             currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * skillMultiplier + rhythmStrain;
 
             double totalStrain = currentStrain;
