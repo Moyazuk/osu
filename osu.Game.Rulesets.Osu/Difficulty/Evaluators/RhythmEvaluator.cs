@@ -16,10 +16,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         private static readonly List<double> note_history_virtual = new List<double>();
 
         private static readonly double[] prev_fraction_x = { 1.0, 1.5, 2.0, 3.0, 4.0 };
-        private static readonly double[] prev_fraction_y = { 0.5, 2.0, 0.5, 0.25, 0.0 };
+        private static readonly double[] prev_fraction_y = { 0.5, 1.5, 0.9, 0.25, 0.0 };
 
         private static readonly double[] next_fraction_x = { 1.0, 7.0 / 6.0, 1.5, 1.75, 2.0, 3.0, 4.0 };
-        private static readonly double[] next_fraction_y = { 0.05, 1.5, 1.0, 1.5, 0.5, 0.0, 0.0 };
+        private static readonly double[] next_fraction_y = { 0.05, 1.0, 0.75, 1.0, 0.5, 0.0, 0.0 };
 
         /// <summary>
         /// Evaluates the difficulty of tapping the current object.
@@ -32,8 +32,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 return 0;
 
             OsuDifficultyHitObject osuCurrent = (OsuDifficultyHitObject)current;
-            OsuDifficultyHitObject osuPrev = (OsuDifficultyHitObject)current.Previous(1);
-            OsuDifficultyHitObject osuNext = (OsuDifficultyHitObject)current.Next(1);
+            OsuDifficultyHitObject osuPrev = (OsuDifficultyHitObject)current.Previous(0);
+            OsuDifficultyHitObject osuNext = (OsuDifficultyHitObject)current.Next(0);
 
             note_history.Clear();
             note_history_virtual.Clear();
@@ -98,7 +98,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 // When there's a ton of unique strains that means that it's a wild BPM area
                 (double uniqueVal, _) = checkAnomaly(note_history);
                 (double virtualUniqueVal, _) = checkAnomaly(note_history_virtual);
-                uniqueScale = 1.0 + Math.Pow((Math.Min(uniqueVal, virtualUniqueVal) - 1.0) / 6.0, 4.0);
+                uniqueScale = 1.0 + Math.Pow((Math.Min(uniqueVal, virtualUniqueVal) - 1.0) / 11.0, 4.0);
             }
 
             double multiplier = Math.Min(
