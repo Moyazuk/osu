@@ -15,12 +15,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         private static readonly List<double> note_history = new List<double>();
         private static readonly List<double> note_history_virtual = new List<double>();
 
-        private static readonly double[] prev_fraction_x = { 1.0, 1.5, 2.0, 3.0, 4.0 };
-        private static readonly double[] prev_fraction_y = { 0.5, 1.5, 0.9, 0.25, 0.0 };
-
-        private static readonly double[] next_fraction_x = { 1.0 , 7.0/6.0, 1.5 , 1.75, 2.0, 3.0, 4.0 };
-        private static readonly double[] next_fraction_y = { 0.05, 1.0 , 0.75, 1.0 , 0.5, 0.0, 0.0 };
-
         /// <summary>
         /// Evaluates the difficulty of tapping the current object.
         /// </summary>
@@ -35,11 +29,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             OsuDifficultyHitObject osuPrev = (OsuDifficultyHitObject)current.Previous(0);
             OsuDifficultyHitObject osuNext = (OsuDifficultyHitObject)current.Next(0);
 
-            double[] prev_frac_x = { 1.0, 1.5, 2.0, 3.0, 4.0 };
-            double[] prev_frac_y = { 3, 0.15, 0.5, 0.25, 0.0 };
+            double[] prev_fraction_x = { 1.0, 1.5, 2.0, 3.0, 4.0 };
+            double[] prev_fraction_y = { 2.0, 1.5, 1.5, 2.0, 0.0 };
 
-            double[] next_frac_x = { 1.0 , 7.0/6.0, 1.5 , 1.75, 2.0, 3.0, 4.0 };
-            double[] next_frac_y = { 0.05, 0.75 , 4, 1.0 , 0.05, 0.0, 0.0 };
+            double[] next_fraction_x = { 1.0, 7.0 / 6.0, 1.5, 1.75, 2.0, 3.0, 4.0 };
+            double[] next_fraction_y = { 0.05, 1.5, 2.0, 1.0, 0.05, 0.0, 0.0 };
 
             note_history.Clear();
             note_history_virtual.Clear();
@@ -48,7 +42,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double prevStrainTime = osuPrev != null ? osuPrev.StrainTime / 1000 : 0;
             double prevVirtualStrainTime = osuPrev != null ? calculateVirtualStrainTime(osuPrev) : 0;
             double virtualStrainTime = calculateVirtualStrainTime(osuCurrent);
-            identicalStrainTolerance = osuCurrent.HitWindowGreat / 2000;
+            identicalStrainTolerance = osuCurrent.HitWindowGreat / 1850;
 
             int index = -1; // Start from current
 
@@ -70,7 +64,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 note_history_virtual.Add(virtualStrainT);
                 timeElapsed += strainT;
 
-                if (timeElapsed > 2 || note_history.Count > 16)
+                if (timeElapsed > 2 || note_history.Count > 12)
                     break;
 
                 if (note_history.Count < note_history_virtual.Count)
@@ -87,11 +81,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             if (note_history.Count > 2)
             {
-                double repetition = 1.0 - calculateExpectancy(note_history);
+                double repetition = 1.0 - calculateExpectancy(note_history, prev_fraction_x, prev_fraction_y);
 
-                // Added arbitrary buffer to virtualRepetition because slider endtimes are not a consistent rhythmic reference point due to leniency (also makes values better)
-
-                double virtualRepetition = 1.0 - calculateExpectancy(note_history_virtual);
+                double virtualRepetition = 1.0 - calculateExpectancy(note_history_virtual, prev_fraction_x, prev_fraction_y);
                 double repetitionExponent = Math.Min(2.0, 66.25 * Math.Min(strainTime, virtualStrainTime) - 1.65625);
                 repetitionVal = Math.Pow(Math.Min(repetition, virtualRepetition), repetitionExponent);
 
@@ -108,8 +100,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
 
             double multiplier = Math.Min(
-                Math.Min(compareStrains(strainTime, prevStrainTime, prev_frac_x, prev_frac_y), compareStrains(strainTime, prevVirtualStrainTime, prev_frac_x, prev_frac_y)),
-                Math.Min(compareStrains(virtualStrainTime, prevStrainTime, prev_frac_x, prev_frac_y), compareStrains(virtualStrainTime, prevVirtualStrainTime, prev_frac_x, prev_frac_y))
+                Math.Min(compareStrains(strainTime, prevStrainTime, prev_fraction_x, prev_fraction_y), compareStrains(strainTime, prevVirtualStrainTime, prev_fraction_x, prev_fraction_y)),
+                Math.Min(compareStrains(virtualStrainTime, prevStrainTime, prev_fraction_x, prev_fraction_y), compareStrains(virtualStrainTime, prevVirtualStrainTime, prev_fraction_x, prev_fraction_y))
             );
 
             if (current.BaseObject is Slider)
@@ -122,13 +114,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (osuNext == null) return strain;
 
             double nextTime = osuNext.StrainTime / 1000.0;
-            double nextVirtualStrainTime = 0;
-            if (current.BaseObject is Slider currSlider)
-                nextVirtualStrainTime = Math.Max(nextTime - currSlider.EndTime / 1000.0, 0.025);
+            double nextVirtualStrainTime = calculateVirtualStrainTime(osuNext);
 
             double nextMultiplier = Math.Min(
-                Math.Min(compareStrains(strainTime, nextTime, next_frac_x, next_frac_y), compareStrains(strainTime, nextVirtualStrainTime, next_frac_x, next_frac_y)),
-                Math.Min(compareStrains(virtualStrainTime, nextTime, next_frac_x, next_frac_y), compareStrains(virtualStrainTime, nextVirtualStrainTime, next_frac_x, next_frac_y))
+                Math.Min(compareStrains(strainTime, nextTime, next_fraction_x, next_fraction_y), compareStrains(strainTime, nextVirtualStrainTime, next_fraction_x, next_fraction_y)),
+                Math.Min(compareStrains(virtualStrainTime, nextTime, next_fraction_x, next_fraction_y), compareStrains(virtualStrainTime, nextVirtualStrainTime, next_fraction_x, next_fraction_y))
             );
             if (osuNext.BaseObject is Slider)
                 nextMultiplier /= 2;
@@ -171,7 +161,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             return current.StrainTime / 1000;
         }
 
-        private static double calculateExpectancy(List<double> refNoteHistory)
+        private static double calculateExpectancy(List<double> refNoteHistory, double[] prev_fraction_x, double[] prev_fraction_y)
         {
             (double anomalyVal, bool exists) = checkAnomaly(refNoteHistory);
 
