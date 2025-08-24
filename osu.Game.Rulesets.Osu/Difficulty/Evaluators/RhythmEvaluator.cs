@@ -30,10 +30,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             OsuDifficultyHitObject osuNext = (OsuDifficultyHitObject)current.Next(0);
 
             double[] prev_fraction_x = { 1.0, 1.5, 2.0, 3.0, 4.0 };
-            double[] prev_fraction_y = { 2.0, 2.0, 1.5, 2.0, 0.0 };
+            double[] prev_fraction_y = { 2.0, 1.5, 1.5, 2.0, 0.0 };
 
             double[] next_fraction_x = { 1.0, 7.0 / 6.0, 1.5, 1.75, 2.0, 3.0, 4.0 };
-            double[] next_fraction_y = { 0.05, 2.0, 2, 1.0, 0.05, 0.0, 0.0 };
+            double[] next_fraction_y = { 0.05, 1.5, 2.0, 1.0, 0.05, 0.0, 0.0 };
 
             note_history.Clear();
             note_history_virtual.Clear();
@@ -114,9 +114,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (osuNext == null) return strain;
 
             double nextTime = osuNext.StrainTime / 1000.0;
-            double nextVirtualStrainTime = 0;
-            if (current.BaseObject is Slider currSlider)
-                nextVirtualStrainTime = Math.Max(nextTime - currSlider.EndTime / 1000.0, 0.025);
+            double nextVirtualStrainTime = calculateVirtualStrainTime(osuNext);
 
             double nextMultiplier = Math.Min(
                 Math.Min(compareStrains(strainTime, nextTime, next_fraction_x, next_fraction_y), compareStrains(strainTime, nextVirtualStrainTime, next_fraction_x, next_fraction_y)),

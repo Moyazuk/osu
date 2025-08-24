@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class FingerControl : Skill
     {
-        private double skillMultiplier => 7.0;
+        private double skillMultiplier => 4.0;
 
         private readonly List<double> noteDifficulties = new List<double>();
 
