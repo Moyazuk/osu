@@ -30,10 +30,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             OsuDifficultyHitObject osuNext = (OsuDifficultyHitObject)current.Next(0);
 
             double[] prev_fraction_x = { 1.0, 1.5, 2.0, 3.0, 4.0 };
-            double[] prev_fraction_y = { 2.0, 1.5, 1.5, 2.0, 0.0 };
+            double[] prev_fraction_y = { 2, 0.05, 0.05, 0.15, 0.0 };
 
             double[] next_fraction_x = { 1.0, 7.0 / 6.0, 1.5, 1.75, 2.0, 3.0, 4.0 };
-            double[] next_fraction_y = { 0.05, 1.5, 2.0, 1.0, 0.05, 0.0, 0.0 };
+            double[] next_fraction_y = { 0.05, 2, 2, 0.25, 0.40, 0.05, 0.25 };
 
             note_history.Clear();
             note_history_virtual.Clear();
@@ -42,7 +42,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double prevStrainTime = osuPrev != null ? osuPrev.StrainTime / 1000 : 0;
             double prevVirtualStrainTime = osuPrev != null ? calculateVirtualStrainTime(osuPrev) : 0;
             double virtualStrainTime = calculateVirtualStrainTime(osuCurrent);
-            identicalStrainTolerance = osuCurrent.HitWindowGreat / 1850;
+            identicalStrainTolerance = osuCurrent.HitWindowGreat / 2000;
 
             int index = -1; // Start from current
 
