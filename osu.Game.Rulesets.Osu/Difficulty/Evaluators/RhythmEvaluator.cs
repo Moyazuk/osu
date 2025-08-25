@@ -33,7 +33,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double[] prev_fraction_y = { 2, 0.05, 0.05, 0.15, 0.0 };
 
             double[] next_fraction_x = { 1.0, 7.0 / 6.0, 1.5, 1.75, 2.0, 3.0, 4.0 };
-            double[] next_fraction_y = { 0.05, 2, 2, 0.25, 0.40, 0.05, 0.25 };
+            double[] next_fraction_y = { 0.05, 2, 2.5, 0.25, 0.40, 0.05, 0.25 };
 
             note_history.Clear();
             note_history_virtual.Clear();
@@ -64,7 +64,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 note_history_virtual.Add(virtualStrainT);
                 timeElapsed += strainT;
 
-                if (timeElapsed > 2 || note_history.Count > 12)
+                if (timeElapsed > 2 || note_history.Count > 16)
                     break;
 
                 if (note_history.Count < note_history_virtual.Count)

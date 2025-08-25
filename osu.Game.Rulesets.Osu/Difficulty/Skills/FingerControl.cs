@@ -99,6 +99,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return noteDifficulties.Sum(s => 1.1 / (1 + Math.Exp(-5 * (s / consistentTopNote - 0.8))));
         }
 
+        public double RelevantNoteCount()
+        {
+            if (noteDifficulties.Count == 0)
+                return 0;
+
+            double maxStrain = noteDifficulties.Max();
+            if (maxStrain == 0)
+                return 0;
+
+            return noteDifficulties.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / maxStrain * 12.0 - 3.0))));
+        }
+
         public double CountTopWeightedSliders()
         {
             if (sliderStrains.Count == 0)

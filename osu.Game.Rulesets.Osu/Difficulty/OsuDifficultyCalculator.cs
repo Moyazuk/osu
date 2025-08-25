@@ -70,6 +70,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double speedNotes = speed.RelevantNoteCount();
 
+            double fingerControlNotes = fingerControl.RelevantNoteCount();
+
             double aimDifficultStrainCount = aim.CountTopWeightedStrains();
             double speedDifficultStrainCount = speed.CountTopWeightedStrains();
             double fingerControlDifficultNoteCount = fingerControl.CountTopWeightedNotes();
@@ -144,6 +146,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 AimDifficultSliderCount = difficultSliders,
                 SpeedDifficulty = speedRating,
                 SpeedNoteCount = speedNotes,
+                FingerControlNoteCount = fingerControlNotes,
                 FingerControlDifficulty = fingerControlRating,
                 FlashlightDifficulty = flashlightRating,
                 SliderFactor = sliderFactor,
