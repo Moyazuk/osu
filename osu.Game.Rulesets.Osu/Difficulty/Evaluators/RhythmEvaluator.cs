@@ -30,10 +30,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             OsuDifficultyHitObject osuNext = (OsuDifficultyHitObject)current.Next(0);
 
             double[] prev_fraction_x = { 1.0, 1.5, 2.0, 3.0, 4.0 };
-            double[] prev_fraction_y = { 2, 0.05, 0.05, 0.15, 0.0 };
+            double[] prev_fraction_y = { 2, 0.05, 0.05, 0.05, 4.0 };
 
             double[] next_fraction_x = { 1.0, 7.0 / 6.0, 1.5, 1.75, 2.0, 3.0, 4.0 };
-            double[] next_fraction_y = { 0.05, 2, 2.5, 0.25, 0.40, 0.05, 0.25 };
+            double[] next_fraction_y = { 0.05, 2.5, 1, 0.05, 0.25, 0.25, 0.15 };
 
             note_history.Clear();
             note_history_virtual.Clear();
@@ -125,8 +125,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             strain *= nextMultiplier;
 
+            double doubletapness = 1.0 - osuCurrent.GetDoubletapness((OsuDifficultyHitObject?)osuCurrent.Next(0));
+
             // Console.WriteLine($"strain: {strain}, repetitionVal: {repetitionVal}, multiplier: {multiplier}, nextMult: {nextMultiplier}, downtimeScale: {downtimeScale}, appearanceScale {appearanceScale}, uniqueScale, {uniqueScale}");
-            return strain;
+            return strain * doubletapness;
         }
 
         private static double calculateDowntime(double strainTime, List<double> refNoteHistory)
