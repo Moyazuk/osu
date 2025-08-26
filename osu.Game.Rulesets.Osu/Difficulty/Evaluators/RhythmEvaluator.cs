@@ -27,21 +27,31 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             OsuDifficultyHitObject osuCurrent = (OsuDifficultyHitObject)current;
             OsuDifficultyHitObject osuPrev = (OsuDifficultyHitObject)current.Previous(0);
+            OsuDifficultyHitObject osuPrev2 = (OsuDifficultyHitObject)current.Previous(1);
             OsuDifficultyHitObject osuNext = (OsuDifficultyHitObject)current.Next(0);
+            OsuDifficultyHitObject osuNext2 = (OsuDifficultyHitObject)current.Next(1);
 
             double[] prev_fraction_x = { 1.0, 1.5, 2.0, 3.0, 4.0 };
-            double[] prev_fraction_y = { 2, 0.05, 0.05, 0.05, 4.0 };
+            double[] prev_fraction_y = { 2, 0.05, 0.05, 0.05, 3.0 };
 
             double[] next_fraction_x = { 1.0, 7.0 / 6.0, 1.5, 1.75, 2.0, 3.0, 4.0 };
-            double[] next_fraction_y = { 0.05, 2.5, 1, 0.05, 0.25, 0.25, 0.15 };
+            double[] next_fraction_y = { 0.05, 2, 1.25, 0.05, 0.25, 0.25, 0.25 };
+
+            double[] prev2_fraction_x = { 1.0, 1.5, 2.0, 3.0, 4.0 };
+            double[] prev2_fraction_y = { 1, 2, 1.0, 0.25, 0.5 };
+
+            double[] next2_fraction_x = { 1.0, 7.0 / 6.0, 1.5, 1.75, 2.0, 3.0, 4.0 };
+            double[] next2_fraction_y = { 1.0, 1.0, 1.5, 0.05, 0.05, 0.05, 1.5 };
 
             note_history.Clear();
             note_history_virtual.Clear();
 
             double strainTime = osuCurrent.StrainTime / 1000;
-            double prevStrainTime = osuPrev != null ? osuPrev.StrainTime / 1000 : 0;
-            double prevVirtualStrainTime = osuPrev != null ? calculateVirtualStrainTime(osuPrev) : 0;
             double virtualStrainTime = calculateVirtualStrainTime(osuCurrent);
+            double prevStrainTime = osuPrev != null ? osuPrev.StrainTime / 1000 : 0;
+            double prev2StrainTime = osuPrev2 != null ? osuPrev2.StrainTime / 1000 : 0;
+            double prevVirtualStrainTime = osuPrev != null ? calculateVirtualStrainTime(osuPrev) : 0;
+            double prev2VirtualStrainTime = osuPrev2 != null ? calculateVirtualStrainTime(osuPrev2) : 0;
             identicalStrainTolerance = osuCurrent.HitWindowGreat / 2000;
 
             int index = -1; // Start from current
@@ -83,7 +93,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             {
                 double repetition = 1.0 - calculateExpectancy(note_history, prev_fraction_x, prev_fraction_y);
 
-                double virtualRepetition = 1.0 - calculateExpectancy(note_history_virtual, prev_fraction_x, prev_fraction_y);
+                double virtualRepetition = 1.25 - calculateExpectancy(note_history_virtual, prev_fraction_x, prev_fraction_y);
                 double repetitionExponent = Math.Min(2.0, 66.25 * Math.Min(strainTime, virtualStrainTime) - 1.65625);
                 repetitionVal = Math.Pow(Math.Min(repetition, virtualRepetition), repetitionExponent);
 
@@ -99,31 +109,45 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 uniqueScale = 1.0 + Math.Pow((Math.Min(uniqueVal, virtualUniqueVal) - 1.0) / 8, 4.0);
             }
 
-            double multiplier = Math.Min(
+
+            double currMultiplier = Math.Min(
                 Math.Min(compareStrains(strainTime, prevStrainTime, prev_fraction_x, prev_fraction_y), compareStrains(strainTime, prevVirtualStrainTime, prev_fraction_x, prev_fraction_y)),
                 Math.Min(compareStrains(virtualStrainTime, prevStrainTime, prev_fraction_x, prev_fraction_y), compareStrains(virtualStrainTime, prevVirtualStrainTime, prev_fraction_x, prev_fraction_y))
             );
 
+            double prevMultiplier = Math.Min(
+                Math.Min(compareStrains(prevStrainTime, prev2StrainTime, prev2_fraction_x, prev2_fraction_y), compareStrains(prevStrainTime, prev2VirtualStrainTime, prev2_fraction_x, prev2_fraction_y)),
+                Math.Min(compareStrains(prevVirtualStrainTime, prev2StrainTime, prev2_fraction_x, prev2_fraction_y), compareStrains(prevVirtualStrainTime, prev2VirtualStrainTime, prev2_fraction_x, prev2_fraction_y))
+            );
+
             if (current.BaseObject is Slider)
             {
-                multiplier /= 2;
+                currMultiplier /= 2;
             }
 
-            double strain = repetitionVal * multiplier * downtimeScale * appearanceScale * uniqueScale / strainTime;
+            double strain = repetitionVal * currMultiplier * prevMultiplier * downtimeScale * appearanceScale * uniqueScale / strainTime;
 
-            if (osuNext == null) return strain;
+            if (osuNext == null || osuNext2 == null) return strain;
 
             double nextTime = osuNext.StrainTime / 1000.0;
+            double next2Time = osuNext2.StrainTime / 1000.0;
             double nextVirtualStrainTime = calculateVirtualStrainTime(osuNext);
+            double next2VirtualStrainTime = calculateVirtualStrainTime(osuNext2);
 
             double nextMultiplier = Math.Min(
                 Math.Min(compareStrains(strainTime, nextTime, next_fraction_x, next_fraction_y), compareStrains(strainTime, nextVirtualStrainTime, next_fraction_x, next_fraction_y)),
                 Math.Min(compareStrains(virtualStrainTime, nextTime, next_fraction_x, next_fraction_y), compareStrains(virtualStrainTime, nextVirtualStrainTime, next_fraction_x, next_fraction_y))
             );
+
+            double next2Multiplier = Math.Min(
+                Math.Min(compareStrains(nextTime, next2Time, next2_fraction_x, next2_fraction_y), compareStrains(nextTime, next2VirtualStrainTime, next2_fraction_x, next2_fraction_y)),
+                Math.Min(compareStrains(nextVirtualStrainTime, next2Time, next2_fraction_x, next2_fraction_y), compareStrains(nextVirtualStrainTime, next2VirtualStrainTime, next2_fraction_x, next2_fraction_y))
+            );
+
             if (osuNext.BaseObject is Slider)
                 nextMultiplier /= 2;
 
-            strain *= nextMultiplier;
+            strain *= nextMultiplier * next2Multiplier;
 
             double doubletapness = 1.0 - osuCurrent.GetDoubletapness((OsuDifficultyHitObject?)osuCurrent.Next(0));
 
