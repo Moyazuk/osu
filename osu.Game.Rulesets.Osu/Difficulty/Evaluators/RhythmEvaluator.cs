@@ -32,16 +32,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             OsuDifficultyHitObject osuNext2 = (OsuDifficultyHitObject)current.Next(1);
 
             double[] prev_fraction_x = { 1.0, 1.5, 2.0, 3.0, 4.0 };
-            double[] prev_fraction_y = { 2, 0.05, 0.05, 0.05, 3.0 };
+            double[] prev_fraction_y = { 2, 0.05, 0.5, 0.5, 3.0 };
 
             double[] next_fraction_x = { 1.0, 7.0 / 6.0, 1.5, 1.75, 2.0, 3.0, 4.0 };
-            double[] next_fraction_y = { 0.05, 2, 1.25, 0.05, 0.25, 0.25, 0.25 };
+            double[] next_fraction_y = { 0.05, 0.75, 1.25, 0.05, 0.85, 0.0, 0.5 };
 
             double[] prev2_fraction_x = { 1.0, 1.5, 2.0, 3.0, 4.0 };
-            double[] prev2_fraction_y = { 1, 2, 1.0, 0.25, 0.5 };
+            double[] prev2_fraction_y = { 2, 1, 0.05, 0.05, 0.5 };
 
             double[] next2_fraction_x = { 1.0, 7.0 / 6.0, 1.5, 1.75, 2.0, 3.0, 4.0 };
-            double[] next2_fraction_y = { 1.0, 1.0, 1.5, 0.05, 0.05, 0.05, 1.5 };
+            double[] next2_fraction_y = { 0.5, 1.5, 1, 0.5, 0.05, 0.05, 1.0 };
 
             note_history.Clear();
             note_history_virtual.Clear();
