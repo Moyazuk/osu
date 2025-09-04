@@ -50,7 +50,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 difficulty = Math.Max(difficulty, movementVelocity + travelVelocity); // take the larger total combined velocity.
             }
 
-            return difficulty * 1.90 * osuCurrObj.SmallCircleBonus;
+            return difficulty * 1 * osuCurrObj.SmallCircleBonus;
         }
 
         /// <summary>
@@ -85,10 +85,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double angleScale = 1.0 - DifficultyCalculationUtils.Smootherstep(angle, 0, maxBonusAngle);
 
             //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
-            angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius * 1, radius * 6);
+            angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius, radius * 6);
 
 
-            double velocityBonus = 1 + Math.Pow(previousVelocity, 3) * angleScale * 0.5;
+            double velocityBonus = 1.125 + Math.Pow(previousVelocity, 3) * angleScale * 0.75;
 
             return Math.Pow(distanceTravelled, velocityBonus);
         }
