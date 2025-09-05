@@ -32,16 +32,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             OsuDifficultyHitObject osuNext2 = (OsuDifficultyHitObject)current.Next(1);
 
             double[] prev_fraction_x = { 1.0, 1.5, 2.0, 3.0, 4.0 };
-            double[] prev_fraction_y = { 0.5, 0.05, 0.25, 0.25, 0.0 };
+            double[] prev_fraction_y = { 0.5, 0.05, 1, 0.5, 0.0 };
 
             double[] next_fraction_x = { 1.0, 7.0 / 6.0, 1.5, 1.75, 2.0, 3.0, 4.0 };
-            double[] next_fraction_y = { 0.05, 2.0, 0.75, 1.0, 4.0, 0.0, 0.0 };
+            double[] next_fraction_y = { 0.05, 4, 1, 2, 0.5, 0.05, 0.0 };
 
             double[] prev2_fraction_x = { 1.0, 1.5, 2.0, 3.0, 4.0 };
-            double[] prev2_fraction_y = { 1.0, 1.0, 2.0, 1.0, 1.0 };
+            double[] prev2_fraction_y = { 0.25, 2.5, 0.75, 0.05, 1.5 };
 
             double[] next2_fraction_x = { 1.0, 7.0 / 6.0, 1.5, 1.75, 2.0, 3.0, 4.0 };
-            double[] next2_fraction_y = { 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 };
+            double[] next2_fraction_y = { 1.0, 0.05, 0.05, 0.05, 0.5, 2, 0.5 };
 
             note_history.Clear();
             note_history_virtual.Clear();
@@ -152,7 +152,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double doubletapness = 1.0 - osuCurrent.GetDoubletapness((OsuDifficultyHitObject?)osuCurrent.Next(0));
 
             // Console.WriteLine($"strain: {strain}, repetitionVal: {repetitionVal}, multiplier: {multiplier}, nextMult: {nextMultiplier}, downtimeScale: {downtimeScale}, appearanceScale {appearanceScale}, uniqueScale, {uniqueScale}");
-            return strain * doubletapness;
+            return strain;
         }
 
         private static double calculateDowntime(double strainTime, List<double> refNoteHistory)
