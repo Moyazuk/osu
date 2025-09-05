@@ -25,6 +25,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
 
             double adjustedDistanceScale = 1.0;
+            double sliderBonus = 0;
 
             if (osuCurrObj.Angle.HasValue &&
                 osuPrevObj?.Angle != null &&
@@ -35,7 +36,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double angularVelocity = angleDifferenceAdjusted / (0.1 * osuCurrObj.StrainTime);
                 double angularVelocityBonus = Math.Max(0.0, Math.Pow(angularVelocity, 0.5) - 1.0);
                 //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
-                angularVelocityBonus *= DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, radius * 0.5, radius * 2);
+                angularVelocityBonus *= DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, radius * 0.5, radius * 3);
                 adjustedDistanceScale = 1 + angularVelocityBonus * 0.06;
             }
 
@@ -53,11 +54,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 difficulty = Math.Max(difficulty, movementVelocity + travelVelocity); // take the larger total combined velocity.
             }
 
+            if (osuPrevObj.BaseObject is Slider)
+            {
+                // Reward sliders based on velocity.
+                sliderBonus = osuPrevObj.TravelDistance / osuPrevObj.TravelTime;
+            }
+
             double flowVelChange = Math.Abs(prevVelocity - currVelocity);
 
             difficulty += flowVelChange * 4;
 
-            return difficulty * 0.5 * osuCurrObj.SmallCircleBonus;
+            // Add in additional slider velocity bonus.
+            if (withSliderTravelDistance)
+                difficulty += sliderBonus * 0.3;
+
+            return difficulty * 0.55 * osuCurrObj.SmallCircleBonus;
         }
 
         /// <summary>
@@ -95,7 +106,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius, radius * 6);
 
 
-            double velocityBonus = 1.25 + Math.Pow(previousVelocity, 3) * angleScale * 0.5;
+            double velocityBonus = 1.25 + Math.Pow(previousVelocity, 3) * angleScale * 0.45;
 
             return Math.Pow(distanceTravelled, velocityBonus);
         }
