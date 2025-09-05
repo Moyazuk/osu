@@ -19,6 +19,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
 
+            double currVelocity = osuCurrObj.LazyJumpDistance / osuCurrObj.StrainTime;
+            double prevVelocity = osuPrevObj.LazyJumpDistance / osuPrevObj.StrainTime;
+
             const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
 
             double adjustedDistanceScale = 1.0;
@@ -32,11 +35,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double angularVelocity = angleDifferenceAdjusted / (0.1 * osuCurrObj.StrainTime);
                 double angularVelocityBonus = Math.Max(0.0, Math.Pow(angularVelocity, 0.5) - 1.0);
                 //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
-                angularVelocityBonus *= DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, radius * 0.5, radius * 4);
-                adjustedDistanceScale = 1 + angularVelocityBonus * 0.075;
+                angularVelocityBonus *= DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, radius * 0.5, radius * 2);
+                adjustedDistanceScale = 1 + angularVelocityBonus * 0.045;
             }
 
-            var currLazyJumpDistance = AdjustFlowDistance(osuCurrObj);
+            double currLazyJumpDistance = AdjustFlowDistance(osuCurrObj);
 
             // Base snap difficulty is velocity.
             double difficulty = Math.Pow(currLazyJumpDistance, adjustedDistanceScale) / osuCurrObj.StrainTime;
@@ -50,7 +53,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 difficulty = Math.Max(difficulty, movementVelocity + travelVelocity); // take the larger total combined velocity.
             }
 
-            return difficulty * 1 * osuCurrObj.SmallCircleBonus;
+            double flowVelChange = Math.Abs(prevVelocity - currVelocity);
+
+            difficulty += flowVelChange * 4;
+
+            return difficulty * 0.825 * osuCurrObj.SmallCircleBonus;
         }
 
         /// <summary>
@@ -88,7 +95,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius, radius * 6);
 
 
-            double velocityBonus = 1.125 + Math.Pow(previousVelocity, 3) * angleScale * 0.75;
+            double velocityBonus = 1.15 + Math.Pow(previousVelocity, 3) * angleScale * 0.5;
 
             return Math.Pow(distanceTravelled, velocityBonus);
         }
