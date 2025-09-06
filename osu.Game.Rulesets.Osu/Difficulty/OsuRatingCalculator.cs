@@ -71,8 +71,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 ratingMultiplier += CalculateVisibilityBonus(mods, approachRate, visibilityFactor, sliderFactor);
             }
 
-            // It is important to consider accuracy difficulty when scaling with accuracy.
-            ratingMultiplier *= 0.98 + Math.Pow(Math.Max(0, overallDifficulty), 2) / 2500;
+            // OD 11.11 SS stays the same.
+            ratingMultiplier *= 1 + 119 / 4050.0;
 
             return aimRating * Math.Cbrt(ratingMultiplier);
         }
@@ -114,7 +114,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 ratingMultiplier += CalculateVisibilityBonus(mods, approachRate, visibilityFactor);
             }
 
-            ratingMultiplier *= 0.95 + Math.Pow(Math.Max(0, overallDifficulty), 2) / 750;
+            // OD 11.11 SS stays the same.
+            ratingMultiplier *= 1 + 119 / 4050.0;
 
             return speedRating * Math.Cbrt(ratingMultiplier);
         }
