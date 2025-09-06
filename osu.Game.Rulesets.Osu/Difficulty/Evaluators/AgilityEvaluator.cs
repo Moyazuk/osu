@@ -13,7 +13,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     {
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
-            if (!IsValid(current, 2))
+            if (!IsValid(current, 3))
                 return 0;
 
             const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
@@ -34,8 +34,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
 
+            double prevAngle = osuPrevObj.Angle!.Value * 180 / Math.PI;
+
+            double angleDifference = Math.Abs(currentAngle - prevAngle);
+
             // We reward high bpm more for wider angles, but only when both current and previous distance are over 0.5 radii.
-            double baseBpm = 240.0 / (1 + 0.2 * Smootherstep(currentAngle, 0, 120) * currDistanceMultiplier * prevDistanceMultiplier);
+            double baseBpm = 240.0 / (1 + (0.1 * Smootherstep(currentAngle, 0, 120) + 0.2 * Smootherstep(angleDifference, 0, 90)) * currDistanceMultiplier * prevDistanceMultiplier);
 
             // Agility bonus of 1 at base BPM.
             double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 4.5) - 1);

@@ -36,8 +36,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double angularVelocity = angleDifferenceAdjusted / (0.1 * osuCurrObj.StrainTime);
                 double angularVelocityBonus = Math.Max(0.0, Math.Pow(angularVelocity, 0.5) - 1.0);
                 //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
-                angularVelocityBonus *= DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, radius * 0.5, radius * 3);
-                adjustedDistanceScale = 1 + angularVelocityBonus * 0.06;
+                angularVelocityBonus *= DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, radius * 0.5, radius * 2);
+                adjustedDistanceScale = 1 + angularVelocityBonus * 0.035;
             }
 
             double currLazyJumpDistance = AdjustFlowDistance(osuCurrObj);
