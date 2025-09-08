@@ -32,8 +32,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 lastStrainTime += osuPrevObj.ExtraDeltaTime * nukeMultiplier;
             }
 
-            Console.WriteLine($"currStrainTime = {currStrainTime}");
-
             double currDistanceMultiplier = Smootherstep(osuCurrObj.LazyJumpDistance / radius, 0.5, 1);
             double prevDistanceMultiplier = Smootherstep(osuPrevObj.LazyJumpDistance / radius, 0.5, 1);
 

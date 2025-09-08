@@ -106,7 +106,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius, radius * 6);
 
 
-            double velocityBonus = 1.5 + Math.Pow(previousVelocity, 3) * angleScale * 0.75;
+            double velocityBonus = 1.5 + Math.Pow(previousVelocity, 3) * angleScale * 0.5;
 
             return Math.Pow(distanceTravelled, velocityBonus);
         }
