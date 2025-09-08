@@ -165,12 +165,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             //Console.WriteLine($"AngleChangeBonus = {angleChangeBonus}");
 
+            // Apply high circle size bonus
+            aimStrain *= osuCurrObj.SmallCircleBonus;
+
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
                 aimStrain += sliderBonus * 0.3;
-
-            // Apply high circle size bonus
-            aimStrain *= osuCurrObj.SmallCircleBonus;
 
             return aimStrain;
         }
