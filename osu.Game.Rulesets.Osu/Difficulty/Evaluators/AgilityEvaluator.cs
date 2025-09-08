@@ -11,7 +11,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class AgilityEvaluator
     {
-        public static double EvaluateDifficultyOf(DifficultyHitObject current)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withCheesability)
         {
             if (!IsValid(current, 3))
                 return 0;
@@ -21,16 +21,26 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
 
-            double currVelocity = osuCurrObj.LazyJumpDistance / osuCurrObj.StrainTime;
-            double prevVelocity = osuPrevObj.LazyJumpDistance / osuPrevObj.StrainTime;
+            double nukeMultiplier = 8;
+
+            double currStrainTime = osuCurrObj.StrainTime;
+            double lastStrainTime = osuPrevObj.StrainTime;
+
+            if (withCheesability)
+            {
+                currStrainTime += osuCurrObj.ExtraDeltaTime * nukeMultiplier;
+                lastStrainTime += osuPrevObj.ExtraDeltaTime * nukeMultiplier;
+            }
+
+            Console.WriteLine($"currStrainTime = {currStrainTime}");
 
             double currDistanceMultiplier = Smootherstep(osuCurrObj.LazyJumpDistance / radius, 0.5, 1);
             double prevDistanceMultiplier = Smootherstep(osuPrevObj.LazyJumpDistance / radius, 0.5, 1);
 
             // If the previous notes are stacked, we add the previous note's strainTime since there was no movement since at least 2 notes earlier.
             // https://youtu.be/-yJPIk-YSLI?t=186
-            double currTime = osuCurrObj.StrainTime + osuPrevObj.StrainTime * (1 - prevDistanceMultiplier);
-            double prevTime = osuPrevObj.StrainTime;
+            double currTime = currStrainTime + lastStrainTime * (1 - prevDistanceMultiplier);
+            double prevTime = lastStrainTime;
 
             double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
 
@@ -39,12 +49,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double angleDifference = Math.Abs(currentAngle - prevAngle);
 
             // We reward high bpm more for wider angles, but only when both current and previous distance are over 0.5 radii.
-            double baseBpm = 240.0 / (1 + (0.1 * Smootherstep(currentAngle, 0, 120) + 0.2 * Smootherstep(angleDifference, 0, 90)) * currDistanceMultiplier * prevDistanceMultiplier);
+            double baseBpm = 240.0 / (1 + (0.175 * Smootherstep(currentAngle, 0, 120) + 0.2 * Smootherstep(angleDifference, 0, 90)) * currDistanceMultiplier * prevDistanceMultiplier);
 
             // Agility bonus of 1 at base BPM.
             double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 4.5) - 1);
 
-            return agilityBonus * 0.075;
+            return agilityBonus * 0.06;
         }
     }
 }

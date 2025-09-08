@@ -71,9 +71,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double auxiliaryStrainValue = 0;
             double currentStrainDifficulty = 0;
             double transitionBonus = 0;
-            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, WithCheesability) * (skillMultiplier - 6);
+            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, WithCheesability) * (skillMultiplier - 3);
             double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
-            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current, WithCheesability) * skillMultiplier;
 
             double snapTransitionBonus = previousWasFlow.HasValue && previousWasFlow.Value ? 1.25 : 1.0;
             double flowTransitionBonus = previousWasFlow.HasValue && !previousWasFlow.Value ? 1.25 : 1.0;

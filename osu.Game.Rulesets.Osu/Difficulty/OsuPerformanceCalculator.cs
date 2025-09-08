@@ -147,7 +147,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double aimValue = computeAimValue(score, osuAttributes);
             double speedValue = computeSpeedValue(score, osuAttributes);
-            double accuracyValue = computeAccuracyValue(score);
+            double accuracyValue = computeAccuracyValue(score, osuAttributes);
             double flashlightValue = computeFlashlightValue(score, osuAttributes);
 
             double totalValue =
@@ -278,12 +278,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return speedValue;
         }
 
-        private double computeAccuracyValue(ScoreInfo score)
+        private double computeAccuracyValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
             if (score.Mods.Any(h => h is OsuModRelax) || deviation == null)
                 return 0.0;
 
-            double accuracyValue = 100 * Math.Pow(7.5 / (double)deviation, 2);
+            int amountHitObjectsWithAccuracy = attributes.HitCircleCount;
+            if (!usingClassicSliderAccuracy || usingScoreV2)
+                amountHitObjectsWithAccuracy += attributes.SliderCount;
+
+            double accuracyValue = 120 * Math.Pow(7.5 / (double)deviation, 2);
 
             // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
             if (score.Mods.Any(m => m is OsuModBlinds))
@@ -296,6 +300,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             if (score.Mods.Any(m => m is OsuModFlashlight))
                 accuracyValue *= 1.02;
+
+            // Bonus for many hitcircles - it's harder to keep good accuracy up for longer.
+            accuracyValue *= Math.Min(1.15, Math.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.3));
 
             return accuracyValue;
         }

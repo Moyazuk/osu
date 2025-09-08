@@ -163,7 +163,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             aimStrain += angleChangeBonus * 0.5;
 
-            Console.WriteLine($"AngleChangeBonus = {angleChangeBonus}");
+            //Console.WriteLine($"AngleChangeBonus = {angleChangeBonus}");
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
