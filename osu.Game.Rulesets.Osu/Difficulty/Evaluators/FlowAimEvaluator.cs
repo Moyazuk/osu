@@ -23,9 +23,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double prevVelocity = osuPrevObj.LazyJumpDistance / osuPrevObj.StrainTime;
 
             const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
+            const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
 
             double adjustedDistanceScale = 1.0;
             double sliderBonus = 0;
+
+            double wiggleBonus = 0;
 
             if (osuCurrObj.Angle.HasValue &&
                 osuPrevObj?.Angle != null &&
@@ -38,6 +41,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
                 angularVelocityBonus *= DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, radius * 0.5, radius * 2);
                 adjustedDistanceScale = 1 + angularVelocityBonus * 0.03;
+
+                // Apply wiggle bonus for jumps that are [radius, 3*diameter] in distance, with < 110 angle
+                // https://www.desmos.com/calculator/dp0v0nvowc
+                wiggleBonus = currVelocity
+                              * DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, radius, diameter)
+                              * Math.Pow(DifficultyCalculationUtils.ReverseLerp(osuCurrObj.LazyJumpDistance, diameter * 3, diameter), 1.8)
+                              * DifficultyCalculationUtils.Smootherstep(osuCurrObj.Angle.Value, double.DegreesToRadians(110), double.DegreesToRadians(60))
+                              * DifficultyCalculationUtils.Smootherstep(osuPrevObj.LazyJumpDistance, radius, diameter)
+                              * Math.Pow(DifficultyCalculationUtils.ReverseLerp(osuPrevObj.LazyJumpDistance, diameter * 3, diameter), 1.8)
+                              * DifficultyCalculationUtils.Smootherstep(osuPrevObj.Angle.Value, double.DegreesToRadians(110), double.DegreesToRadians(60));
             }
 
             double currLazyJumpDistance = AdjustFlowDistance(osuCurrObj);
@@ -64,11 +77,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             difficulty += flowVelChange * 4;
 
+            difficulty += wiggleBonus * 7500;
+
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
                 difficulty += sliderBonus * 0.3;
 
-            return difficulty * 0.16 * osuCurrObj.SmallCircleBonus;
+            return difficulty * 0.15 * osuCurrObj.SmallCircleBonus;
         }
 
         /// <summary>
@@ -91,7 +106,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double angle = osuCurr.Angle.Value;
             double distanceTravelled = osuCurr.LazyJumpDistance;
 
-            double maxBonusAngle = double.DegreesToRadians(160);
+            double maxBonusAngle = double.DegreesToRadians(180);
 
             if (angle >= maxBonusAngle)
                 return distanceTravelled;
