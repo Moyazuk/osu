@@ -75,13 +75,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             difficulty += flowVelChange * 4;
 
-            difficulty += wiggleBonus * 7800;
+            difficulty += wiggleBonus * 1200;
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
                 difficulty += sliderBonus * 0.3;
 
-            return difficulty * 0.123 * osuCurrObj.SmallCircleBonus;
+            return difficulty * 0.13 * osuCurrObj.SmallCircleBonus;
         }
 
         /// <summary>
@@ -104,7 +104,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double angle = osuCurr.Angle.Value;
             double distanceTravelled = osuCurr.LazyJumpDistance;
 
-            double maxBonusAngle = double.DegreesToRadians(180);
+            double maxBonusAngle = double.DegreesToRadians(170);
 
             if (angle >= maxBonusAngle)
                 return distanceTravelled;
@@ -116,7 +116,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double angleScale = 1.0 - DifficultyCalculationUtils.Smootherstep(angle, 0, maxBonusAngle);
 
             //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
-            angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius, radius * 8);
+            angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius, radius * 10);
 
 
             double velocityBonus = 1.55 + Math.Pow(previousVelocity, 3) * angleScale * 0.5;
