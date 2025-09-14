@@ -5,7 +5,9 @@ using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
+using static osu.Game.Rulesets.Osu.Difficulty.Preprocessing.OsuDifficultyHitObject;
 using osu.Game.Rulesets.Osu.Objects;
+using osuTK;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
@@ -75,6 +77,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             difficulty += flowVelChange * 4;
 
+            wiggleBonus *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 1);
+
             difficulty += wiggleBonus * 1200;
 
             // Add in additional slider velocity bonus.
@@ -124,6 +128,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             return Math.Pow(distanceTravelled, velocityBonus);
         }
 
+        public static double GetOverlapness(DifficultyHitObject current)
+        {
+            if (!IsValid(current, 1))
+                return 0;
 
+            OsuHitObject o1 = (OsuHitObject)current.BaseObject, o2 = (OsuHitObject)current.Previous(0).BaseObject;
+
+            double distance = Vector2.Distance(o1.StackedPosition, o2.StackedPosition);
+            double radius = o1.Radius;
+
+            return Math.Clamp(1 - Math.Pow(Math.Max(distance - radius, 0) / radius, 2), 0, 1);
+        }
     }
 }
