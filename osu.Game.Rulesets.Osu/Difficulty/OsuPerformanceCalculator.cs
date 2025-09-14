@@ -306,9 +306,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (score.Mods.Any(m => m is OsuModFlashlight))
                 accuracyValue *= 1.02;
 
-            // Bonus for many hitcircles - it's harder to keep good accuracy up for longer.
-            accuracyValue *= Math.Min(1.15, Math.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.3));
-
             return accuracyValue;
         }
 
