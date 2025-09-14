@@ -46,13 +46,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double angleDifference = Math.Abs(currentAngle - prevAngle);
 
+            double angleBonus = 0.175 * Smootherstep(currentAngle, 0, 120);
+
+            double angleChangeBonus = 0.2 * Smootherstep(angleDifference, 0, 90);
+
+            double distanceBonus = 0.00000000125 * Math.Pow(osuCurrObj.LazyJumpDistance, 3);
+
             // We reward high bpm more for wider angles, but only when both current and previous distance are over 0.5 radii.
-            double baseBpm = 240.0 / (1 + (0.175 * Smootherstep(currentAngle, 0, 120) + 0.2 * Smootherstep(angleDifference, 0, 90)) * currDistanceMultiplier * prevDistanceMultiplier);
+            double baseBpm = 320.0 / (1 + (angleBonus + angleChangeBonus + distanceBonus) * currDistanceMultiplier * prevDistanceMultiplier);
 
             // Agility bonus of 1 at base BPM.
             double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 4.5) - 1);
 
-            return agilityBonus * 0.06;
+            return agilityBonus * 0.225;
         }
     }
 }
