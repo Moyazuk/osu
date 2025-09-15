@@ -85,7 +85,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (withSliderTravelDistance)
                 difficulty += sliderBonus * 0.3;
 
-            return difficulty * 0.120 * osuCurrObj.SmallCircleBonus;
+            return difficulty * 0.925 * osuCurrObj.SmallCircleBonus;
         }
 
         /// <summary>
@@ -123,7 +123,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius, radius * 2);
 
 
-            double velocityBonus = 1.55 + Math.Pow(previousVelocity, 1) * angleScale * 0.25;
+            double velocityBonus = 1.1 + Math.Pow(previousVelocity, 1) * angleScale * 0.25;
 
             return Math.Pow(distanceTravelled, velocityBonus);
         }
