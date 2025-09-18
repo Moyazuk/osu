@@ -91,17 +91,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 // Rewarding angles, take the smaller velocity as base.
                 double angleBonus = Math.Min(currVelocity, prevVelocity);
 
+                double wideAngleBase = Math.Min(currVelocity, prevVelocity);
+
                 double angleDifference = Math.Min(Math.Abs(currAngle - lastAngle), Math.Abs(currAngle - lastLastAngle));
 
                 angleChangeBonus = angleBonus * DifficultyCalculationUtils.Smootherstep(angleDifference, double.DegreesToRadians(0), double.DegreesToRadians(90));
 
                 wideAngleBonus = calcWideAngleBonus(currAngle);
 
+                wideAngleBase /= Math.Pow(Math.Max(osuLastObj.StrainTime, osuCurrObj.StrainTime), 1.5);
+
                 // Penalize angle repetition.
                 // wideAngleBonus *= 1 - Math.Min(wideAngleBonus, Math.Pow(calcWideAngleBonus(lastAngle), 3));
 
                 // Apply full wide angle bonus for distance more than one diameter
-                wideAngleBonus *= angleBonus * DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, 0, diameter);
+                wideAngleBonus *= wideAngleBase * DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, 0, diameter);
 
                 if (osuLast2Obj != null)
                 {
@@ -146,7 +150,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             aimStrain += velocityChangeBonus * velocity_change_multiplier;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            aimStrain += wideAngleBonus * 0.75;
+            aimStrain += wideAngleBonus * 1600.75;
 
             aimStrain += angleChangeBonus * 0.5;
 

@@ -26,14 +26,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currStrainTime = osuCurrObj.StrainTime;
             double lastStrainTime = osuPrevObj.StrainTime;
 
+            double currVelocity = osuCurrObj.LazyJumpDistance / currStrainTime;
+
+            double prevVelocity = osuPrevObj.LazyJumpDistance / lastStrainTime;
+
             if (withCheesability)
             {
                 currStrainTime += osuCurrObj.ExtraDeltaTime * nukeMultiplier;
                 lastStrainTime += osuPrevObj.ExtraDeltaTime * nukeMultiplier;
             }
 
-            double currDistanceMultiplier = Smootherstep(osuCurrObj.LazyJumpDistance / radius, 0.5, 1);
-            double prevDistanceMultiplier = Smootherstep(osuPrevObj.LazyJumpDistance / radius, 0.5, 1);
+            double currDistanceMultiplier = Smootherstep(osuCurrObj.LazyJumpDistance / radius, 1, 2);
+            double prevDistanceMultiplier = Smootherstep(osuPrevObj.LazyJumpDistance / radius, 1, 2);
 
             // If the previous notes are stacked, we add the previous note's strainTime since there was no movement since at least 2 notes earlier.
             // https://youtu.be/-yJPIk-YSLI?t=186
@@ -46,19 +50,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double angleDifference = Math.Abs(currentAngle - prevAngle);
 
-            double angleBonus = 0.175 * Smootherstep(currentAngle, 0, 120);
+            double angleBonus = 0.1 * Smootherstep(currentAngle, 0, 120);
 
-            double angleChangeBonus = 0.2 * Smootherstep(angleDifference, 0, 90);
+            double angleChangeBonus = 0.1 * Smootherstep(angleDifference, 0, 90);
 
-            double distanceBonus = 0.00000000125 * Math.Pow(osuCurrObj.LazyJumpDistance, 3);
+            double velocityChangeBonus = Math.Abs(prevVelocity - currVelocity) * 0.1;
+
+            double distanceBonus = 0.00000000175 * Math.Pow(osuCurrObj.LazyJumpDistance, 3);
 
             // We reward high bpm more for wider angles, but only when both current and previous distance are over 0.5 radii.
-            double baseBpm = 320.0 / (1 + (angleBonus + angleChangeBonus + distanceBonus) * currDistanceMultiplier * prevDistanceMultiplier);
+            double baseBpm = 340.0 / (1 + (angleBonus + angleChangeBonus + distanceBonus + velocityChangeBonus) * currDistanceMultiplier * prevDistanceMultiplier);
 
             // Agility bonus of 1 at base BPM.
-            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 4.5) - 1);
+            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 3) - 1);
 
-            return agilityBonus * 0.225;
+            return agilityBonus * 0.265;
         }
     }
 }

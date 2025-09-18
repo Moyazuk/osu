@@ -39,10 +39,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private bool? previousWasFlow = null;
 
-        private double skillMultiplier => 156;
+        private double skillMultiplier => 138;
         private double strainDecayBase => 0.15;
 
-        private double agilityStrainDecayBase => 0.65;
+        private double agilityStrainDecayBase => 0.85;
 
         private const double backwards_strain_influence = 1000;
 

@@ -41,8 +41,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double angularVelocity = angleDifferenceAdjusted / (0.1 * osuCurrObj.StrainTime);
                 double angularVelocityBonus = Math.Max(0.0, Math.Pow(angularVelocity, 0.5) - 1.0);
                 //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
-                angularVelocityBonus *= DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, radius * 0.5, radius * 2);
-                adjustedDistanceScale = 1 + angularVelocityBonus * 0.03;
+                //angularVelocityBonus *= DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, radius * 0.5, radius * 2);
+                adjustedDistanceScale = 1 + angularVelocityBonus * 0.04;
 
                 // Apply wiggle bonus for jumps that are [radius, 3*diameter] in distance, with < 110 angle
                 // https://www.desmos.com/calculator/dp0v0nvowc
@@ -81,11 +81,32 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             difficulty += wiggleBonus * 1200;
 
+            // Flow aim is harder on High BPM
+            const double base_speedflow_multiplier = 0.175; // Base multiplier for speedflow bonus
+            const double bpm_factor = 12; // How steep the bonus is, higher values means more bonus for high BPM
+
+            // Autobalance, it's expected for bonus multiplier to be 1 for the bpm base
+            double bpmBase = DifficultyCalculationUtils.BPMToMilliseconds(220, 4);
+            double bpmFactorMultiplierAtBase = bpmBase / (bpmBase - bpm_factor) - 1;
+            double multiplier = base_speedflow_multiplier / bpmFactorMultiplierAtBase;
+
+            // Start from base of the bonus
+            double speeflowBonus = multiplier * diameter / osuCurrObj.StrainTime;
+
+            // Spacing factor, reward up to 1 radius. The reason why we're doing this is because we want to be close live speedflow
+            // If we won't do this - it will be similar to multiplicative speed and distance bonuses, not additive
+            speeflowBonus *= DifficultyCalculationUtils.Smoothstep(osuCurrObj.LazyJumpDistance, -radius, radius);
+
+            // Bpm factor
+            speeflowBonus *= (osuCurrObj.StrainTime / (osuCurrObj.StrainTime - bpm_factor) - 1);
+
+            difficulty += speeflowBonus;
+
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
                 difficulty += sliderBonus * 0.3;
 
-            return difficulty * 0.925 * osuCurrObj.SmallCircleBonus;
+            return difficulty * 0.875 * osuCurrObj.SmallCircleBonus;
         }
 
         /// <summary>
@@ -122,8 +143,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
             angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius, radius * 2);
 
+            angleScale *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 0.05);
 
-            double velocityBonus = 1.1 + Math.Pow(previousVelocity, 1) * angleScale * 0.25;
+
+            double velocityBonus = 1.1 + Math.Pow(previousVelocity, 1) * angleScale * 0.5;
 
             return Math.Pow(distanceTravelled, velocityBonus);
         }
