@@ -18,7 +18,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to correctly aim at every object in the map with a uniform CircleSize and normalized distances.
     /// </summary>
-    public class Aim : OsuProbabilitySkill
+    public class Aim : OsuTimeSkill
     {
         public readonly bool IncludeSliders;
         public readonly bool WithCheesability;
@@ -39,8 +39,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private bool? previousWasFlow = null;
 
-        private double skillMultiplier => 137;
+        private double skillMultiplier => 162;
         private double strainDecayBase => 0.15;
+
+        private double agilityStrainDecayBase => 0.85;
 
         private const double backwards_strain_influence = 1000;
 
@@ -49,6 +51,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private readonly List<double> sliderStrains = new List<double>();
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
+
+        private double agilityStrainDecay(double ms) => Math.Pow(agilityStrainDecayBase, ms / 1000);
 
         protected override double HitProbability(double skill, double difficulty)
         {
@@ -60,18 +64,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            //we decay both supplimental strain values irrespective of whether a given note is snapped or flowed
-            currentflowStrain *= strainDecay(current.DeltaTime);
-            currentAgilityStrain *= strainDecay(current.DeltaTime);
+            currentAgilityStrain *= agilityStrainDecay(current.DeltaTime);
 
             var osuCurrent = (OsuDifficultyHitObject)current;
             double currentDifficulty = 0;
             double auxiliaryStrainValue = 0;
             double currentStrainDifficulty = 0;
             double transitionBonus = 0;
-            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, WithCheesability) * skillMultiplier;
+            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, WithCheesability) * (skillMultiplier - 3);
             double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
-            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current, WithCheesability) * skillMultiplier;
 
             double snapTransitionBonus = previousWasFlow.HasValue && previousWasFlow.Value ? 1.25 : 1.0;
             double flowTransitionBonus = previousWasFlow.HasValue && !previousWasFlow.Value ? 1.25 : 1.0;

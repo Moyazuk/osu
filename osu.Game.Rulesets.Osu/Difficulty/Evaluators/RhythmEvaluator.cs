@@ -16,7 +16,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         private const int history_time_max = 5 * 1000; // 5 seconds
         private const int history_objects_max = 32;
         private const double rhythm_overall_multiplier = 1.0;
-        private const double rhythm_ratio_multiplier = 12.0;
+        private const double rhythm_ratio_multiplier = 15.0;
 
         /// <summary>
         /// Calculates a rhythm multiplier for the difficulty of the tap associated with historic data of the current <see cref="OsuDifficultyHitObject"/>.
@@ -25,8 +25,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         {
             if (current.BaseObject is Spinner)
                 return 0;
-            if (!((OsuDifficultyHitObject)current).IsTapObject)
-                return 1;
+
+            var currentOsuObject = (OsuDifficultyHitObject)current;
 
             double rhythmComplexitySum = 0;
 
@@ -43,20 +43,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             bool firstDeltaSwitch = false;
 
-            int historicalNoteCount = Math.Min((int)((OsuDifficultyHitObject)current).TapIndex!, history_objects_max);
+            int historicalNoteCount = Math.Min(current.Index, history_objects_max);
 
             int rhythmStart = 0;
 
-            while (rhythmStart < historicalNoteCount - 2 && current.StartTime - ((OsuDifficultyHitObject)current).PreviousTap(rhythmStart).StartTime < history_time_max)
+            while (rhythmStart < historicalNoteCount - 2 && current.StartTime - current.Previous(rhythmStart).StartTime < history_time_max)
                 rhythmStart++;
 
-            OsuDifficultyHitObject prevObj = (OsuDifficultyHitObject)((OsuDifficultyHitObject)current).PreviousTap(rhythmStart);
-            OsuDifficultyHitObject lastObj = (OsuDifficultyHitObject)((OsuDifficultyHitObject)current).PreviousTap(rhythmStart + 1);
+            OsuDifficultyHitObject prevObj = (OsuDifficultyHitObject)current.Previous(rhythmStart);
+            OsuDifficultyHitObject lastObj = (OsuDifficultyHitObject)current.Previous(rhythmStart + 1);
 
             // we go from the furthest object back to the current one
             for (int i = rhythmStart; i > 0; i--)
             {
-                OsuDifficultyHitObject currObj = (OsuDifficultyHitObject)((OsuDifficultyHitObject)current).PreviousTap(i - 1);
+                OsuDifficultyHitObject currObj = (OsuDifficultyHitObject)current.Previous(i - 1);
 
                 // scales note 0 to 1 from history to now
                 double timeDecay = (history_time_max - (current.StartTime - currObj.StartTime)) / history_time_max;
@@ -64,9 +64,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 double currHistoricalDecay = Math.Min(noteDecay, timeDecay); // either we're limited by time or limited by object count.
 
-                double currDelta = currObj.TapStrainTime;
-                double prevDelta = prevObj.TapStrainTime;
-                double lastDelta = lastObj.TapStrainTime;
+                // Use custom cap value to ensure that that at this point delta time is actually zero
+                double currDelta = Math.Max(currObj.DeltaTime, 1e-7);
+                double prevDelta = Math.Max(prevObj.DeltaTime, 1e-7);
+                double lastDelta = Math.Max(lastObj.DeltaTime, 1e-7);
 
                 // calculate how much current delta difference deserves a rhythm bonus
                 // this function is meant to reduce rhythm bonus for deltas that are multiples of each other (i.e 100 and 200)
@@ -175,7 +176,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 prevObj = currObj;
             }
 
-            return Math.Sqrt(4 + rhythmComplexitySum * rhythm_overall_multiplier) / 2.0; // produces multiplier that can be applied to strain. range [1, infinity) (not really though)
+            double rhythmDifficulty = Math.Sqrt(4 + rhythmComplexitySum * rhythm_overall_multiplier) / 2.0; // produces multiplier that can be applied to strain. range [1, infinity) (not really though)
+            rhythmDifficulty *= 1 - currentOsuObject.GetDoubletapness((OsuDifficultyHitObject)current.Next(0));
+
+            return rhythmDifficulty;
         }
 
         private class Island : IEquatable<Island>
