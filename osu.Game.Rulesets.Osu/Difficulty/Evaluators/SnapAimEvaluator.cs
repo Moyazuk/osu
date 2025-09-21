@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using osu.Framework.Extensions.ObjectExtensions;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
@@ -38,8 +39,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
             const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
 
-            double currStrainTime = osuCurrObj.StrainTime;
-            double lastStrainTime = osuLastObj.StrainTime;
+            double currStrainTime = osuCurrObj.AdjustedDeltaTime;
+            double lastStrainTime = osuLastObj.AdjustedDeltaTime;
 
             double currMinimumJumpTime = osuCurrObj.MinimumJumpTime;
             double lastMinimumJumpTime = osuLastObj.MinimumJumpTime;
@@ -76,7 +77,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
 
             double wideAngleBonus = 0;
-            double angleChangeBonus = 0;
+            double angleRepetitionNerf = 0;
             double sliderBonus = 0;
             double velocityChangeBonus = 0;
 
@@ -93,13 +94,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 double wideAngleBase = Math.Min(currVelocity, prevVelocity);
 
-                double angleDifference = Math.Min(Math.Abs(currAngle - lastAngle), Math.Abs(currAngle - lastLastAngle));
+                double baseFactor = 1 - 0.15 * DifficultyCalculationUtils.Smootherstep(currAngle, double.DegreesToRadians(90), double.DegreesToRadians(30)) * AngleDifference(currAngle, lastAngle);
 
-                angleChangeBonus = angleBonus * DifficultyCalculationUtils.Smootherstep(angleDifference, double.DegreesToRadians(0), double.DegreesToRadians(90));
+                // Penalize acute angle repetition.
+                angleRepetitionNerf = Math.Pow(baseFactor + (1 - baseFactor) * 0.95 * AngleVectorRepetition(osuCurrObj), 2);
+
+                //angleRepetitionNerf *= 1 - DifficultyCalculationUtils.Smootherstep(currAngle, double.DegreesToRadians(90), double.DegreesToRadians(60));
 
                 wideAngleBonus = calcWideAngleBonus(currAngle);
 
-                wideAngleBase /= Math.Pow(Math.Max(osuLastObj.StrainTime, osuCurrObj.StrainTime), 1.5);
+                wideAngleBase /= Math.Pow(Math.Max(osuLastObj.AdjustedDeltaTime, osuCurrObj.AdjustedDeltaTime), 2);
 
                 // Penalize angle repetition.
                 // wideAngleBonus *= 1 - Math.Min(wideAngleBonus, Math.Pow(calcWideAngleBonus(lastAngle), 3));
@@ -147,12 +151,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 sliderBonus = osuLastObj.TravelDistance / osuLastObj.TravelTime;
             }
 
-            aimStrain += velocityChangeBonus * velocity_change_multiplier;
+            aimStrain += velocityChangeBonus * 0.35;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            aimStrain += wideAngleBonus * 1600.75;
+            aimStrain += wideAngleBonus * 12000;
 
-            aimStrain += angleChangeBonus * 0.5;
+            //aimStrain += angleChangeBonus * 0.5;
+
+            // Penalize angle repetition.
+            aimStrain *= angleRepetitionNerf;
 
             //Console.WriteLine($"AngleChangeBonus = {angleChangeBonus}");
 
@@ -164,6 +171,39 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 aimStrain += sliderBonus * 0.3;
 
             return aimStrain;
+        }
+
+        public static double AngleDifference(double curAngle, double lastAngle)
+        {
+            return Math.Cos(2 * Math.Min(Math.PI / 4, Math.Abs(curAngle - lastAngle)));
+        }
+
+        public static double AngleVectorRepetition(OsuDifficultyHitObject current)
+        {
+            const double note_limit = 6;
+
+            double constantAngleCount = 0;
+            int index = 0;
+            double notesProcessed = 0;
+
+            while (notesProcessed < note_limit)
+            {
+                var loopObj = (OsuDifficultyHitObject)current.Previous(index);
+
+                if (loopObj.IsNull())
+                    break;
+
+                if (loopObj.VectorAngle.IsNotNull() && current.VectorAngle.IsNotNull())
+                {
+                    double angleDifference = Math.Abs(current.VectorAngle.Value - loopObj.VectorAngle.Value);
+                    constantAngleCount += Math.Cos(8 * Math.Min(Math.PI / 16, angleDifference));
+                }
+
+                notesProcessed++;
+                index++;
+            }
+
+            return Math.Pow(Math.Min(0.5 / constantAngleCount, 1), 2);
         }
 
         private static double calcWideAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(40), double.DegreesToRadians(140));

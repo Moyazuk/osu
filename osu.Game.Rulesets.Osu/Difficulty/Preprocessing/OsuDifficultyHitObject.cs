@@ -112,6 +112,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         /// </summary>
         public double SmallCircleBonus { get; private set; }
 
+        public double? VectorAngle { get; private set; }
+
         /// <summary>
         /// The extra time to hit the circle if cheesed.
         /// </summary>
@@ -270,6 +272,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
 
                 Vector2 v1 = lastLastCursorPosition - LastObject.StackedPosition;
                 Vector2 v2 = BaseObject.StackedPosition - lastCursorPosition;
+
+                VectorAngle = Math.Atan2(Math.Abs(v2.Y), Math.Abs(v2.X));
 
                 float dot = Vector2.Dot(v1, v2);
                 float det = v1.X * v2.Y - v1.Y * v2.X;

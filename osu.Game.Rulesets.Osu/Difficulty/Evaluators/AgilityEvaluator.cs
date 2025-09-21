@@ -23,8 +23,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double nukeMultiplier = 8;
 
-            double currStrainTime = osuCurrObj.StrainTime;
-            double lastStrainTime = osuPrevObj.StrainTime;
+            double currStrainTime = osuCurrObj.AdjustedDeltaTime;
+            double lastStrainTime = osuPrevObj.AdjustedDeltaTime;
 
             double currVelocity = osuCurrObj.LazyJumpDistance / currStrainTime;
 
@@ -48,23 +48,24 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double prevAngle = osuPrevObj.Angle!.Value * 180 / Math.PI;
 
-            double angleDifference = Math.Abs(currentAngle - prevAngle);
-
             double angleBonus = 0.1 * Smootherstep(currentAngle, 0, 120);
 
-            double angleChangeBonus = 0.1 * Smootherstep(angleDifference, 0, 90);
+            double baseFactor = 1 - 0.3 * SnapAimEvaluator.AngleDifference(currentAngle, prevAngle);
+
+            // Penalize angle repetition.
+            double angleRepetitionNerf = Math.Pow(baseFactor + (1 - baseFactor) * 0.95 * SnapAimEvaluator.AngleVectorRepetition(osuCurrObj), 2);
 
             double velocityChangeBonus = Math.Abs(prevVelocity - currVelocity) * 0.1;
 
             double distanceBonus = 0.00000000175 * Math.Pow(osuCurrObj.LazyJumpDistance, 3);
 
             // We reward high bpm more for wider angles, but only when both current and previous distance are over 0.5 radii.
-            double baseBpm = 340.0 / (1 + (angleBonus + angleChangeBonus + distanceBonus + velocityChangeBonus) * currDistanceMultiplier * prevDistanceMultiplier);
+            double baseBpm = 340.0 / (1 + (angleBonus + distanceBonus + velocityChangeBonus) * currDistanceMultiplier * prevDistanceMultiplier);
 
             // Agility bonus of 1 at base BPM.
             double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 3) - 1);
 
-            return agilityBonus * 0.265;
+            return agilityBonus * angleRepetitionNerf * 0.24;
         }
     }
 }
