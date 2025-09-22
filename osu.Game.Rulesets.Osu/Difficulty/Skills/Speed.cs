@@ -41,10 +41,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
             currentDifficulty *= strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
 
+            // This check specifically has to be after strain is already decayed
+            if (!((OsuDifficultyHitObject)current).IsTapObject)
+                return;
+
             currentDifficulty += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * RhythmEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentDifficulty);
+
+            Console.WriteLine($"currentsDifficulty = {currentDifficulty}");
 
             noteDifficulties.Add(currentDifficulty);
         }
@@ -71,11 +78,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 double weight = (1.0 + (20.0 / (1 + index))) / (Math.Pow(index, 0.85) + 1.0 + (20.0 / (1.0 + index)));
 
                 noteWeights.Add(weight);
-
                 difficulty += note * weight;
                 index += 1;
             }
-
             return difficulty;
         }
 
@@ -109,7 +114,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (consistentTopNote == 0)
                 return noteDifficulties.Count;
 
-            return noteDifficulties.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / consistentTopNote * 12.0 - 7.0))));
+            double result = noteDifficulties.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / consistentTopNote * 12.0 - 7.0))));
+
+            Console.WriteLine($"result = {noteDifficulties.Count}");
+
+            return result;
         }
 
         public double CountTopWeightedSliders()
