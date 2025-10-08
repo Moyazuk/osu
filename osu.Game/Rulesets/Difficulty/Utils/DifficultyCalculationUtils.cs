@@ -116,5 +116,10 @@ namespace osu.Game.Rulesets.Difficulty.Utils
         {
             return Math.Clamp((x - start) / (end - start), 0.0, 1.0);
         }
+
+        public static double PowerMean(double exponent, params double[] values)
+        {
+            return Math.Pow(values.Select(x => Math.Pow(x, exponent)).Sum(), 1.0 / exponent);
+        }
     }
 }

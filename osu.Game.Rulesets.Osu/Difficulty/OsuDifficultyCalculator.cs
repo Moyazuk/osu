@@ -60,7 +60,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             var speed = skills.OfType<Speed>().Single(s => !s.WithoutStamina);
             var speedWithoutStamina = skills.OfType<Speed>().Single(s => s.WithoutStamina);
             double speedNotes = speed.RelevantNoteCount();
-            double speedDifficultStrainCount = speed.CountTopWeightedStrains();
+            double speedDifficultStrainCount = speed.CountTopWeightedNotes();
 
             double aimNoSlidersDifficultStrainCount = aimWithoutSliders.CountTopWeightedStrains();
             double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders();
