@@ -30,7 +30,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double currentStrain;
 
         private double currentAgilityStrain;
-        private double aimMultiplier => 7.7;
+        private double aimMultiplier => 7.0;
         private double strainDecayBase => 0.15;
         private double agilityStrainDecayBase => 0.1;
 
