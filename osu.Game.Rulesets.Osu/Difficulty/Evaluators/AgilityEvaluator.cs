@@ -57,7 +57,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double velocityChangeBonus = Math.Abs(prevVelocity - currVelocity) * 0.1;
 
-            double distanceBonus = 0.00000000175 * Math.Pow(osuCurrObj.LazyJumpDistance, 3);
+
+
+            double distanceBonus = 0.00000000175 * Math.Pow(osuCurrObj.LazyJumpDistance, 3) *
+                                   Smootherstep(MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime, 2), 240, 300);
 
             // We reward high bpm more for wider angles, but only when both current and previous distance are over 0.5 radii.
             double baseBpm = 340.0 / (1 + (angleBonus + distanceBonus + velocityChangeBonus) * currDistanceMultiplier * prevDistanceMultiplier);
