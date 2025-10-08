@@ -35,7 +35,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (mods.Any(m => m is OsuModAutopilot))
                 return 0;
 
-            double aimRating = CalculateDifficultyRating(aimDifficultyValue);
+            double aimRating = AimDifficultyRating(aimDifficultyValue);
 
             if (mods.Any(m => m is OsuModTouchDevice))
                 aimRating = Math.Pow(aimRating, 0.8);
@@ -205,6 +205,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return readingBonus;
         }
 
-        public static double CalculateDifficultyRating(double difficultyValue) => Math.Sqrt(difficultyValue) * difficulty_multiplier;
+        public static double CalculateDifficultyRating(double difficultyValue) => Math.Sqrt(difficultyValue) * 0.0675;
+
+        public static double AimDifficultyRating(double difficultyValue) => Math.Sqrt(difficultyValue) * 0.0635;
     }
 }
