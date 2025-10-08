@@ -8,6 +8,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
@@ -62,7 +63,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double aimNoSlidersDifficultStrainCount = aimWithoutSliders.CountTopWeightedStrains();
             double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders();
-            Polynomial aimMissPenaltyCurve = ((OsuProbabilitySkill)skills[0]).GetMissPenaltyCurve();
+            Polynomial aimMissPenaltyCurve = ((OsuTimeSkill)skills[0]).GetMissPenaltyCurve();
 
             double aimTopWeightedSliderFactor = aimNoSlidersTopWeightedSliderCount / Math.Max(1, aimNoSlidersDifficultStrainCount - aimNoSlidersTopWeightedSliderCount);
 

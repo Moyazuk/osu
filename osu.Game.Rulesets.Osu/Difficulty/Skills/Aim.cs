@@ -17,7 +17,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to correctly aim at every object in the map with a uniform CircleSize and normalized distances.
     /// </summary>
-    public class Aim : OsuProbabilitySkill
+    public class Aim : OsuTimeSkill
     {
         public readonly bool IncludeSliders;
 
