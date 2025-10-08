@@ -55,9 +55,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             var aim = skills.OfType<Aim>().Single(a => a.IncludeSliders);
             var aimWithoutSliders = skills.OfType<Aim>().Single(a => !a.IncludeSliders);
-            var speed = skills.OfType<Speed>().Single();
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
 
+            var speed = skills.OfType<Speed>().Single(s => !s.WithoutStamina);
+            var speedWithoutStamina = skills.OfType<Speed>().Single(s => s.WithoutStamina);
             double speedNotes = speed.RelevantNoteCount();
             double speedDifficultStrainCount = speed.CountTopWeightedStrains();
 
@@ -95,6 +96,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimRating = osuRatingCalculator.ComputeAimRating(aimDifficultyValue);
             double speedRating = osuRatingCalculator.ComputeSpeedRating(speedDifficultyValue);
 
+            double speedRatingNoStamina = osuRatingCalculator.ComputeSpeedRating(speedWithoutStamina.DifficultyValue());
+            double staminaFactor = speedRating > 0 ? speedRatingNoStamina / speedRating : 1;
+
             double flashlightRating = 0.0;
 
             if (flashlight is not null)
@@ -127,6 +131,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 AimDifficultSliderCount = difficultSliders,
                 SpeedDifficulty = speedRating,
                 SpeedNoteCount = speedNotes,
+                StaminaFactor = staminaFactor,
                 FlashlightDifficulty = flashlightRating,
                 SliderFactor = sliderFactor,
                 AimMissPenaltyCurve = aimMissPenaltyCurve,
@@ -184,7 +189,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 new Aim(mods, true),
                 new Aim(mods, false),
-                new Speed(mods)
+                new Speed(mods, false),
+                new Speed(mods, true)
             };
 
             if (mods.Any(h => h is OsuModFlashlight))
