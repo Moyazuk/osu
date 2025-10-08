@@ -85,8 +85,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 double currHistoricalDecay = Math.Min(noteDecay, timeDecay); // either we're limited by time or limited by object count.
 
-                double currDelta = currObj.StrainTime;
-                double prevDelta = prevObj.StrainTime;
+                double currDelta = currObj.AdjustedDeltaTime;
+                double prevDelta = prevObj.AdjustedDeltaTime;
 
                 double deltaDifference = Math.Max(prevDelta, currDelta) / Math.Min(prevDelta, currDelta);
 
