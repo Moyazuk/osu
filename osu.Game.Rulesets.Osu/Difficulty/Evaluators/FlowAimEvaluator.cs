@@ -42,7 +42,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double angularVelocityBonus = Math.Max(0.0, Math.Pow(angularVelocity, 0.5) - 1.0);
                 //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
                 //angularVelocityBonus *= DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, radius * 0.5, radius * 2);
-                adjustedDistanceScale = 1 + angularVelocityBonus * 0.04;
+                adjustedDistanceScale = 1 + angularVelocityBonus * 0.05;
 
                 // Apply wiggle bonus for jumps that are [radius, 3*diameter] in distance, with < 110 angle
                 // https://www.desmos.com/calculator/dp0v0nvowc
@@ -146,7 +146,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             angleScale *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 0.05);
 
 
-            double velocityBonus = 1.1 + Math.Pow(previousVelocity, 1) * angleScale * 0.5;
+            double velocityBonus = 1.1 + Math.Pow(previousVelocity, 1) * angleScale * 0.4;
 
             return Math.Pow(distanceTravelled, velocityBonus);
         }
