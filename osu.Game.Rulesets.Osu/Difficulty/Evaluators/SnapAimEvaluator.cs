@@ -152,7 +152,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
-                aimStrain += sliderBonus * slider_multiplier;
+                aimStrain += sliderBonus * 0.25;
 
             return aimStrain * 20.5;
         }

@@ -7,6 +7,7 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
+using static osu.Game.Rulesets.Difficulty.Utils.DifficultyCalculationUtils;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
@@ -17,33 +18,49 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
 
+            const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
+
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
 
             double baseFactor = 1;
-            double wideBonus = 1;
+            double angleBonus = 0;
 
             if (osuCurrObj.Angle != null && osuPrevObj.Angle != null)
             {
                 double currAngle = osuCurrObj.Angle.Value;
                 double lastAngle = osuPrevObj.Angle.Value;
 
-                wideBonus += calcWideAngleBonus(currAngle) * 0.3;
+                angleBonus = 0.35 * Smootherstep(currAngle, 0, 120);
 
                 baseFactor = 1 - 0.25 * DifficultyCalculationUtils.Smoothstep(lastAngle, double.DegreesToRadians(90), double.DegreesToRadians(40)) * angleDifference(currAngle, lastAngle);
             }
 
+            double currStrainTime = osuCurrObj.AdjustedDeltaTime;
+            double lastStrainTime = osuPrevObj.AdjustedDeltaTime;
+
+            double currVelocity = osuCurrObj.LazyJumpDistance / currStrainTime;
+
+            double prevVelocity = osuPrevObj.LazyJumpDistance / lastStrainTime;
+
+            double currTime = currStrainTime;
+            double prevTime = lastStrainTime;
+
             // Penalize angle repetition.
-            double angleRepetitionNerf = Math.Pow(baseFactor + (1 - baseFactor) * angleVectorRepetition(osuCurrObj), 2);
+            double angleRepetitionNerf = Math.Pow(baseFactor + (1 - baseFactor) * 0.95 * angleVectorRepetition(osuCurrObj), 2);
+
+            double velocityChangeBonus = Math.Abs(prevVelocity - currVelocity) * 0.1;
+
+            double distanceBonus = 0.00000000175 * Math.Pow(osuCurrObj.LazyJumpDistance, 3) *
+                                   Smootherstep(MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime, 2), 280, 320);
+
+            // We reward high bpm more for wider angles, but only when both current and previous distance are over 0.5 radii.
+            double baseBpm = 240.0 / (1 + (angleBonus + distanceBonus + velocityChangeBonus));
 
             // Agility bonus of 1 at base BPM.
-            double agilityBonus = Math.Max(0, Math.Pow(DifficultyCalculationUtils.MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime, 2) / (270.0 / wideBonus), 5.0) - 1);
+            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 3) - 1);
 
-            double difficulty = agilityBonus * angleRepetitionNerf;
-
-            difficulty *= osuCurrObj.SmallCircleBonus;
-
-            return difficulty * 1.0;
+            return agilityBonus * angleRepetitionNerf * 1.25;
         }
 
         private static double angleDifference(double curAngle, double lastAngle)

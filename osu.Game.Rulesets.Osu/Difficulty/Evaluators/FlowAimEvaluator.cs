@@ -50,13 +50,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double adjustedDistanceScale = 0.85 + Math.Min(1, jerk / 15) + Math.Max(angularChangeBonus, acuteBonus) * Math.Clamp(jerk / 30, 0.3, 1);
 
             // Value distance exponentially, and scale with direction and distance changes
-            double distanceFactor = Math.Pow(osuCurrObj.LazyJumpDistance, 2) * adjustedDistanceScale;
+            double distanceFactor = Math.Pow(osuCurrObj.LazyJumpDistance, 1.15) * adjustedDistanceScale;
 
             double difficulty = distanceFactor / osuCurrObj.AdjustedDeltaTime;
 
             difficulty *= osuCurrObj.SmallCircleBonus;
 
-            return difficulty * 0.15;
+            return difficulty * 9.175;
         }
 
         private static double directionChange(DifficultyHitObject current)
