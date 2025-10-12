@@ -191,6 +191,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double orientationRepetitionNerf = 0.9 + (1.0 - orientationSimilarity) * 0.1;
 
+            if (osuCurrObj.Angle != null)
+            {
+                double angle = osuCurrObj.Angle.Value;
+
+                double angleFactor = 1.0 - DifficultyCalculationUtils.Smootherstep(angle, 0.0, double.DegreesToRadians(90));
+
+                orientationRepetitionNerf = Interpolation.Lerp(1.0, orientationRepetitionNerf, angleFactor);
+            }
+
             aimStrain *= orientationMultiplier * orientationRepetitionNerf;
 
             return aimStrain;
