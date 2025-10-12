@@ -110,6 +110,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         /// </summary>
         public double SmallCircleBonus { get; private set; }
 
+        /// <summary>
+        /// Orientation of the line the player has to make from current-1 to current.
+        /// </summary>
+        public double MovementOrientation { get; private set; }
+
         private readonly OsuDifficultyHitObject? lastLastDifficultyObject;
         private readonly OsuDifficultyHitObject? lastDifficultyObject;
 
@@ -248,6 +253,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                 float det = v1.X * v2.Y - v1.Y * v2.X;
 
                 Angle = Math.Abs(Math.Atan2(det, dot));
+
+                Vector2 diff = BaseObject.StackedPosition - LastObject.StackedPosition;
+                double angle = Math.Abs(Math.Atan2(diff.Y, diff.X));
+
+                MovementOrientation = 1.0 - angle / (Math.PI / 2);
             }
         }
 

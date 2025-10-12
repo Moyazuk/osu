@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
@@ -16,6 +17,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         private const double slider_multiplier = 1.35;
         private const double velocity_change_multiplier = 0.75;
         private const double wiggle_multiplier = 1.02;
+
+        private static (double orientation, double multiplier)[] theGraph = new[]
+        {
+            (0.0, 0.85), // vertical
+            (0.35, 0.90),
+            (0.5, 1.0), // diagonal
+            (0.85, 0.95),
+            (1.0, 0.90), // horizontal
+        };
 
         /// <summary>
         /// Evaluates the difficulty of aiming the current object, based on:
@@ -38,6 +48,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
             const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
+
+            theGraph = new[]
+            {
+                (0.0, 0.85), // vertical
+                (0.35, 0.90),
+                (0.5, 1.0), // diagonal
+                (0.85, 0.95),
+                (1.0, 0.90), // horizontal
+            };
 
             // Calculate the velocity to the current hitobject, which starts with a base distance / time assuming the last object is a hitcircle.
             double currVelocity = osuCurrObj.LazyJumpDistance / osuCurrObj.AdjustedDeltaTime;
@@ -162,7 +181,33 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (withSliderTravelDistance)
                 aimStrain += sliderBonus * slider_multiplier;
 
+            double orientationMultiplier = LerpFromArrays(theGraph, Math.Abs(osuCurrObj.MovementOrientation));
+
+            double oCurr = Math.Abs(osuCurrObj.MovementOrientation);
+            double oLast = Math.Abs(osuLastObj.MovementOrientation);
+            double oLastLast = Math.Abs(osuLastLastObj.MovementOrientation);
+
+            double orientationSimilarity = 1.0 - DifficultyCalculationUtils.Smootherstep(Math.Min(Math.Abs(oCurr - oLast), Math.Abs(oCurr - oLastLast)), 0.0, 0.125);
+
+            double orientationRepetitionNerf = 0.9 + (1.0 - orientationSimilarity) * 0.1;
+
+            aimStrain *= orientationMultiplier * orientationRepetitionNerf;
+
             return aimStrain;
+        }
+
+        public static double LerpFromArrays((double orientation, double multiplier)[] theGraph, double o)
+        {
+            for (int i = 0; i < theGraph.Length - 1; i++)
+            {
+                if (o >= theGraph[i].orientation && o <= theGraph[i + 1].orientation)
+                {
+                    double distance = (o - theGraph[i].orientation) / (theGraph[i + 1].orientation - theGraph[i].orientation);
+                    return Interpolation.Lerp(theGraph[i].multiplier, theGraph[i + 1].multiplier, distance);
+                }
+            }
+
+            return 0;
         }
 
         private static double calcWideAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(40), double.DegreesToRadians(140));
