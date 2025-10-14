@@ -55,15 +55,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double antiFlowBonus = Math.Min(1, jerk / 15) + Math.Max(angularChangeBonus * Math.Clamp(jerk / 30, 0.3, 1), acuteBonus);
 
             // Value distance exponentially
-            double difficulty = Math.Pow(osuCurrObj.LazyJumpDistance + osuPrevObj.TravelDistance, 2) / osuCurrObj.AdjustedDeltaTime;
+            double difficulty = Math.Pow(osuCurrObj.LazyJumpDistance + osuPrevObj.TravelDistance, 1.75) / osuCurrObj.AdjustedDeltaTime;
 
-            difficulty += (osuCurrObj.LazyJumpDistance / osuCurrObj.AdjustedDeltaTime) * antiFlowBonus * 25;
+            difficulty += (osuCurrObj.LazyJumpDistance / osuCurrObj.AdjustedDeltaTime) * antiFlowBonus * 10;
 
             // Apply high circle size bonus
             if (osuCurrObj.IsTapObject)
                 difficulty *= osuCurrObj.SmallCircleBonus;
 
-            return difficulty * 0.21;
+            return difficulty * 0.685;
         }
 
         private static double directionChange(OsuDifficultyHitObject osuCurrObj, OsuDifficultyHitObject osuPrevObj, OsuDifficultyHitObject osuPrev2Obj)
