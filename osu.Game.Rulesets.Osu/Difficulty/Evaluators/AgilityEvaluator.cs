@@ -52,13 +52,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double angleBonus = 0;
 
 
-            if (currAngle is not null && lastAngle is not null && osuPrevObj.IsTapObject)
+            if (currAngle is not null && lastAngle is not null)
             {
                 double currAngleValue = currAngle.Value;
                 double lastAngleValue = lastAngle.Value;
 
 
-                angleBonus = 0.35 * Smootherstep(currAngleValue, 0, 120);
+                angleBonus = 0.35 * Smootherstep(currAngleValue, 0, double.DegreesToRadians(120));
 
                 baseFactor = 1 - 0.25 * DifficultyCalculationUtils.Smoothstep(lastAngleValue, double.DegreesToRadians(90), double.DegreesToRadians(40)) * angleDifference(currAngleValue, lastAngleValue);
             }
@@ -73,7 +73,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                                    Smootherstep(MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime, 2), 280, 320);
 
             // We reward high bpm more for wider angles, but only when both current and previous distance are over 0.5 radii.
-            double baseBpm = 240.0 / (1 + (angleBonus + distanceBonus ) * currDistanceMultiplier * prevDistanceMultiplier);
+            double baseBpm = 240.0 / (1 + (angleBonus + distanceBonus) * currDistanceMultiplier * prevDistanceMultiplier);
 
             // Agility bonus of 1 at base BPM.
             double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currStrainTime, prevStrainTime), 2) / baseBpm, 4) - 1);
@@ -89,7 +89,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (osuCurrObj.IsTapObject)
                 difficulty *= osuCurrObj.SmallCircleBonus;
 
-            return difficulty * 0.6;
+            return difficulty * 0.40;
         }
 
         private static double angleDifference(double curAngle, double lastAngle)

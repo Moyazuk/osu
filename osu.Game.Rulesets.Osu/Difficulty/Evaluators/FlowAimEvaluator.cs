@@ -34,13 +34,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double jerk = Math.Abs(currDistanceDifference - prevDistanceDifference);
 
-            double angleDifferenceAdjusted = Math.Sin(directionChange(current) / 2) * 180;
+            double angleDifferenceAdjusted = Math.Sin(directionChange(osuCurrObj, osuPrevObj, osuPrev2Obj) / 2) * 180;
 
             double acuteBonus = 0;
 
             if (osuCurrObj.Angle.IsNotNull())
             {
-                acuteBonus = calcAcuteAngleBonus(osuCurrObj.Angle.Value) * 4 * calculateLinearity(osuCurrObj);
+                acuteBonus = calcAcuteAngleBonus(osuCurrObj.Angle.Value) * 4 * calculateLinearity(osuCurrObj, osuPrevObj, osuPrev2Obj);
 
                 // Nerf the third note of bursts as its angle is not representative of its flow difficulty
                 if (Math.Abs(osuCurrObj.AdjustedDeltaTime - osuPrev2Obj.AdjustedDeltaTime) > 25)
@@ -57,21 +57,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Value distance exponentially
             double difficulty = Math.Pow(osuCurrObj.LazyJumpDistance + osuPrevObj.TravelDistance, 2) / osuCurrObj.AdjustedDeltaTime;
 
-            difficulty += (osuCurrObj.LazyJumpDistance / osuCurrObj.AdjustedDeltaTime) * antiFlowBonus * 80;
+            difficulty += (osuCurrObj.LazyJumpDistance / osuCurrObj.AdjustedDeltaTime) * antiFlowBonus * 25;
 
             // Apply high circle size bonus
             if (osuCurrObj.IsTapObject)
                 difficulty *= osuCurrObj.SmallCircleBonus;
 
-            return difficulty * 0.185;
+            return difficulty * 0.21;
         }
 
-        private static double directionChange(DifficultyHitObject current)
+        private static double directionChange(OsuDifficultyHitObject osuCurrObj, OsuDifficultyHitObject osuPrevObj, OsuDifficultyHitObject osuPrev2Obj)
         {
             double directionChangeFactor = 0;
-
-            var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
 
             if (osuCurrObj.AngleSigned.IsNull() || osuPrevObj.AngleSigned.IsNull() ||
                 osuCurrObj.Angle.IsNull() || osuPrevObj.Angle.IsNull()) return directionChangeFactor;
@@ -79,7 +76,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double signedAngleDifference = Math.Abs(osuCurrObj.AngleSigned.Value - osuPrevObj.AngleSigned.Value);
 
             // Account for the fact that you can aim patterns in a straight line
-            signedAngleDifference *= calculateLinearity(osuCurrObj);
+            signedAngleDifference *= calculateLinearity(osuCurrObj, osuPrevObj, osuPrev2Obj);
 
             double angleDifference = Math.Abs(osuCurrObj.Angle.Value - osuPrevObj.Angle.Value);
 
@@ -88,11 +85,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             return directionChangeFactor;
         }
 
-        private static double calculateLinearity(OsuDifficultyHitObject current)
+        private static double calculateLinearity(OsuDifficultyHitObject osuCurrObj, OsuDifficultyHitObject osuPrevObj, OsuDifficultyHitObject osuPrev2Obj)
         {
-            var curBaseObj = (OsuHitObject)current.BaseObject;
-            var prevBaseObj = (OsuHitObject)current.Previous(0).BaseObject;
-            var prev2BaseObj = (OsuHitObject)current.Previous(1).BaseObject;
+            var curBaseObj = (OsuHitObject)osuCurrObj.BaseObject;
+            var prevBaseObj = (OsuHitObject)osuPrevObj.BaseObject;
+            var prev2BaseObj = (OsuHitObject)osuPrev2Obj.BaseObject;
 
             Vector2 lineVector = prev2BaseObj.StackedEndPosition - curBaseObj.StackedEndPosition;
             Vector2 toMiddle = prevBaseObj.StackedEndPosition - curBaseObj.StackedEndPosition;
@@ -107,7 +104,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             float scalingFactor = OsuDifficultyHitObject.NORMALISED_RADIUS / (float)curBaseObj.Radius;
 
             double perpendicularDistance = curBaseObj.StackedPosition.Equals(prev2BaseObj.StackedPosition)
-                ? current.LazyJumpDistance
+                ? osuCurrObj.LazyJumpDistance
                 : (toMiddle * scalingFactor - projection * scalingFactor).Length;
 
             return DifficultyCalculationUtils.Smootherstep(perpendicularDistance, OsuDifficultyHitObject.NORMALISED_RADIUS, OsuDifficultyHitObject.NORMALISED_RADIUS * 1.5);
