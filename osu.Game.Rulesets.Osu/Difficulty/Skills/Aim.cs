@@ -39,7 +39,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private bool? previousWasFlow = null;
 
-        private double skillMultiplier => 162;
+        private double skillMultiplier => 10;
         private double strainDecayBase => 0.15;
 
         private double agilityStrainDecayBase => 0.85;
@@ -71,9 +71,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double auxiliaryStrainValue = 0;
             double currentStrainDifficulty = 0;
             double transitionBonus = 0;
-            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, WithCheesability) * (skillMultiplier - 3);
+            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * (skillMultiplier - 3);
             double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
-            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current, WithCheesability) * skillMultiplier;
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
 
             double snapTransitionBonus = previousWasFlow.HasValue && previousWasFlow.Value ? 1.25 : 1.0;
             double flowTransitionBonus = previousWasFlow.HasValue && !previousWasFlow.Value ? 1.25 : 1.0;

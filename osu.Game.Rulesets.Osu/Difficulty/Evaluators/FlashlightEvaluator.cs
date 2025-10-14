@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -36,6 +36,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var osuCurrent = (OsuDifficultyHitObject)current;
             var osuHitObject = (OsuHitObject)(osuCurrent.BaseObject);
 
+            if (!osuCurrent.IsTapObject)
+                return 0;
+
             double scalingFactor = 52.0 / osuHitObject.Radius;
             double smallDistNerf = 1.0;
             double cumulativeStrainTime = 0.0;
@@ -47,12 +50,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double angleRepeatCount = 0.0;
 
             // This is iterating backwards in time from the current object.
-            for (int i = 0; i < Math.Min(current.Index, 10); i++)
+            for (int i = 0; i < Math.Min((double)osuCurrent.TapIndex!, 10); i++)
             {
-                var currentObj = (OsuDifficultyHitObject)current.Previous(i);
+                var currentObj = (OsuDifficultyHitObject)osuCurrent.PreviousTap(i);
                 var currentHitObject = (OsuHitObject)(currentObj.BaseObject);
 
-                cumulativeStrainTime += lastObj.AdjustedDeltaTime;
+                cumulativeStrainTime += lastObj.TapStrainTime;
 
                 if (!(currentObj.BaseObject is Spinner))
                 {
@@ -66,6 +69,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                     double stackNerf = Math.Min(1.0, (currentObj.LazyJumpDistance / scalingFactor) / 25.0);
 
                     // Bonus based on how visible the object is.
+                    // Head is used for sliders since, if the head is visible, the rest of the object is probably visible
                     double opacityBonus = 1.0 + max_opacity_bonus * (1.0 - osuCurrent.OpacityAt(currentHitObject.StartTime, hidden));
 
                     result += stackNerf * opacityBonus * scalingFactor * jumpDistance / cumulativeStrainTime;
@@ -95,7 +99,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (osuCurrent.BaseObject is Slider osuSlider)
             {
                 // Invert the scaling factor to determine the true travel distance independent of circle size.
-                double pixelTravelDistance = osuCurrent.LazyTravelDistance / scalingFactor;
+                double pixelTravelDistance = osuCurrent.TravelDistance / scalingFactor;
 
                 // Reward sliders based on velocity.
                 sliderBonus = Math.Pow(Math.Max(0.0, pixelTravelDistance / osuCurrent.TravelTime - min_velocity), 0.5);

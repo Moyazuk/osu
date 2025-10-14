@@ -240,13 +240,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double speedValue = OsuStrainSkill.DifficultyToPerformance(attributes.SpeedDifficulty);
 
-            double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
-                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-
             if (effectiveMissCount > 0)
             {
                 speedEstimatedSliderBreaks = calculateEstimatedSliderBreaks(attributes.SpeedTopWeightedSliderFactor, attributes);
-                speedValue *= calculateMissPenalty(effectiveMissCount + speedEstimatedSliderBreaks, attributes.SpeedDifficultStrainCount);
+
+                double relevantMissCount = Math.Min(effectiveMissCount + speedEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
+
+                speedValue *= calculateMissPenalty(relevantMissCount, attributes.SpeedDifficultStrainCount);
             }
 
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
@@ -257,11 +257,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             }
             else if (score.Mods.Any(m => m is OsuModTraceable))
             {
-                speedValue *= 1.0 + OsuRatingCalculator.CalculateVisibilityBonus(score.Mods, approachRate);
+                speedValue *= 1.0 + OsuDifficultyCalculator.CalculateVisibilityBonus(score.Mods, approachRate);
             }
-
-            double speedHighDeviationMultiplier = calculateSpeedHighDeviationNerf(attributes);
-            speedValue *= speedHighDeviationMultiplier;
 
             // Calculate accuracy assuming the worst case scenario
             double relevantTotalDiff = Math.Max(0, totalHits - attributes.SpeedNoteCount);

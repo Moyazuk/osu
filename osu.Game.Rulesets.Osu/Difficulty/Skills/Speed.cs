@@ -41,7 +41,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
             currentDifficulty *= strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
 
-            currentDifficulty += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * RhythmEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+            if (!((OsuDifficultyHitObject)current).IsTapObject)
+                currentDifficulty += 0;
+            else
+            {
+                currentDifficulty += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * RhythmEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+            }
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentDifficulty);
