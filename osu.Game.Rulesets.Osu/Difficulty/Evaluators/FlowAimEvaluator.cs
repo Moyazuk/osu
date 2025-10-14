@@ -13,14 +13,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class FlowAimEvaluator
     {
-        public static double EvaluateDifficultyOf(DifficultyHitObject current)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
         {
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
-            var osuPrev2Obj = (OsuDifficultyHitObject)current.Previous(1);
+            var osuPrevObj = withSliderTravelDistance ? (OsuDifficultyHitObject)osuCurrObj.PreviousFlowRelevant(0) : (OsuDifficultyHitObject)osuCurrObj.PreviousTap(0);
+            var osuPrev2Obj = withSliderTravelDistance ? (OsuDifficultyHitObject)osuCurrObj.PreviousFlowRelevant(1) : (OsuDifficultyHitObject)osuCurrObj.PreviousTap(1);
+            var osuLast2Obj = withSliderTravelDistance ? (OsuDifficultyHitObject)osuCurrObj.PreviousFlowRelevant(2) : (OsuDifficultyHitObject)osuCurrObj.PreviousTap(2);
+
+            if (!(withSliderTravelDistance || osuCurrObj.IsTapObject || osuCurrObj.PrevTapStrainTime is not null))
+                return 0;
+
+            if (osuPrevObj is null || osuPrev2Obj is null)
+                return 0;
 
             double currDistanceDifference = Math.Abs(osuCurrObj.LazyJumpDistance - osuPrevObj.LazyJumpDistance);
             double prevDistanceDifference = Math.Abs(osuPrevObj.LazyJumpDistance - osuPrev2Obj.LazyJumpDistance);

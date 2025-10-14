@@ -12,34 +12,59 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class AgilityEvaluator
     {
-        public static double EvaluateDifficultyOf(DifficultyHitObject current)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
         {
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuPrevObj = withSliderTravelDistance ? (OsuDifficultyHitObject)current.Previous(0) : (OsuDifficultyHitObject)osuCurrObj.PreviousTap(0);
+            var osuLastLastObj = withSliderTravelDistance ? (OsuDifficultyHitObject)current.Previous(1) : (OsuDifficultyHitObject)osuCurrObj.PreviousTap(1);
+            var osuLast2Obj = withSliderTravelDistance ? (OsuDifficultyHitObject)current.Previous(2) : (OsuDifficultyHitObject)osuCurrObj.PreviousTap(2);
+
+            const float maxSliderRadius = OsuDifficultyHitObject.MAXIMUM_SLIDER_RADIUS;
+
+            if (!(withSliderTravelDistance || osuCurrObj.IsTapObject || osuCurrObj.PrevTapStrainTime is not null))
+                return 0;
+
+            if (osuCurrObj.PrevMinimumJumpTime is null || osuPrevObj is null)
+            {
+                return 0;
+            }
+
 
             double baseFactor = 1;
             double wideBonus = 1;
 
-            if (osuCurrObj.Angle != null && osuPrevObj.Angle != null)
+            double currStrainTime = withSliderTravelDistance ? osuCurrObj.MinimumJumpTime : osuCurrObj.TapStrainTime;
+            double prevStrainTime = withSliderTravelDistance ? (double)osuCurrObj.PrevMinimumJumpTime! : (double)osuCurrObj.PrevTapStrainTime!;
+
+            double? currAngle = withSliderTravelDistance ? osuCurrObj.Angle : osuCurrObj.SliderlessAngle;
+            double? lastAngle = withSliderTravelDistance ? osuCurrObj.PrevAngle : osuCurrObj.PrevSliderlessAngle;
+
+            if (currAngle is not null && lastAngle is not null && osuPrevObj.IsTapObject)
             {
-                double currAngle = osuCurrObj.Angle.Value;
-                double lastAngle = osuPrevObj.Angle.Value;
+                double currAngleValue = currAngle.Value;
+                double lastAngleValue = lastAngle.Value;
 
-                wideBonus += calcWideAngleBonus(currAngle) * 0.5;
 
-                baseFactor = 1 - 0.25 * DifficultyCalculationUtils.Smoothstep(lastAngle, double.DegreesToRadians(90), double.DegreesToRadians(40)) * angleDifference(currAngle, lastAngle);
+                wideBonus += calcWideAngleBonus(currAngleValue) * 0.5;
+
+                baseFactor = 1 - 0.25 * DifficultyCalculationUtils.Smoothstep(lastAngleValue, double.DegreesToRadians(90), double.DegreesToRadians(40)) * angleDifference(currAngleValue, lastAngleValue);
             }
 
             // Penalize angle repetition.
             double angleRepetitionNerf = Math.Pow(baseFactor + (1 - baseFactor) * angleVectorRepetition(osuCurrObj), 2);
 
             // Agility bonus of 1 at base BPM.
-            double agilityBonus = Math.Max(0, Math.Pow(DifficultyCalculationUtils.MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime, 2) / (270.0 / wideBonus), 4.0) - 1);
+            double agilityBonus = Math.Max(0, Math.Pow(DifficultyCalculationUtils.MillisecondsToBPM(currStrainTime, 2) / (270.0 / wideBonus), 4.0) - 1);
 
             double difficulty = agilityBonus * angleRepetitionNerf;
+
+            if (!osuCurrObj.IsTapObject && osuCurrObj.LazyJumpDistance < maxSliderRadius)
+            {
+                difficulty *= 0.0;
+            }
 
             difficulty *= osuCurrObj.SmallCircleBonus;
 
