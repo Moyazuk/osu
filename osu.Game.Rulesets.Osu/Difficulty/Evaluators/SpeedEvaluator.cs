@@ -35,9 +35,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuPrevObj = osuCurrObj.TapIndex is > 0 ? (OsuDifficultyHitObject)osuCurrObj.PreviousTap(0) : null;
 
-            if (!osuCurrObj.IsTapObject)
+            if (!osuCurrObj.IsTapObject || osuPrevObj is null || !osuPrevObj.IsTapObject)
                 return 0;
 
+//            double strainTime = (osuCurrObj.TapStrainTime + osuPrevObj.TapStrainTime) / 2.0;
             double strainTime = osuCurrObj.TapStrainTime;
             double doubletapness = osuCurrObj.IsTapObject ? 1.0 - osuCurrObj.GetDoubletapness((OsuDifficultyHitObject?)osuCurrObj.NextTap(0)) : 1;
 
@@ -53,7 +54,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 speedBonus += 0.75 * Math.Pow((DifficultyCalculationUtils.BPMToMilliseconds(min_speed_bonus) - strainTime) / speed_balancing_factor, 2);
 
             // Base difficulty with all bonuses
-            double difficulty = (1.0 + speedBonus) * 1000 / strainTime;
+//            double difficulty = (1.0 + speedBonus) * 1000 / Math.Min(75, strainTime);
+            double difficulty = 0;
+
+            if (strainTime > 83.333)
+                difficulty = 1000 / 83.333;
+            else
+                difficulty = (1.0 + speedBonus) * 1000 / strainTime;
 
             // Apply penalty if there's doubletappable doubles
             return difficulty * doubletapness;

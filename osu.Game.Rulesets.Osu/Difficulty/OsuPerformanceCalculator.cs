@@ -22,7 +22,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
     public class OsuPerformanceCalculator : PerformanceCalculator
     {
         public const double PERFORMANCE_BASE_MULTIPLIER = 1.14; // This is being adjusted to keep the final pp value scaled around what it used to be when changing things.
-        public const double PERFORMANCE_NON_LINEAR_SCALING_FACTOR = 1.35; // This is used to better adjust pp values across all skill ranges
+        public const double PERFORMANCE_NON_LINEAR_SCALING_FACTOR = 1.45; // This is used to better adjust pp values across all skill ranges
 
         private bool usingClassicSliderAccuracy;
         private bool usingScoreV2;
@@ -156,9 +156,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double accuracyValue = computeAccuracyValue(score, osuAttributes);
             double flashlightValue = computeFlashlightValue(score, osuAttributes);
 
-            double totalValue = (800 / Math.Pow(800, PERFORMANCE_NON_LINEAR_SCALING_FACTOR)) *
-                Math.Pow(aimValue + speedValue + accuracyValue + flashlightValue,
-                PERFORMANCE_NON_LINEAR_SCALING_FACTOR) * multiplier;
+            double totalValue = ((800 / Math.Pow(800, PERFORMANCE_NON_LINEAR_SCALING_FACTOR)) *
+                Math.Pow(aimValue + speedValue,
+                PERFORMANCE_NON_LINEAR_SCALING_FACTOR) + accuracyValue + flashlightValue) * multiplier;
 
             return new OsuPerformanceAttributes
             {
