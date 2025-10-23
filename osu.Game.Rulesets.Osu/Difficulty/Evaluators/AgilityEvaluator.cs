@@ -89,7 +89,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (osuCurrObj.IsTapObject)
                 difficulty *= osuCurrObj.SmallCircleBonus;
 
-            return difficulty * 0.50;
+            return difficulty * 0.575;
         }
 
         private static double angleDifference(double curAngle, double lastAngle)

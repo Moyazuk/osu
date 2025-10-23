@@ -57,6 +57,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
             return difficulty;
         }
 
-        public static double DifficultyToPerformance(double difficulty) => Math.Pow(5.0 * Math.Max(1.0, difficulty / 0.0675) - 4.0, 3.0) / 100000.0;
+//        public static double DifficultyToPerformance(double difficulty) => Math.Pow(5.0 * Math.Max(1.0, difficulty / 0.0675) - 4.0, 3.0) / 100000.0;
+        public static double DifficultyToPerformance(double difficulty) => 2.0 * Math.Pow(1.0 + difficulty, 3.0);
     }
 }
