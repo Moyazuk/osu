@@ -13,6 +13,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class FlowAimEvaluator
     {
+
+        public static double angleScaleMultiplier = 0.4;       // scales extra-distance from angle-tightness
+        public static double flowOverallMultiplier = 0.725;      // post-multiplier on total flow difficulty
+        public static double velocityChangeMultiplier = 4;   // scales |prevV - currV| term
+        public static double angularVelocityMultiplier = 0.05;  // scales angularVelocityBonus contribution
+
         public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
         {
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
@@ -42,7 +48,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double angularVelocityBonus = Math.Max(0.0, Math.Pow(angularVelocity, 0.5) - 1.0);
                 //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
                 //angularVelocityBonus *= DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, radius * 0.5, radius * 2);
-                adjustedDistanceScale = 1 + angularVelocityBonus * 0.05;
+                adjustedDistanceScale = 1 + angularVelocityBonus * angularVelocityMultiplier;
 
                 // Apply wiggle bonus for jumps that are [radius, 3*diameter] in distance, with < 110 angle
                 // https://www.desmos.com/calculator/dp0v0nvowc
@@ -75,7 +81,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double flowVelChange = Math.Abs(prevVelocity - currVelocity);
 
-            difficulty += flowVelChange * 4;
+            difficulty += flowVelChange * velocityChangeMultiplier;
 
             wiggleBonus *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 1);
 
@@ -106,7 +112,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (withSliderTravelDistance)
                 difficulty += sliderBonus * 0.3;
 
-            return difficulty * 0.725 * osuCurrObj.SmallCircleBonus;
+            return difficulty * flowOverallMultiplier * osuCurrObj.SmallCircleBonus;
         }
 
         /// <summary>
@@ -146,7 +152,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             angleScale *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 0.05);
 
 
-            double velocityBonus = 1.1 + Math.Pow(previousVelocity, 1) * angleScale * 0.4;
+            double velocityBonus = 1.1 + Math.Pow(previousVelocity, 1) * angleScale * angleScaleMultiplier;
 
             return Math.Pow(distanceTravelled, velocityBonus);
         }

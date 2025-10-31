@@ -21,7 +21,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 {
     public class OsuPerformanceCalculator : PerformanceCalculator
     {
-        public const double PERFORMANCE_BASE_MULTIPLIER = 1.14; // This is being adjusted to keep the final pp value scaled around what it used to be when changing things.
+        public static double PERFORMANCE_BASE_MULTIPLIER = 1.14; // This is being adjusted to keep the final pp value scaled around what it used to be when changing things.
+
+        public static double ACCURACY_BASE = 120;
 
         private bool usingClassicSliderAccuracy;
         private bool usingScoreV2;
@@ -292,7 +294,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (!usingClassicSliderAccuracy || usingScoreV2)
                 amountHitObjectsWithAccuracy += attributes.SliderCount;
 
-            double accuracyValue = 120 * Math.Pow(7.5 / (double)deviation, 2);
+            double accuracyValue = ACCURACY_BASE * Math.Pow(7.5 / (double)deviation, 2);
 
             // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
             if (score.Mods.Any(m => m is OsuModBlinds))

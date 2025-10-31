@@ -11,6 +11,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class AgilityEvaluator
     {
+        // === Tunable constants for MassBalancer ===
+        public static double baseBPMConstant = 240.0;               // was 240.0
+        public static double agilityExponent = 4.0;                 // was 4
+        public static double agilityOverallMultiplier = 0.02;       // was 0.02
+        public static double agilityVelocityChangeMultiplier = 0.1;        // was 0.1
+        public static double angleBonusMultiplier = 0.35;           // was 0.35
+        public static double distanceBonusMultiplier = 0.00000000175; // was 1.75e-9
+
         public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withCheesability)
         {
             if (!IsValid(current, 3))
@@ -27,7 +35,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double lastStrainTime = osuPrevObj.AdjustedDeltaTime;
 
             double currVelocity = osuCurrObj.LazyJumpDistance / currStrainTime;
-
             double prevVelocity = osuPrevObj.LazyJumpDistance / lastStrainTime;
 
             if (withCheesability)
@@ -39,36 +46,26 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currDistanceMultiplier = Smootherstep(osuCurrObj.LazyJumpDistance / radius, 1, 2);
             double prevDistanceMultiplier = Smootherstep(osuPrevObj.LazyJumpDistance / radius, 1, 2);
 
-            // If the previous notes are stacked, we add the previous note's strainTime since there was no movement since at least 2 notes earlier.
-            // https://youtu.be/-yJPIk-YSLI?t=186
             double currTime = currStrainTime + lastStrainTime * (1 - prevDistanceMultiplier);
             double prevTime = lastStrainTime;
 
             double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
-
             double prevAngle = osuPrevObj.Angle!.Value * 180 / Math.PI;
 
-            double angleBonus = 0.35 * Smootherstep(currentAngle, 0, 120);
-
+            double angleBonus = angleBonusMultiplier * Smootherstep(currentAngle, 0, 120);
             double baseFactor = 1 - 0.3 * SnapAimEvaluator.AngleDifference(currentAngle, prevAngle);
-
-            // Penalize angle repetition.
             double angleRepetitionNerf = Math.Pow(baseFactor + (1 - baseFactor) * 0.95 * SnapAimEvaluator.AngleVectorRepetition(osuCurrObj), 2);
 
-            double velocityChangeBonus = Math.Abs(prevVelocity - currVelocity) * 0.1;
+            double velocityChangeBonus = Math.Abs(prevVelocity - currVelocity) * agilityVelocityChangeMultiplier;
 
+            double distanceBonus = distanceBonusMultiplier * Math.Pow(osuCurrObj.LazyJumpDistance, 3)
+                                   * Smootherstep(MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime, 2), 280, 320);
 
+            double baseBpm = baseBPMConstant / (1 + (angleBonus + distanceBonus + velocityChangeBonus) * currDistanceMultiplier * prevDistanceMultiplier);
 
-            double distanceBonus = 0.00000000175 * Math.Pow(osuCurrObj.LazyJumpDistance, 3) *
-                                   Smootherstep(MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime, 2), 280, 320);
+            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, agilityExponent) - 1);
 
-            // We reward high bpm more for wider angles, but only when both current and previous distance are over 0.5 radii.
-            double baseBpm = 240.0 / (1 + (angleBonus + distanceBonus + velocityChangeBonus) * currDistanceMultiplier * prevDistanceMultiplier);
-
-            // Agility bonus of 1 at base BPM.
-            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 4) - 1);
-
-            return agilityBonus * angleRepetitionNerf * 0.02;
+            return agilityBonus * angleRepetitionNerf * agilityOverallMultiplier;
         }
     }
 }
