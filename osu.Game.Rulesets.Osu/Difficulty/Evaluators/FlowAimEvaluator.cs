@@ -40,18 +40,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double flowDifficulty = velocity;
 
-            // Rescale the distance to make it closer d/t
-            if (osuCurrObj.LazyJumpDistance > diameter)
-            {
-                // Controls distance scaling for high spaced flow aim
-                flowDifficulty *= Math.Pow(osuCurrObj.LazyJumpDistance / diameter, 0.4);
-            }
-            else
-            {
-                // Controls distance scaling for low spaced flow aim
-                flowDifficulty *= Math.Pow(osuCurrObj.LazyJumpDistance / diameter, 0.8);
-            }
-
             // Flow aim is harder on High BPM
             const double base_speedflow_multiplier = 0.07; // Base multiplier for speedflow bonus
             const double bpm_factor = 10; // How steep the bonus is, higher values means more bonus for high BPM
@@ -96,7 +84,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             flowDifficulty += angleBonus;
 
-            flowDifficulty *= flow_multiplier;
+            flowDifficulty *= 1.6;
 
             if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
             {

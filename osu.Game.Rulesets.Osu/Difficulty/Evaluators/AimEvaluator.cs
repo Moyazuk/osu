@@ -87,29 +87,32 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 // Rewarding angles, take the smaller velocity as base.
                 double angleBonus = Math.Min(currVelocity, prevVelocity);
 
+                double wideAngleBase = Math.Min(currVelocity, prevVelocity);
+
                 if (Math.Max(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime) < 1.25 * Math.Min(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime)) // If rhythms are the same.
                 {
                     acuteAngleBonus = CalcAcuteAngleBonus(currAngle);
 
                     // Penalize angle repetition.
-                    acuteAngleBonus *= 0.08 + 0.75 * (1 - Math.Min(acuteAngleBonus, Math.Pow(CalcAcuteAngleBonus(lastAngle), 3)));
+                    acuteAngleBonus *= 0.25 + 0.75 * (1 - Math.Min(acuteAngleBonus, Math.Pow(CalcAcuteAngleBonus(lastAngle), 3)));
 
                     // Apply acute angle bonus for BPM above 300 1/2 and distance more than one diameter
                     acuteAngleBonus *= angleBonus *
-                                       DifficultyCalculationUtils.Smootherstep(DifficultyCalculationUtils.MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime, 2), 300, 400);
+                                       DifficultyCalculationUtils.Smootherstep(DifficultyCalculationUtils.MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime, 2), 280, 420);
                 }
 
                 // Rescale wide angle bonus to reward lower spacing more
                 double velocityThreshold = diameter * 2.3 / osuCurrObj.AdjustedDeltaTime;
-                double wideVelocityBase = Math.Min(angleBonus, velocityThreshold + 0.4 * (angleBonus - velocityThreshold));
 
                 wideAngleBonus = calcWideAngleBonus(currAngle);
+
+                wideAngleBase /= Math.Pow(Math.Max(osuLastObj.AdjustedDeltaTime, osuCurrObj.AdjustedDeltaTime), 3);
 
                 // Penalize angle repetition.
                 wideAngleBonus *= 1 - Math.Min(wideAngleBonus, Math.Pow(calcWideAngleBonus(lastAngle), 3));
 
                 // Apply full wide angle bonus for distance more than one diameter
-                wideAngleBonus *= wideVelocityBase * DifficultyCalculationUtils.Smootherstep(currDistance, 0, diameter);
+                wideAngleBonus *= wideAngleBase * DifficultyCalculationUtils.Smootherstep(currDistance, 0, diameter);
 
                 // Apply wiggle bonus for jumps that are [radius, 3*diameter] in distance, with < 110 angle
                 // https://www.desmos.com/calculator/dp0v0nvowc
@@ -151,6 +154,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 // Penalize for rhythm changes.
                 velocityChangeBonus *= Math.Pow(Math.Min(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime) / Math.Max(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime), 2);
+
+                velocityChangeBonus /= Math.Pow(osuCurrObj.AdjustedDeltaTime, 3);
             }
 
             if (osuLastObj.BaseObject is Slider)
@@ -160,17 +165,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
 
             aimStrain += wiggleBonus * wiggle_multiplier;
-            aimStrain += velocityChangeBonus * velocity_change_multiplier;
+            aimStrain += velocityChangeBonus * 1800000;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier);
+            aimStrain += Math.Max(acuteAngleBonus * 2.6, wideAngleBonus * 2100000);
 
             // Apply high circle size bonus
             aimStrain *= osuCurrObj.SmallCircleBonus;
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
-                aimStrain += sliderBonus * SLIDER_MULTIPLIER;
+                aimStrain += sliderBonus * 0;
 
             return aimStrain;
         }
