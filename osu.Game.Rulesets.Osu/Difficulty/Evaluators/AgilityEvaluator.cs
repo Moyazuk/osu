@@ -12,12 +12,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
     public static class AgilityEvaluator
     {
         // === Tunable constants for MassBalancer ===
-        public static double baseBPMConstant = 240.0;               // was 240.0
-        public static double agilityExponent = 4.0;                 // was 4
-        public static double agilityOverallMultiplier = 0.02;       // was 0.02
-        public static double agilityVelocityChangeMultiplier = 0.1;        // was 0.1
-        public static double angleBonusMultiplier = 0.35;           // was 0.35
-        public static double distanceBonusMultiplier = 0.00000000175; // was 1.75e-9
+        public static double baseBPMConstant = 240.0;
+        public static double agilityExponent = 4.0;
+        public static double agilityOverallMultiplier = 0.02;
+        public static double agilityVelocityChangeMultiplier = 0.1;
+        public static double angleBonusMultiplier = 0.35;
+        public static double distanceBonusMultiplier = 0.00000000175;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withCheesability)
         {
@@ -52,7 +52,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
             double prevAngle = osuPrevObj.Angle!.Value * 180 / Math.PI;
 
-            double angleBonus = angleBonusMultiplier * Smootherstep(currentAngle, 0, 120);
+            double angleBonus = 0.4 * Smootherstep(currentAngle, 0, 120);
             double baseFactor = 1 - 0.3 * SnapAimEvaluator.AngleDifference(currentAngle, prevAngle);
             double angleRepetitionNerf = Math.Pow(baseFactor + (1 - baseFactor) * 0.95 * SnapAimEvaluator.AngleVectorRepetition(osuCurrObj), 2);
 
@@ -65,7 +65,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, agilityExponent) - 1);
 
-            return agilityBonus * angleRepetitionNerf * agilityOverallMultiplier;
+            return agilityBonus * angleRepetitionNerf * 0.0145;
         }
     }
 }

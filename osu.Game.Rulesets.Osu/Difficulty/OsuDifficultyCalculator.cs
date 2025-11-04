@@ -119,7 +119,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double cheeseFactor = aimRating > 0 ? aimRatingCheesed / aimRating : 1;
 
-            double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);
+            double baseAimPerformance = OsuStrainSkill.AimDifficultyToPerformance(aimRating);
+            Console.WriteLine($"Base Aim Performance: {baseAimPerformance}");
             double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating);
             double baseFlashlightPerformance = Flashlight.DifficultyToPerformance(flashlightRating);
 
@@ -169,7 +170,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private static double calculateMechanicalDifficultyRating(double aimDifficultyValue, double speedDifficultyValue)
         {
-            double aimValue = OsuStrainSkill.DifficultyToPerformance(calculateDifficultyRating(aimDifficultyValue));
+            double aimValue = OsuStrainSkill.AimDifficultyToPerformance(calculateDifficultyRating(aimDifficultyValue));
             double speedValue = OsuStrainSkill.DifficultyToPerformance(calculateDifficultyRating(speedDifficultyValue));
 
             double totalValue = Math.Pow(Math.Pow(aimValue, 1.1) + Math.Pow(speedValue, 1.1), 1 / 1.1);
