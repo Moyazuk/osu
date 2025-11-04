@@ -268,6 +268,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
 
             if (lastLastDifficultyObject != null && lastLastDifficultyObject.BaseObject is not Spinner)
             {
+                if (lastDifficultyObject!.BaseObject is Slider prevSlider && lastDifficultyObject.TravelDistance > 0)
+                    lastCursorPosition = prevSlider.HeadCircle.StackedPosition;
                 Vector2 lastLastCursorPosition = getEndCursorPosition(lastLastDifficultyObject);
 
                 Vector2 v1 = lastLastCursorPosition - LastObject.StackedPosition;
@@ -278,8 +280,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                 float dot = Vector2.Dot(v1, v2);
                 float det = v1.X * v2.Y - v1.Y * v2.X;
 
+                double angle = Math.Abs(calculateAngle(BaseObject.StackedPosition, lastCursorPosition, lastLastCursorPosition));
+                double sliderAngle = Math.Abs(calculateSliderAngle(lastDifficultyObject!, lastLastCursorPosition));
+
                 AngleSigned = Math.Atan2(det, dot);
-                Angle = Math.Abs((double)AngleSigned);
+                Angle = Math.Min(angle, sliderAngle);
             }
         }
 
@@ -391,29 +396,33 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
             }
         }
 
+        private double calculateSliderAngle(OsuDifficultyHitObject lastDifficultyObject, Vector2 lastLastCursorPosition)
+        {
+            Vector2 lastCursorPosition = getEndCursorPosition(lastDifficultyObject);
+
+            if (lastDifficultyObject.BaseObject is Slider prevSlider && lastDifficultyObject.TravelDistance > 0)
+            {
+                OsuHitObject secondLastNestedObject = (OsuHitObject)prevSlider.NestedHitObjects[^2];
+                lastLastCursorPosition = secondLastNestedObject.StackedPosition;
+            }
+
+            return calculateAngle(BaseObject.StackedPosition, lastCursorPosition, lastLastCursorPosition);
+        }
+
+        private double calculateAngle(Vector2 currentPosition, Vector2 lastPosition, Vector2 lastLastPosition)
+        {
+            Vector2 v1 = lastLastPosition - lastPosition;
+            Vector2 v2 = currentPosition - lastPosition;
+
+            float dot = Vector2.Dot(v1, v2);
+            float det = v1.X * v2.Y - v1.Y * v2.X;
+
+            return Math.Atan2(det, dot);
+        }
+
         private Vector2 getEndCursorPosition(OsuDifficultyHitObject difficultyHitObject)
         {
             return difficultyHitObject.LazyEndPosition ?? difficultyHitObject.BaseObject.StackedPosition;
-        }
-
-        public static bool IsValid(DifficultyHitObject current, int notesBackward, int notesForward = 0)
-        {
-            if (current.Index < notesBackward || current.IndexFromEnd < notesForward || current.BaseObject is Spinner)
-                return false;
-
-            for (int i = 0; i < notesBackward; i++)
-            {
-                if (current.Previous(i).BaseObject is Spinner)
-                    return false;
-            }
-
-            for (int i = 0; i < notesForward; i++)
-            {
-                if (current.Next(i).BaseObject is Spinner)
-                    return false;
-            }
-
-            return true;
         }
     }
 }
