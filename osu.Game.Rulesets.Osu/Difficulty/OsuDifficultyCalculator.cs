@@ -120,7 +120,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double cheeseFactor = aimRating > 0 ? aimRatingCheesed / aimRating : 1;
 
             double baseAimPerformance = OsuStrainSkill.AimDifficultyToPerformance(aimRating);
-            Console.WriteLine($"Base Aim Performance: {baseAimPerformance}");
             double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating);
             double baseFlashlightPerformance = Flashlight.DifficultyToPerformance(flashlightRating);
 
