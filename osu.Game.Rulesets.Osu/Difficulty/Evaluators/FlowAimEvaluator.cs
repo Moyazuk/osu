@@ -112,7 +112,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (withSliderTravelDistance)
                 difficulty += sliderBonus * 0.3;
 
-            return difficulty * 0.825 * osuCurrObj.SmallCircleBonus;
+            return difficulty * 0.875 * osuCurrObj.SmallCircleBonus;
         }
 
         /// <summary>
@@ -147,7 +147,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double angleScale = 1.0 - DifficultyCalculationUtils.Smootherstep(angle, 0, maxBonusAngle);
 
             //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
-            angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius, radius * 2);
+            angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius, radius * 4);
 
             angleScale *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 0.05);
 
