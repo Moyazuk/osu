@@ -53,7 +53,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             var aim = skills.OfType<CombinedAim>().Single(a => a.IncludeSliders);
             var aimWithoutSliders = skills.OfType<CombinedAim>().Single(a => !a.IncludeSliders);
-            var speed = skills.OfType<Speed>().Single();
+            var speed = skills.OfType<Speed>().Single(s => !s.WithoutStamina);
+            var speedWithoutStamina = skills.OfType<Speed>().Single(s => s.WithoutStamina);
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
 
             double speedNotes = speed.RelevantNoteCount();
@@ -225,7 +226,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 new CombinedAim(mods, true),
                 new CombinedAim(mods, false),
-                new Speed(mods),
+                new Speed(mods, true),
+                new Speed(mods, false),
                 new SnapAim(mods),
                 new FlowAim(mods),
             };
