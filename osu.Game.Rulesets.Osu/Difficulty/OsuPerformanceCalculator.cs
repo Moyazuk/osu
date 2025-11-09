@@ -139,13 +139,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double aimValue = computeAimValue(score, osuAttributes);
             double speedValue = computeSpeedValue(score, osuAttributes);
-            double accuracyValue = computeAccuracyValue(score, osuAttributes);
             double flashlightValue = computeFlashlightValue(score, osuAttributes);
 
             double totalValue =
                 Math.Pow(
                     Math.Pow(OsuDifficultyCalculator.SumMechanicalDifficulty(aimValue, speedValue), 1.1) +
-                    Math.Pow(accuracyValue, 1.1) +
                     Math.Pow(flashlightValue, 1.1), 1.0 / 1.1
                 ) * multiplier;
 
@@ -153,7 +151,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 Aim = aimValue,
                 Speed = speedValue,
-                Accuracy = accuracyValue,
                 Flashlight = flashlightValue,
                 EffectiveMissCount = effectiveMissCount,
                 ComboBasedEstimatedMissCount = comboBasedEstimatedMissCount,
@@ -231,16 +228,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
                                  (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-            speedValue *= lengthBonus;
 
-            if (effectiveMissCount > 0)
-            {
-                speedEstimatedSliderBreaks = calculateEstimatedSliderBreaks(attributes.SpeedTopWeightedSliderFactor, attributes);
-
-                double relevantMissCount = Math.Min(effectiveMissCount + speedEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
-
-                speedValue *= calculateMissPenalty(relevantMissCount, attributes.SpeedDifficultStrainCount);
-            }
+            double mistimes = countOk + countMeh + countMiss;
 
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
             if (score.Mods.Any(m => m is OsuModBlinds))
@@ -263,52 +252,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double relevantCountMeh = Math.Max(0, countMeh - Math.Max(0, relevantTotalDiff - countGreat - countOk));
             double relevantAccuracy = attributes.SpeedNoteCount == 0 ? 0 : (relevantCountGreat * 6.0 + relevantCountOk * 2.0 + relevantCountMeh) / (attributes.SpeedNoteCount * 6.0);
 
-            // Scale the speed value with accuracy and OD.
-            speedValue *= Math.Pow((accuracy + relevantAccuracy) / 2.0, (14.5 - overallDifficulty) / 2);
+            if (mistimes > 0)
+                speedValue *= calculateCurveFittedMissPenalty(mistimes, attributes.AccPenaltyCurve);
 
             return speedValue;
-        }
-
-        private double computeAccuracyValue(ScoreInfo score, OsuDifficultyAttributes attributes)
-        {
-            if (score.Mods.Any(h => h is OsuModRelax))
-                return 0.0;
-
-            // This percentage only considers HitCircles of any value - in this part of the calculation we focus on hitting the timing hit window.
-            double betterAccuracyPercentage;
-            int amountHitObjectsWithAccuracy = attributes.HitCircleCount;
-            if (!usingClassicSliderAccuracy || usingScoreV2)
-                amountHitObjectsWithAccuracy += attributes.SliderCount;
-
-            if (amountHitObjectsWithAccuracy > 0)
-                betterAccuracyPercentage = ((countGreat - Math.Max(totalHits - amountHitObjectsWithAccuracy, 0)) * 6 + countOk * 2 + countMeh) / (double)(amountHitObjectsWithAccuracy * 6);
-            else
-                betterAccuracyPercentage = 0;
-
-            // It is possible to reach a negative accuracy with this formula. Cap it at zero - zero points.
-            if (betterAccuracyPercentage < 0)
-                betterAccuracyPercentage = 0;
-
-            // Lots of arbitrary values from testing.
-            // Considering to use derivation from perfect accuracy in a probabilistic manner - assume normal distribution.
-            double accuracyValue = Math.Pow(1.52163, overallDifficulty) * Math.Pow(betterAccuracyPercentage, 24) * 2.83;
-
-            // Bonus for many hitcircles - it's harder to keep good accuracy up for longer.
-            accuracyValue *= Math.Min(1.15, Math.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.3));
-
-            // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
-            if (score.Mods.Any(m => m is OsuModBlinds))
-                accuracyValue *= 1.14;
-            else if (score.Mods.Any(m => m is OsuModHidden || m is OsuModTraceable))
-            {
-                // Decrease bonus for AR > 10
-                accuracyValue *= 1 + 0.08 * DifficultyCalculationUtils.ReverseLerp(approachRate, 11.5, 10);
-            }
-
-            if (score.Mods.Any(m => m is OsuModFlashlight))
-                accuracyValue *= 1.02;
-
-            return accuracyValue;
         }
 
         private double computeFlashlightValue(ScoreInfo score, OsuDifficultyAttributes attributes)
@@ -517,6 +464,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             return adjustedFlowValue / flowAimValue;
         }
+
+        // With the curve fitted miss penalty, we use a pre-computed curve of skill levels for each miss count, raised to the power of 1.5 as
+        // the multiple of the exponents on star rating and PP. This power should be changed if either SR or PP begin to use a different exponent.
+        // As a result, this exponent is not subject to balance.
+        private double calculateCurveFittedMissPenalty(double missCount, Polynomial curve) => Math.Pow(1 - curve.GetPenaltyAt(Math.Log(missCount + 1)), 1.5);
 
         // Miss penalty assumes that a player will miss on the hardest parts of a map,
         // so we use the amount of relatively difficult sections to adjust miss penalty

@@ -8,7 +8,9 @@ using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Skills;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
@@ -53,20 +55,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             var aim = skills.OfType<CombinedAim>().Single(a => a.IncludeSliders);
             var aimWithoutSliders = skills.OfType<CombinedAim>().Single(a => !a.IncludeSliders);
-            var speed = skills.OfType<Speed>().Single();
+            var tap = skills.OfType<Tap>().Single();
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
 
-            double speedNotes = speed.RelevantNoteCount();
+            double speedNotes = tap.RelevantNoteCount();
 
             double aimDifficultStrainCount = aim.CountTopWeightedStrains();
-            double speedDifficultStrainCount = speed.CountTopWeightedStrains();
+            double speedDifficultStrainCount = tap.CountTopWeightedStrains();
 
             double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders();
             double aimNoSlidersDifficultStrainCount = aimWithoutSliders.CountTopWeightedStrains();
 
             double aimTopWeightedSliderFactor = aimNoSlidersTopWeightedSliderCount / Math.Max(1, aimNoSlidersDifficultStrainCount - aimNoSlidersTopWeightedSliderCount);
 
-            double speedTopWeightedSliderCount = speed.CountTopWeightedSliders();
+            double speedTopWeightedSliderCount = tap.CountTopWeightedSliders();
             double speedTopWeightedSliderFactor = speedTopWeightedSliderCount / Math.Max(1, speedDifficultStrainCount - speedTopWeightedSliderCount);
 
             double difficultSliders = aim.GetDifficultSliders();
@@ -86,10 +88,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimNoSlidersDifficultyValue = aimWithoutSliders.DifficultyValue();
             double snapAimDifficultyValue = skills.OfType<SnapAim>().Single().DifficultyValue();
             double flowAimDifficultyValue = skills.OfType<FlowAim>().Single().DifficultyValue();
-            double speedDifficultyValue = speed.DifficultyValue();
+            double speedDifficultyValue = tap.DifficultyValue();
 
             double mechanicalDifficultyRating = calculateMechanicalDifficultyRating(aimDifficultyValue, snapAimDifficultyValue, flowAimDifficultyValue, speedDifficultyValue);
             double sliderFactor = aimDifficultyValue > 0 ? OsuRatingCalculator.CalculateDifficultyRating(aimNoSlidersDifficultyValue) / OsuRatingCalculator.CalculateDifficultyRating(aimDifficultyValue) : 1;
+
+            Polynomial accPenaltyCurve = ((OsuTimeSkill)skills[2]).GetMissPenaltyCurve();
 
             var osuRatingCalculator = new OsuRatingCalculator(mods, totalHits, approachRate, overallDifficulty, mechanicalDifficultyRating, sliderFactor);
 
@@ -137,6 +141,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 SpeedDifficultStrainCount = speedDifficultStrainCount,
                 AimTopWeightedSliderFactor = aimTopWeightedSliderFactor,
                 SpeedTopWeightedSliderFactor = speedTopWeightedSliderFactor,
+                AccPenaltyCurve = accPenaltyCurve,
                 DrainRate = drainRate,
                 MaxCombo = beatmap.GetMaxCombo(),
                 HitCircleCount = hitCircleCount,
@@ -225,7 +230,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 new CombinedAim(mods, true),
                 new CombinedAim(mods, false),
-                new Speed(mods),
+                new Tap(mods),
                 new SnapAim(mods),
                 new FlowAim(mods),
             };
