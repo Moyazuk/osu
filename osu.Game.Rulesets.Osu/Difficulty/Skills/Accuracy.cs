@@ -9,7 +9,6 @@ using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Difficulty.Utils;
-using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Objects;
 
@@ -18,21 +17,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to correctly aim at every object in the map with a uniform CircleSize and normalized distances.
     /// </summary>
-    public class Tap : OsuTimeSkill
+    public class Accuracy : OsuTimeSkill
     {
-        public Tap(Mod[] mods)
+        public Accuracy(Mod[] mods)
             : base(mods)
         {
         }
 
-        protected override double TimeThreshold => 7600000;
+        protected override double TimeThreshold => 12;
 
-        private double currentStrain;
+        private double overallMultiplier => 1.05;
 
-        private double skillMultiplier => 15.85;
+        private double skillMultiplier => 20.85;
         private double strainDecayBase => 0.3;
 
-        private double currentRhythm;
+        private double currentHitWindow;
 
         private readonly List<double> sliderStrains = new List<double>();
 
@@ -48,19 +47,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            currentStrain *= strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
-            currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+            currentHitWindow = AccuracyEvaluator.EvaluateEffectiveHitWindow(current);
 
-            currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
-
-            double totalStrain = currentStrain * currentRhythm;
+            double accDifficulty = 14000 / currentHitWindow;
 
             if (current.BaseObject is Slider)
             {
-                sliderStrains.Add(currentStrain);
+                accDifficulty = 0;
             }
 
-            return totalStrain;
+            return accDifficulty;
         }
 
         public double RelevantNoteCount()

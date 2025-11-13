@@ -20,7 +20,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         }
 
         // Assume players spend 12 minutes retrying a map before they SS
-        private double time_threshold = 720;
+        protected virtual double TimeThreshold => 720;
 
         // The width of each dimension of the bins. Since the array of bins is 2 dimensional, the number of bins is equal to these values multiplied together.
         private const int difficulty_bin_count = 8;
@@ -53,7 +53,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
             double upperBoundEstimate = 3.0 * maxDiff;
 
             double skill = RootFinding.FindRootExpand(
-                skill => fcTime(skill) - time_threshold * 60000,
+                skill => fcTime(skill) - TimeThreshold * 60000,
                 lower_bound_estimate,
                 upperBoundEstimate);
 
@@ -89,7 +89,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
             double upperBoundEstimate = 3.0 * maxDiff;
 
             double skill = RootFinding.FindRootExpand(
-                skill => fcTime(skill) - time_threshold * 60000,
+                skill => fcTime(skill) - TimeThreshold * 60000,
                 lower_bound_estimate,
                 upperBoundEstimate);
 
@@ -228,7 +228,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
                 }
             }
 
-            return Math.Max(0, RootFinding.FindRootExpand(x => timeAtMissCountAtSkill(x) - time_threshold, -50, 1000, accuracy: 0.01));
+            return Math.Max(0, RootFinding.FindRootExpand(x => timeAtMissCountAtSkill(x) - TimeThreshold, -50, 1000, accuracy: 0.01));
         }
 
         /// <summary>

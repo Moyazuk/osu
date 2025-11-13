@@ -56,6 +56,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             var aim = skills.OfType<CombinedAim>().Single(a => a.IncludeSliders);
             var aimWithoutSliders = skills.OfType<CombinedAim>().Single(a => !a.IncludeSliders);
             var tap = skills.OfType<Tap>().Single();
+            var acc = skills.OfType<Accuracy>().Single();
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
 
             double speedNotes = tap.RelevantNoteCount();
@@ -89,6 +90,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double snapAimDifficultyValue = skills.OfType<SnapAim>().Single().DifficultyValue();
             double flowAimDifficultyValue = skills.OfType<FlowAim>().Single().DifficultyValue();
             double speedDifficultyValue = tap.DifficultyValue();
+            double accDifficultyValue = acc.DifficultyValue();
 
             double mechanicalDifficultyRating = calculateMechanicalDifficultyRating(aimDifficultyValue, snapAimDifficultyValue, flowAimDifficultyValue, speedDifficultyValue);
             double sliderFactor = aimDifficultyValue > 0 ? OsuRatingCalculator.CalculateDifficultyRating(aimNoSlidersDifficultyValue) / OsuRatingCalculator.CalculateDifficultyRating(aimDifficultyValue) : 1;
@@ -100,6 +102,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimRating = osuRatingCalculator.ComputeCombinedAimRating(aimDifficultyValue, snapAimDifficultyValue, flowAimDifficultyValue);
             double aimRatingNoSliders = osuRatingCalculator.ComputeCombinedAimRating(aimNoSlidersDifficultyValue, snapAimDifficultyValue, flowAimDifficultyValue);
             double speedRating = osuRatingCalculator.ComputeSpeedRating(speedDifficultyValue);
+
+            double accRating = osuRatingCalculator.ComputeSpeedRating(accDifficultyValue);
 
             double snapAimRating = osuRatingCalculator.ComputeSnapAimRating(snapAimDifficultyValue);
             double flowAimRating = osuRatingCalculator.ComputeFlowAimRating(flowAimDifficultyValue);
@@ -117,6 +121,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);
             double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating);
+            double baseAccuracyPerformance = OsuStrainSkill.DifficultyToPerformance(accRating);
             double baseFlashlightPerformance = Flashlight.DifficultyToPerformance(flashlightRating);
 
             double basePerformance =
@@ -141,6 +146,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 SpeedDifficultStrainCount = speedDifficultStrainCount,
                 AimTopWeightedSliderFactor = aimTopWeightedSliderFactor,
                 SpeedTopWeightedSliderFactor = speedTopWeightedSliderFactor,
+                AccDifficulty = accRating,
                 AccPenaltyCurve = accPenaltyCurve,
                 DrainRate = drainRate,
                 MaxCombo = beatmap.GetMaxCombo(),
@@ -231,6 +237,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 new CombinedAim(mods, true),
                 new CombinedAim(mods, false),
                 new Tap(mods),
+                new Accuracy(mods),
                 new SnapAim(mods),
                 new FlowAim(mods),
             };

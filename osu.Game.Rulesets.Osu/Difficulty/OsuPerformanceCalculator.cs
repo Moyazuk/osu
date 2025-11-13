@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -53,7 +53,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         private double overallDifficulty;
         private double approachRate;
 
+        private double? deviation;
         private double? speedDeviation;
+
 
         private double aimEstimatedSliderBreaks;
         private double speedEstimatedSliderBreaks;
@@ -135,15 +137,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 effectiveMissCount = Math.Min(effectiveMissCount + countOk * okMultiplier + countMeh * mehMultiplier, totalHits);
             }
 
+            deviation = calculateDeviation(countGreat, countOk, countMeh);
             speedDeviation = calculateSpeedDeviation(osuAttributes);
 
             double aimValue = computeAimValue(score, osuAttributes);
             double speedValue = computeSpeedValue(score, osuAttributes);
+            double accuracyValue = computeAccuracyValue(score, osuAttributes);
             double flashlightValue = computeFlashlightValue(score, osuAttributes);
 
             double totalValue =
                 Math.Pow(
                     Math.Pow(OsuDifficultyCalculator.SumMechanicalDifficulty(aimValue, speedValue), 1.1) +
+                    Math.Pow(accuracyValue, 1.1) +
                     Math.Pow(flashlightValue, 1.1), 1.0 / 1.1
                 ) * multiplier;
 
@@ -151,6 +156,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 Aim = aimValue,
                 Speed = speedValue,
+                Accuracy = accuracyValue,
                 Flashlight = flashlightValue,
                 EffectiveMissCount = effectiveMissCount,
                 ComboBasedEstimatedMissCount = comboBasedEstimatedMissCount,
@@ -226,11 +232,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double speedValue = OsuStrainSkill.DifficultyToPerformance(attributes.SpeedDifficulty);
 
-            double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
-                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-
-            double mistimes = countOk + countMeh + countMiss;
-
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
             if (score.Mods.Any(m => m is OsuModBlinds))
             {
@@ -245,17 +246,43 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double speedHighDeviationMultiplier = calculateSpeedHighDeviationNerf(attributes);
             speedValue *= speedHighDeviationMultiplier;
 
-            // Calculate accuracy assuming the worst case scenario
-            double relevantTotalDiff = Math.Max(0, totalHits - attributes.SpeedNoteCount);
-            double relevantCountGreat = Math.Max(0, countGreat - relevantTotalDiff);
-            double relevantCountOk = Math.Max(0, countOk - Math.Max(0, relevantTotalDiff - countGreat));
-            double relevantCountMeh = Math.Max(0, countMeh - Math.Max(0, relevantTotalDiff - countGreat - countOk));
-            double relevantAccuracy = attributes.SpeedNoteCount == 0 ? 0 : (relevantCountGreat * 6.0 + relevantCountOk * 2.0 + relevantCountMeh) / (attributes.SpeedNoteCount * 6.0);
+            double mistimes;
+            {
+                double speedNoteCount = Math.Max(0, attributes.SpeedNoteCount);
+                double? sigmaBaseline = null;
+
+                if (speedNoteCount > 0)
+                    sigmaBaseline = calculateDeviation(speedNoteCount, 0, 0);
+
+                mistimes = normalizedMistimesFromDeviation(speedDeviation, sigmaBaseline, speedNoteCount) + countMiss;
+            }
+
+            Console.WriteLine($"mistimes= {mistimes} deviation = {deviation}");
 
             if (mistimes > 0)
                 speedValue *= calculateCurveFittedMissPenalty(mistimes, attributes.AccPenaltyCurve);
 
             return speedValue;
+        }
+
+        private double computeAccuracyValue(ScoreInfo score, OsuDifficultyAttributes attributes)
+        {
+            if (score.Mods.Any(h => h is OsuModRelax))
+                return 0.0;
+
+            double accuracyValue = OsuStrainSkill.DifficultyToPerformance(attributes.AccDifficulty);
+
+            double? overallSigma = calculateDeviation(countGreat, countOk, countMeh);
+
+            double successful = totalSuccessfulHits;
+            double? baselineSigma = successful > 0 ? calculateDeviation(successful, 0, 0) : null;
+
+            double mistimes = normalizedMistimesFromDeviation(overallSigma, baselineSigma, successful) + countMiss;
+
+            if (mistimes > 0)
+                accuracyValue *= calculateCurveFittedMissPenalty(mistimes, attributes.AccPenaltyCurve);
+
+            return accuracyValue;
         }
 
         private double computeFlashlightValue(ScoreInfo score, OsuDifficultyAttributes attributes)
@@ -465,16 +492,42 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return adjustedFlowValue / flowAimValue;
         }
 
-        // With the curve fitted miss penalty, we use a pre-computed curve of skill levels for each miss count, raised to the power of 1.5 as
-        // the multiple of the exponents on star rating and PP. This power should be changed if either SR or PP begin to use a different exponent.
-        // As a result, this exponent is not subject to balance.
-        private double calculateCurveFittedMissPenalty(double missCount, Polynomial curve) => Math.Pow(1 - curve.GetPenaltyAt(Math.Log(missCount + 1)), 1.5);
-
         // Miss penalty assumes that a player will miss on the hardest parts of a map,
         // so we use the amount of relatively difficult sections to adjust miss penalty
         // to make it more punishing on maps with lower amount of hard sections.
         private double calculateMissPenalty(double missCount, double difficultStrainCount) => 0.96 / ((missCount / (4 * Math.Pow(Math.Log(difficultStrainCount), 0.94))) + 1);
+
+        // With the curve fitted miss penalty, we use a pre-computed curve of skill levels for each miss count, raised to the power of 1.5 as
+        // the multiple of the exponents on star rating and PP. This power should be changed if either SR or PP begin to use a different exponent.
+        // As a result, this exponent is not subject to balance.
+        private double calculateCurveFittedMissPenalty(double missCount, Polynomial curve) => Math.Pow(1 - curve.GetPenaltyAt(Math.Log(missCount + 1)), 1.5);
         private double getComboScalingFactor(OsuDifficultyAttributes attributes) => attributes.MaxCombo <= 0 ? 1.0 : Math.Min(Math.Pow(scoreMaxCombo, 0.8) / Math.Pow(attributes.MaxCombo, 0.8), 1.0);
+
+        // OD-invariant reference great window (in milliseconds).
+        private const double REFERENCE_GREAT_WINDOW_MS = 18.0;
+
+        // Convert a sigma (ms) to the implied non-300 probability at the fixed window.
+        private static double non300ProbabilityFromSigma(double sigmaMs)
+        {
+            if (sigmaMs <= 0) return 0;
+            double arg = REFERENCE_GREAT_WINDOW_MS / (Math.Sqrt(2) * sigmaMs);
+            double pGreat = DifficultyCalculationUtils.Erf(arg);
+            return Math.Max(0.0, 1.0 - pGreat);
+        }
+
+        // Produces normalized mistimes from (sigma) but subtracts a baseline (sigma0)
+        // so that perfect scores (which still get a small sigma0) map to 0.
+        // hitCount is how many objects to apply to.
+        private static double normalizedMistimesFromDeviation(double? sigmaMs, double? sigmaBaselineMs, double hitCount)
+        {
+            if (hitCount <= 0 || sigmaMs is null || sigmaMs <= 0) return 0;
+
+            double p = non300ProbabilityFromSigma(sigmaMs.Value);
+            double p0 = (sigmaBaselineMs is null || sigmaBaselineMs <= 0) ? 0.0 : non300ProbabilityFromSigma(sigmaBaselineMs.Value);
+
+            double effective = Math.Max(0.0, p - p0); // remove estimator bias
+            return hitCount * effective;
+        }
 
         private int totalHits => countGreat + countOk + countMeh + countMiss;
         private int totalSuccessfulHits => countGreat + countOk + countMeh;
