@@ -8,7 +8,9 @@ using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Skills;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
@@ -54,6 +56,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             var aim = skills.OfType<Aim>().Single(a => a.IncludeSliders);
             var aimWithoutSliders = skills.OfType<Aim>().Single(a => !a.IncludeSliders);
             var speed = skills.OfType<Speed>().Single();
+            var acc = skills.OfType<Accuracy>().Single();
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
 
             double speedNotes = speed.RelevantNoteCount();
@@ -85,14 +88,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimDifficultyValue = aim.DifficultyValue();
             double aimNoSlidersDifficultyValue = aimWithoutSliders.DifficultyValue();
             double speedDifficultyValue = speed.DifficultyValue();
+            double accDifficultyValue = acc.DifficultyValue();
+
+            Polynomial accPenaltyCurve = ((OsuTimeSkill)skills[2]).GetMissPenaltyCurve();
 
             double mechanicalDifficultyRating = calculateMechanicalDifficultyRating(aimDifficultyValue, speedDifficultyValue);
             double sliderFactor = aimDifficultyValue > 0 ? OsuRatingCalculator.CalculateDifficultyRating(aimNoSlidersDifficultyValue) / OsuRatingCalculator.CalculateDifficultyRating(aimDifficultyValue) : 1;
 
             var osuRatingCalculator = new OsuRatingCalculator(mods, totalHits, approachRate, overallDifficulty, mechanicalDifficultyRating, sliderFactor);
 
+
+
             double aimRating = osuRatingCalculator.ComputeAimRating(aimDifficultyValue);
             double speedRating = osuRatingCalculator.ComputeSpeedRating(speedDifficultyValue);
+            double accRating = osuRatingCalculator.ComputeSpeedRating(accDifficultyValue);
 
             double flashlightRating = 0.0;
 
@@ -108,6 +117,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);
             double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating);
             double baseFlashlightPerformance = Flashlight.DifficultyToPerformance(flashlightRating);
+            double baseAccuracyPerformance = OsuStrainSkill.DifficultyToPerformance(accRating);
 
             double basePerformance =
                 Math.Pow(
@@ -132,6 +142,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 SpeedDifficultStrainCount = speedDifficultStrainCount,
                 AimTopWeightedSliderFactor = aimTopWeightedSliderFactor,
                 SpeedTopWeightedSliderFactor = speedTopWeightedSliderFactor,
+                AccDifficulty = accRating,
+                AccPenaltyCurve = accPenaltyCurve,
                 DrainRate = drainRate,
                 MaxCombo = beatmap.GetMaxCombo(),
                 HitCircleCount = hitCircleCount,
@@ -183,6 +195,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 new Aim(mods, true),
                 new Aim(mods, false),
+                new Accuracy(mods),
                 new Speed(mods)
             };
 
