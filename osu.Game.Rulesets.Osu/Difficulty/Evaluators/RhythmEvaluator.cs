@@ -18,39 +18,42 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         private const int history_objects_max = 32;
         private const double rhythm_overall_multiplier = 1.0;
 
-        private static (double ratio, double multiplier)[] ratioMultipliers = new[]
+        private static (double ratio, double multiplier)[] createPreviousRatioTable(OsuDifficultyTuning tuning) => new[]
         {
-            (1.0, 0.01), // same rhythm
-            (4.0 / 3.0, 2.0), // 1/4 <-> 1/3
-            (1.5, 1.0), // 1/3 <-> 1/2
-            (5.0 / 3.0, 4.0), // 1/5 <-> 1/3
-            (2.0, 0.1), // 1/4 <-> 1/2
-            (2.5, 1.2), // 1/5 <-> 1/2
-            (3.0, 0.25), // 1/3 <-> 1/1
-            (4.0, 0.0) // 1/4 <-> 1/1
+            (1.0,         tuning.RhythmPrevSame),
+            (4.0 / 3.0,   tuning.RhythmPrev_4over3),
+            (1.5,         tuning.RhythmPrev_3over2),
+            (5.0 / 3.0,   tuning.RhythmPrev_5over3),
+            (2.0,         tuning.RhythmPrev_2over1),
+            (2.5,         tuning.RhythmPrev_5over2),
+            (3.0,         tuning.RhythmPrev_3over1),
+            (4.0,         tuning.RhythmPrev_4over1),
+        };
+
+        private static (double ratio, double multiplier)[] createNextRatioTable(OsuDifficultyTuning tuning) => new[]
+        {
+            (1.0,         tuning.RhythmNextSame),
+            (4.0 / 3.0,   tuning.RhythmNext_4over3),
+            (1.5,         tuning.RhythmNext_3over2),
+            (5.0 / 3.0,   tuning.RhythmNext_5over3),
+            (2.0,         tuning.RhythmNext_2over1),
+            (2.5,         tuning.RhythmNext_5over2),
+            (3.0,         tuning.RhythmNext_3over1),
+            (4.0,         tuning.RhythmNext_4over1),
         };
 
         /// <summary>
         /// Calculates a rhythm multiplier for the difficulty of the tap associated with historic data of the current <see cref="OsuDifficultyHitObject"/>.
         /// </summary>
-        public static double EvaluateDifficultyOf(DifficultyHitObject current)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, OsuDifficultyTuning tuning)
         {
             if (current.BaseObject is Spinner)
                 return 0;
 
-            ratioMultipliers = new[]
-            {
-                (1.0, 0.01), // same rhythm
-                (4.0 / 3.0, 2.0), // 1/4 <-> 1/3
-                (1.5, 1.5), // 1/3 <-> 1/2
-                (5.0 / 3.0, 3.0), // 1/5 <-> 1/3
-                (2.0, 0.1), // 1/4 <-> 1/2
-                (2.5, 1.2), // 1/5 <-> 1/2
-                (3.0, 0.25), // 1/3 <-> 1/1
-                (4.0, 0.0) // 1/4 <-> 1/1
-            };
-
             var currentOsuObject = (OsuDifficultyHitObject)current;
+
+            var previousRatioMultipliers = createPreviousRatioTable(tuning);
+            var nextRatioMultipliers = createNextRatioTable(tuning);
 
             double rhythmComplexitySum = 0;
 
@@ -93,7 +96,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 bool isSpeedingUp = prevDelta > currDelta + deltaDifferenceEpsilon;
 
-                double effectiveRatio = LerpFromArrays(ratioMultipliers, deltaDifference);
+                double effectiveRatio = LerpFromArrays(previousRatioMultipliers, deltaDifference);
 
                 if (prevObj.BaseObject is Slider)
                 {
@@ -102,7 +105,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                     // the "unpress->taps" motion might be simple, for example a slider-circle-circle pattern is being evaluated as a triple and not a single->double
                     double sliderEndDelta = currObj.MinimumJumpTime;
                     double sliderDeltaDifference = Math.Max(sliderEndDelta, currDelta) / Math.Min(sliderEndDelta, currDelta);
-                    double sliderEffectiveRatio = LerpFromArrays(ratioMultipliers, sliderDeltaDifference);
+                    double sliderEffectiveRatio = LerpFromArrays(previousRatioMultipliers, sliderDeltaDifference);
 
                     effectiveRatio = Math.Min(sliderEffectiveRatio, effectiveRatio);
                 }
@@ -163,8 +166,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 prevObj = currObj;
             }
 
-            double rhythmDifficulty = Math.Sqrt(4 + rhythmComplexitySum * 2.0) / 2.0; // produces multiplier that can be applied to strain. range [1, infinity) (not really though)
+            var next = current.Next(0) as OsuDifficultyHitObject;
 
+            if (next != null)
+            {
+                double currDelta = Math.Max(currentOsuObject.DeltaTime, 1e-7);
+                double nextDelta = Math.Max(next.DeltaTime, 1e-7);
+                double nextDeltaDifference = Math.Max(currDelta, nextDelta) / Math.Min(currDelta, nextDelta);
+
+                double nextRatio = LerpFromArrays(nextRatioMultipliers, nextDeltaDifference);
+
+                double doubletapness = currentOsuObject.GetDoubletapness(next);
+
+                rhythmComplexitySum *= nextRatio;
+                rhythmComplexitySum *= 1 - doubletapness * 0.75;
+            }
+
+            double rhythmDifficulty = Math.Sqrt(4 + rhythmComplexitySum * tuning.RhythmOverallScale) / 2.0;
             rhythmDifficulty *= 1 - currentOsuObject.GetDoubletapness((OsuDifficultyHitObject)current.Next(0));
             return rhythmDifficulty;
         }

@@ -25,9 +25,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         public override int Version => 20250306;
 
-        public OsuDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
+        private readonly OsuDifficultyTuning tuning;
+
+        public OsuDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap, OsuDifficultyTuning? tuning = null)
             : base(ruleset, beatmap)
         {
+            this.tuning = tuning ?? OsuDifficultyTuning.Default;
         }
 
         public static double CalculateRateAdjustedApproachRate(double approachRate, double clockRate)
@@ -181,9 +184,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         {
             var skills = new List<Skill>
             {
-                new Aim(mods, true),
-                new Aim(mods, false),
-                new Speed(mods)
+                new Aim(mods, true, tuning),
+                new Aim(mods, false, tuning),
+                new Speed(mods, tuning)
             };
 
             if (mods.Any(h => h is OsuModFlashlight))
