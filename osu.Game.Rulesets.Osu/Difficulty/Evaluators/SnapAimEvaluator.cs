@@ -12,11 +12,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class SnapAimEvaluator
     {
-        private const double wide_angle_multiplier = 1.5;
-        private const double acute_angle_multiplier = 2.6;
-        private const double slider_multiplier = 1.35;
-        private const double velocity_change_multiplier = 0.75;
-
         /// <summary>
         /// Evaluates the difficulty of aiming the current object, based on:
         /// <list type="bullet">
@@ -26,7 +21,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         /// <item><description>and slider difficulty.</description></item>
         /// </list>
         /// </summary>
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance, bool withCheesability)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance, bool withCheesability, OsuDifficultyTuning tuning)
         {
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
@@ -151,10 +146,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 sliderBonus = osuLastObj.TravelDistance / osuLastObj.TravelTime;
             }
 
-            aimStrain += velocityChangeBonus * 0.35;
+            aimStrain += velocityChangeBonus * tuning.AimVelocityChangeBonusScale;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            aimStrain += wideAngleBonus * 1300;
+            aimStrain += wideAngleBonus * tuning.AimWideAngleBonusScale;
 
             //aimStrain += angleChangeBonus * 0.5;
 
@@ -168,7 +163,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
-                aimStrain += sliderBonus * 0.3;
+                aimStrain += sliderBonus * tuning.AimSliderBonusScale;
 
             return aimStrain;
         }

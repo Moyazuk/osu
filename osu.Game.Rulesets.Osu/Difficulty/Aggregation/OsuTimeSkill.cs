@@ -14,10 +14,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 {
     public abstract class OsuTimeSkill : Skill
     {
-        protected OsuTimeSkill(Mod[] mods)
+        protected OsuTimeSkill(Mod[] mods, OsuDifficultyTuning tuning)
             : base(mods)
         {
+            Tuning = tuning;
         }
+
+        protected OsuDifficultyTuning Tuning { get; }
 
         // Assume players spend 8640 minutes retrying a map before they FC
         private const double time_threshold = 24;

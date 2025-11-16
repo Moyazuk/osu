@@ -11,15 +11,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class AgilityEvaluator
     {
-        // === Tunable constants for MassBalancer ===
-        public static double baseBPMConstant = 240.0;
-        public static double agilityExponent = 4.0;
-        public static double agilityOverallMultiplier = 0.02;
-        public static double agilityVelocityChangeMultiplier = 0.1;
-        public static double angleBonusMultiplier = 0.35;
-        public static double distanceBonusMultiplier = 0.00000000175;
-
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withCheesability)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withCheesability, OsuDifficultyTuning tuning)
         {
             if (!IsValid(current, 3))
                 return 0;
@@ -29,8 +21,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
 
-            double nukeMultiplier = 8;
-
             double currStrainTime = osuCurrObj.AdjustedDeltaTime;
             double lastStrainTime = osuPrevObj.AdjustedDeltaTime;
 
@@ -39,8 +29,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             if (withCheesability)
             {
-                currStrainTime += osuCurrObj.ExtraDeltaTime * nukeMultiplier;
-                lastStrainTime += osuPrevObj.ExtraDeltaTime * nukeMultiplier;
+                currStrainTime += osuCurrObj.ExtraDeltaTime;
+                lastStrainTime += osuPrevObj.ExtraDeltaTime;
             }
 
             double currDistanceMultiplier = Smootherstep(osuCurrObj.LazyJumpDistance / radius, 1, 2);
@@ -52,20 +42,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
             double prevAngle = osuPrevObj.Angle!.Value * 180 / Math.PI;
 
-            double angleBonus = 0.65 * Smootherstep(currentAngle, 0, 120);
+            double angleBonus = tuning.AgilityAngleBonusMultiplier * Smootherstep(currentAngle, 0, 120);
             double baseFactor = 1 - 0.3 * SnapAimEvaluator.AngleDifference(currentAngle, prevAngle);
             double angleRepetitionNerf = Math.Pow(baseFactor + (1 - baseFactor) * 0.95 * SnapAimEvaluator.AngleVectorRepetition(osuCurrObj), 2);
 
-            double velocityChangeBonus = Math.Abs(prevVelocity - currVelocity) * agilityVelocityChangeMultiplier;
+            double velocityChangeBonus = Math.Abs(prevVelocity - currVelocity) * tuning.AgilityVelocityChangeMultiplier;
 
-            double distanceBonus = distanceBonusMultiplier * Math.Pow(osuCurrObj.LazyJumpDistance, 3)
+            double distanceBonus = tuning.AgilityDistanceBonusMultiplier * Math.Pow(osuCurrObj.LazyJumpDistance, 3)
                                    * Smootherstep(MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime, 2), 280, 320);
 
-            double baseBpm = baseBPMConstant / (1 + (angleBonus + distanceBonus + velocityChangeBonus) * currDistanceMultiplier * prevDistanceMultiplier);
+            double baseBpm = tuning.AgilityBaseBPM / (1 + (angleBonus + distanceBonus + velocityChangeBonus) * currDistanceMultiplier * prevDistanceMultiplier);
 
-            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, agilityExponent) - 1);
+            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, tuning.AgilityExponent) - 1);
 
-            return agilityBonus * angleRepetitionNerf * 0.0125;
+            return agilityBonus * angleRepetitionNerf * tuning.AgilityOverallMultiplier;
         }
     }
 }

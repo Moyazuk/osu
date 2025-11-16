@@ -30,10 +30,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double currentDifficulty;
         private double strainDecayBase => 0.3;
 
-        public Speed(Mod[] mods)
+        public Speed(Mod[] mods, OsuDifficultyTuning tuning)
             : base(mods)
         {
+            Tuning = tuning;
         }
+
+        protected OsuDifficultyTuning Tuning { get; }
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
 
@@ -41,7 +44,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
             currentDifficulty *= strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
 
-            currentDifficulty += SpeedEvaluator.EvaluateDifficultyOf(current) * RhythmEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+            currentDifficulty += SpeedEvaluator.EvaluateDifficultyOf(current) * RhythmEvaluator.EvaluateDifficultyOf(current) * Tuning.SpeedSkillDifficultyScale;
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentDifficulty);

@@ -23,10 +23,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         /// </summary>
         protected virtual double ReducedStrainBaseline => 0.75;
 
-        protected OsuStrainSkill(Mod[] mods)
+        protected OsuStrainSkill(Mod[] mods, OsuDifficultyTuning tuning)
             : base(mods)
         {
+            Tuning = tuning;
         }
+
+        protected OsuDifficultyTuning Tuning { get; }
 
         public override double DifficultyValue()
         {

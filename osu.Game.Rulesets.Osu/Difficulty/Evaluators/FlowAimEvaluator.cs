@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         public static double velocityChangeMultiplier = 4;
         public static double angularVelocityMultiplier = 0.05;
 
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance, OsuDifficultyTuning tuning)
         {
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
@@ -48,7 +48,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double angularVelocityBonus = Math.Max(0.0, Math.Pow(angularVelocity, 0.5) - 1.0);
                 //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
                 //angularVelocityBonus *= DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, radius * 0.5, radius * 2);
-                adjustedDistanceScale = 1 + angularVelocityBonus * 0.05;
+                adjustedDistanceScale = 1 + angularVelocityBonus * tuning.FlowAnglularVelocityScale;
 
                 // Apply wiggle bonus for jumps that are [radius, 3*diameter] in distance, with < 110 angle
                 // https://www.desmos.com/calculator/dp0v0nvowc
@@ -59,7 +59,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                               * DifficultyCalculationUtils.Smootherstep(osuPrevObj.Angle.Value, double.DegreesToRadians(110), double.DegreesToRadians(60));
             }
 
-            double currLazyJumpDistance = AdjustFlowDistance(osuCurrObj);
+            double currLazyJumpDistance = AdjustFlowDistance(osuCurrObj, tuning);
 
             // Base snap difficulty is velocity.
             double difficulty = Math.Pow(currLazyJumpDistance, adjustedDistanceScale) / osuCurrObj.AdjustedDeltaTime;
@@ -81,11 +81,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double flowVelChange = Math.Abs(prevVelocity - currVelocity);
 
-            difficulty += flowVelChange * velocityChangeMultiplier;
+            difficulty += flowVelChange * tuning.FlowVelocityChangeBonusScale;
 
             wiggleBonus *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 1);
 
-            difficulty += wiggleBonus * 1200;
+            difficulty += wiggleBonus * tuning.FlowAimWiggleBonusScale;
 
             // Flow aim is harder on High BPM
             const double base_speedflow_multiplier = 0.175; // Base multiplier for speedflow bonus
@@ -110,9 +110,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
-                difficulty += sliderBonus * 0.3;
+                difficulty += sliderBonus * tuning.FlowSliderBonusScale;
 
-            return difficulty * 0.875 * osuCurrObj.SmallCircleBonus;
+            return difficulty * tuning.FlowOverallEvaluatorScale * osuCurrObj.SmallCircleBonus;
         }
 
         /// <summary>
@@ -121,7 +121,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         /// <param name="current"></param>
         /// <returns></returns>
 
-        public static double AdjustFlowDistance(DifficultyHitObject current)
+        public static double AdjustFlowDistance(DifficultyHitObject current, OsuDifficultyTuning tuning)
         {
             var osuCurr = (OsuDifficultyHitObject)current;
             var osuPrev = (OsuDifficultyHitObject)current.Previous(0);
@@ -152,7 +152,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             angleScale *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 0.05);
 
 
-            double velocityBonus = 1.1 + Math.Pow(previousVelocity, 1) * angleScale * 0.35;
+            double velocityBonus = tuning.FlowDistanceExponent + Math.Pow(previousVelocity, 1) * angleScale * tuning.FlowExponentialAngleScaling;
 
             return Math.Pow(distanceTravelled, velocityBonus);
         }

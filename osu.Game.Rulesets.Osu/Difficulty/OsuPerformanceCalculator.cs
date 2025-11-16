@@ -162,11 +162,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double totalValue =
                 Math.Pow(
-                    Math.Pow(aimValue, 1.1) +
-                    Math.Pow(speedValue, 1.1) +
-                    Math.Pow(accuracyValue, 1.1) +
-                    Math.Pow(flashlightValue, 1.1), 1.0 / 1.1
-                ) * multiplier * tuning.TotalPerformanceScale;
+                    Math.Pow(aimValue, tuning.AimPerformanceExponent) +
+                    Math.Pow(speedValue, tuning.SpeedPerformanceExponent) +
+                    Math.Pow(accuracyValue, tuning.AccuracyPerformanceExponent) +
+                    Math.Pow(flashlightValue, tuning.FlashlightPerformanceExponent), tuning.TotalPerformanceExponent
+                ) * tuning.TotalPerformanceScale;
 
             return new OsuPerformanceAttributes
             {
