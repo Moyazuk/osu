@@ -144,7 +144,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double totalValue =
                 Math.Pow(
-                    Math.Pow(OsuDifficultyCalculator.SumMechanicalDifficulty(aimValue, speedValue), 1.1) +
+                    Math.Pow(aimValue, 1.1) +
+                    Math.Pow(speedValue, 1.1) +
                     Math.Pow(accuracyValue, 1.1) +
                     Math.Pow(flashlightValue, 1.1), 1.0 / 1.1
                 ) * multiplier;

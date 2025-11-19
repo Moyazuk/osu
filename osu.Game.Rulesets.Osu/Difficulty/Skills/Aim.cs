@@ -26,7 +26,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
-        private double skillMultiplier => 28.2;
+        private double skillMultiplier => 26.0;
         private double strainDecayBase => 0.15;
 
         private readonly List<double> sliderStrains = new List<double>();
@@ -47,6 +47,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             return currentStrain;
         }
+
+        private const double k = 7.27;
+
+        // A function that turns the ratio of snap : flow into the probability of snapping/flowing
+        // It has the constraints:
+        // P(snap) + P(flow) = 1 (the object is always either snapped or flowed)
+        // P(snap) = f(snap/flow), P(flow) = f(flow/snap) (ie snap and flow are symmetric and reversible)
+        // Therefore: f(x) + f(1/x) = 1
+        // 0 <= f(x) <= 1 (cannot have negative or greater than 100% probability of snapping or flowing)
+        // This logistic function is a solution, which fits nicely with the general idea of interpolation and provides a tuneable constant
+        protected static double ProbabilityOf(double ratio)
+            => ratio == 0 ? 0 :
+                double.IsNaN(ratio) ? 1 :
+                (1 / (1 + Math.Exp(-k * Math.Log(ratio))));
 
         public double GetDifficultSliders()
         {
