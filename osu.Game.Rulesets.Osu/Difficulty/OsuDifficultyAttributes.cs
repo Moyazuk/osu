@@ -40,10 +40,22 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public double SpeedNoteCount { get; set; }
 
         /// <summary>
+        /// Describes how much of <see cref="SpeedDifficulty"/> is contributed to by the stamina strains.
+        /// </summary>
+        [JsonProperty("stamina_factor")]
+        public double StaminaFactor { get; set; }
+
+        /// <summary>
         /// The difficulty corresponding to the flashlight skill.
         /// </summary>
         [JsonProperty("flashlight_difficulty")]
         public double FlashlightDifficulty { get; set; }
+
+        /// <summary>
+        /// The difficulty corresponding to the reading skill.
+        /// </summary>
+        [JsonProperty("reading_difficulty")]
+        public double ReadingDifficulty { get; set; }
 
         /// <summary>
         /// Describes how much of <see cref="AimDifficulty"/> is contributed to by hitcircles or sliders.
@@ -75,6 +87,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("speed_difficult_strain_count")]
         public double SpeedDifficultStrainCount { get; set; }
 
+        [JsonProperty("reading_difficult_note_count")]
+        public double ReadingDifficultNoteCount { get; set; }
+
         [JsonProperty("snap_aim")]
         public double SnapAimDifficulty { get; set; }
 
@@ -83,6 +98,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         [JsonProperty("nested_score_per_object")]
         public double NestedScorePerObject { get; set; }
+
 
         [JsonProperty("legacy_score_base_multiplier")]
         public double LegacyScoreBaseMultiplier { get; set; }
