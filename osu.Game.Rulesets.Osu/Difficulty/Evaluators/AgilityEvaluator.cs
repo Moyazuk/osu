@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         public static double angleBonusMultiplier = 0.35;
         public static double distanceBonusMultiplier = 0.00000000175;
 
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withCheesability)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool includeSliders, bool includeControlFactors)
         {
             if (!IsValid(current, 3))
                 return 0;
@@ -52,14 +52,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double velocityChangeBonus = Math.Abs(prevVelocity - currVelocity) * 0;
 
-            double distanceBonus = 0.00000000125 * Math.Pow(osuCurrObj.LazyJumpDistance, 3)
-                                                 * Smootherstep(MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime, 2), 280, 320);
+            double agilityBaseDifficulty = 1;
 
-            double baseBpm = 240 / (1 + (angleBonus + distanceBonus + velocityChangeBonus) * currDistanceMultiplier * prevDistanceMultiplier);
+            if (includeControlFactors)
+            {
+                agilityBaseDifficulty += angleBonus;
+                agilityBaseDifficulty += velocityChangeBonus;
+                agilityBaseDifficulty *= angleRepetitionNerf;
+            }
+
+            double baseBpm = 240 / (agilityBaseDifficulty * currDistanceMultiplier * prevDistanceMultiplier);
 
             double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, agilityExponent) - 1);
 
-            return agilityBonus * 0.3225;
+            return agilityBonus * 0.6225;
         }
     }
 }

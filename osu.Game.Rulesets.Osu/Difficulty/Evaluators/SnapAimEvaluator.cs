@@ -26,7 +26,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         /// <item><description>and slider difficulty.</description></item>
         /// </list>
         /// </summary>
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance, bool includeControlFactors)
         {
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
@@ -145,20 +145,24 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 sliderBonus = osuLastObj.TravelDistance / osuLastObj.TravelTime;
             }
 
-            aimStrain += velocityChangeBonus * 1875;
+            if (includeControlFactors)
+            {
+                aimStrain += velocityChangeBonus * 1875;
 
-            // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            aimStrain += wideAngleBonus * 1200000;
+                // Add in acute angle bonus or wide angle bonus, whichever is larger.
+                aimStrain += wideAngleBonus * 1200000;
 
-            //aimStrain += angleChangeBonus * 0.5;
+                //aimStrain += angleChangeBonus * 0.5;
 
-            // Penalize angle repetition.
-            aimStrain *= angleRepetitionNerf;
+                // Penalize angle repetition.
+                aimStrain *= angleRepetitionNerf * 1.1;
 
-            //Console.WriteLine($"AngleChangeBonus = {angleChangeBonus}");
+                //Console.WriteLine($"AngleChangeBonus = {angleChangeBonus}");
 
-            // Apply high circle size bonus
-            aimStrain *= osuCurrObj.SmallCircleBonus;
+                // Apply high circle size bonus
+                aimStrain *= osuCurrObj.SmallCircleBonus;
+
+            }
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)

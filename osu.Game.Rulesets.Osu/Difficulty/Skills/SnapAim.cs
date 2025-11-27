@@ -11,14 +11,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public class SnapAim : Aim
     {
         public SnapAim(Mod[] mods)
-            : base(mods, false)
+            : base(mods, false, true)
         {
         }
 
         protected override double StrainValueOf(DifficultyHitObject current)
         {
-            double snap = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) + AgilityEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
-            double flow = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
+            double snap = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, IncludeControlFactors) + AgilityEvaluator.EvaluateDifficultyOf(current, IncludeSliders, IncludeControlFactors);
+            double flow = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, IncludeControlFactors);
 
             return snap * probabilityOfSnap(snap, flow);
         }

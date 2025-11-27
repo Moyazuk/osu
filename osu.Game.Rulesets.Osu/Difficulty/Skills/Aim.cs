@@ -5,9 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
-using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
-using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Objects;
@@ -21,13 +19,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     {
         public readonly bool IncludeSliders;
 
-        protected Aim(Mod[] mods, bool includeSliders)
+        public readonly bool IncludeControlFactors;
+        protected Aim(Mod[] mods, bool includeSliders, bool includeControlFactors)
             : base(mods)
         {
             IncludeSliders = includeSliders;
             previousStrains = new List<(double, double)>();
+            IncludeControlFactors = includeControlFactors;
         }
-        private double skillMultiplier => 28.3;
+        private double skillMultiplier => 25.3;
         private double strainDecayBase => 0.15;
 
         private readonly List<(double, double)> previousStrains;

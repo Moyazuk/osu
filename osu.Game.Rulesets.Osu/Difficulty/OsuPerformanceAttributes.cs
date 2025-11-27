@@ -12,8 +12,26 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("aim")]
         public double Aim { get; set; }
 
+        [JsonProperty("snap_aim")]
+        public double SnapAim { get; set; }
+
+        [JsonProperty("flow_aim")]
+        public double FlowAim { get; set; }
+
+        [JsonProperty("aim_control")]
+        public double AimControl { get; set; }
+
         [JsonProperty("speed")]
         public double Speed { get; set; }
+
+        [JsonProperty("stamina")]
+        public double Stamina { get; set; }
+
+        [JsonProperty("reading")]
+        public double Reading { get; set; }
+
+        [JsonProperty("precision")]
+        public double Precision { get; set; }
 
         [JsonProperty("accuracy")]
         public double Accuracy { get; set; }

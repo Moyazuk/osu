@@ -10,15 +10,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
     public class CombinedAim : Aim
     {
-        public CombinedAim(Mod[] mods, bool includeSliders)
-            : base(mods, includeSliders)
+        public CombinedAim(Mod[] mods, bool includeSliders, bool includeControlFactors)
+            : base(mods, includeSliders, includeControlFactors)
         {
         }
 
         protected override double StrainValueOf(DifficultyHitObject current)
         {
-            double snap = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) + AgilityEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
-            double flow = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
+            double snap = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, IncludeControlFactors) + AgilityEvaluator.EvaluateDifficultyOf(current, IncludeSliders, IncludeControlFactors);
+            double flow = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, IncludeControlFactors);
 
             return Math.Min(snap, flow);
         }
