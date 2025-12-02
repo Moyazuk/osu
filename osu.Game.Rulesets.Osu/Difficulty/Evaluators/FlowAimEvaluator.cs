@@ -24,7 +24,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var osuLast0Obj = (OsuDifficultyHitObject)current.Previous(0);
             var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
 
-            const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
             const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
 
             // Start with velocity
@@ -76,7 +75,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             flowDifficulty += angleBonus;
 
-            flowDifficulty *= flow_multiplier;
+            flowDifficulty *= 1.0;
 
             if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
             {

@@ -99,11 +99,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                                        DifficultyCalculationUtils.Smootherstep(DifficultyCalculationUtils.MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime, 2), 300, 400);
                 }
 
-                // Rescale wide angle bonus to reward lower spacing more
-                double velocityThreshold = diameter * 2.3 / osuCurrObj.AdjustedDeltaTime;
-                double wideVelocityBase = Math.Min(angleBonus, velocityThreshold + 0.4 * (angleBonus - velocityThreshold));
-
-                wideAngleBonus = wideVelocityBase * calcWideAngleBonus(currAngle);
+                wideAngleBonus = calcWideAngleBonus(currAngle);
 
                 // Penalize angle repetition.
                 wideAngleBonus *= 1 - Math.Min(wideAngleBonus, Math.Pow(calcWideAngleBonus(lastAngle), 3));
@@ -160,7 +156,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             aimStrain += velocityChangeBonus * velocity_change_multiplier;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier);
+            aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * 3.0);
 
             // Apply high circle size bonus
             aimStrain *= osuCurrObj.SmallCircleBonus;
@@ -174,25 +170,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
         private static double calculateSnappingDifficulty(double currDistance, OsuDifficultyHitObject osuCurrObj, OsuDifficultyHitObject osuLastObj)
         {
-            const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
             const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
-
-            // Additional reward for wide angles being hard to snap on high BPM
-            double angleSnapDifficultyBonus = 0;
-            double deltaTimeThreshold = DifficultyCalculationUtils.BPMToMilliseconds(180, 2);
-
-            if (osuCurrObj.AdjustedDeltaTime < deltaTimeThreshold)
-            {
-                double bpmFactor = Math.Pow((deltaTimeThreshold - osuCurrObj.AdjustedDeltaTime) * 0.015, 2.5);
-
-                angleSnapDifficultyBonus = diameter * bpmFactor;
-
-                // We want to start reward from 60 degrees to 90 degrees on lower spacing, and form 90 degrees to 120 degrees on higher spacing
-                double highSpacingAdjust = Math.PI / 6;
-                highSpacingAdjust *= DifficultyCalculationUtils.ReverseLerp(currDistance, diameter * 2, diameter * 4);
-
-                angleSnapDifficultyBonus *= DifficultyCalculationUtils.Smoothstep(osuCurrObj.Angle ?? 0, Math.PI / 3 + highSpacingAdjust, Math.PI / 2 + highSpacingAdjust);
-            }
 
             double bpm = DifficultyCalculationUtils.BPMToMilliseconds(osuCurrObj.AdjustedDeltaTime, 2);
             double snapThreshold = diameter * (1 + 1.3 * DifficultyCalculationUtils.ReverseLerp(bpm, 200, 250));
@@ -200,19 +178,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Jumps need to have some spacing to be snapped
             double distanceSnapDifficultyBonus = currDistance < snapThreshold ? (snapThreshold * 0.65 + currDistance * 0.35) - currDistance : 0;
 
-            // Don't buff doubles jumps as you don't snap in this case (except very close to itself doubles, that need to have some distance bonus to be calculated as flow)
-            double lowSpacingFactor = DifficultyCalculationUtils.ReverseLerp(currDistance, radius * 2, radius);
-
-            // Make nerf much smaller if it's not doubles
-            double notOverlappingAdjust = diameter * 2 * (1 - lowSpacingFactor);
-
-            // Don't increase snap distance when previous jump is very big, as it leads to cheese being overrewarded
-            double bigDistanceDifferenceFactor = DifficultyCalculationUtils.ReverseLerp(osuLastObj.LazyJumpDistance, notOverlappingAdjust + diameter, notOverlappingAdjust + diameter * 2);
-
-            // And don't nerf bursts with this
-            bigDistanceDifferenceFactor *= DifficultyCalculationUtils.ReverseLerpTwoDirectional(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime, 1.95, 1.5);
-
-            return (distanceSnapDifficultyBonus + angleSnapDifficultyBonus) * (1 - bigDistanceDifferenceFactor);
+            return distanceSnapDifficultyBonus;
         }
 
         private static double calcWideAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(40), double.DegreesToRadians(140));
