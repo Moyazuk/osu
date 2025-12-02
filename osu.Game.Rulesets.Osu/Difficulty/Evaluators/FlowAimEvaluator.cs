@@ -52,28 +52,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 flowDifficulty *= Math.Pow(osuCurrObj.LazyJumpDistance / diameter, 0.8);
             }
 
-            // Flow aim is harder on High BPM
-            const double base_speedflow_multiplier = 0.07; // Base multiplier for speedflow bonus
-            const double bpm_factor = 10; // How steep the bonus is, higher values means more bonus for high BPM
-
-            // Autobalance, it's expected for bonus multiplier to be 1 for the bpm base
-            double bpmBase = DifficultyCalculationUtils.BPMToMilliseconds(220, 4);
-            double bpmFactorMultiplierAtBase = bpmBase / (bpmBase - bpm_factor) - 1;
-            double multiplier = base_speedflow_multiplier / bpmFactorMultiplierAtBase;
-
-            // Start from base of the bonus
-            double speeflowBonus = multiplier * diameter / osuCurrObj.AdjustedDeltaTime;
-
-            // Spacing factor, reward up to 1 radius. The reason why we want to buff primarily low spacing speedflow.
-            // Explanation about formula: it goes fast from 0 and then slow downs, capping out on 1 radius.
-            // To achieve this we use negative radius as an argument and then cut down the range to reward starting from zero distance.
-            speeflowBonus *= 2 * (DifficultyCalculationUtils.Smoothstep(osuCurrObj.LazyJumpDistance, -radius, radius) - 0.5);
-
-            // Bpm factor
-            speeflowBonus *= (osuCurrObj.AdjustedDeltaTime / (osuCurrObj.AdjustedDeltaTime - bpm_factor) - 1);
-
-            flowDifficulty += speeflowBonus;
-
             double angleBonus = 0;
 
             if (osuCurrObj.AngleSigned != null && osuLast0Obj.AngleSigned != null && osuLast1Obj.AngleSigned != null)

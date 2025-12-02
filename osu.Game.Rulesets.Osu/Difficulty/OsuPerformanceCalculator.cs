@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 {
     public class OsuPerformanceCalculator : PerformanceCalculator
     {
-        public const double PERFORMANCE_BASE_MULTIPLIER = 1.15; // This is being adjusted to keep the final pp value scaled around what it used to be when changing things.
+        public const double PERFORMANCE_BASE_MULTIPLIER = 1.04; // This is being adjusted to keep the final pp value scaled around what it used to be when changing things.
 
         private bool usingClassicSliderAccuracy;
         private bool usingScoreV2;
@@ -144,7 +144,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double totalValue =
                 Math.Pow(
-                    Math.Pow(OsuDifficultyCalculator.SumMechanicalDifficulty(aimValue, speedValue), 1.1) +
+                    Math.Pow(aimValue, 1.1) +
+                    Math.Pow(speedValue, 1.1) +
                     Math.Pow(accuracyValue, 1.1) +
                     Math.Pow(flashlightValue, 1.1), 1.0 / 1.1
                 ) * multiplier;
