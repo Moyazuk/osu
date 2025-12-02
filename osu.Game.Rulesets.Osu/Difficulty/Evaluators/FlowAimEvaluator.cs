@@ -75,7 +75,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             flowDifficulty += angleBonus;
 
-            flowDifficulty *= 1.05;
+            flowDifficulty *= 1.08;
 
             if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
             {
