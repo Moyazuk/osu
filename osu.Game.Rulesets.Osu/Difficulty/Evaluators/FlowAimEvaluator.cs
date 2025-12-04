@@ -61,9 +61,24 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 angleBonus = Math.Max(acuteAngleBonus, angleChangeBonus) * overlappedNotesWeight;
             }
 
+            // Flow aim is harder on High BPM
+            const double base_speedflow_multiplier = 0.525; // Base multiplier for speedflow bonus
+            const double spacing_factor = 0.5; // How much bonus is skewed towards high spacing, 1 means equal buff for any spacing
+            const double bpm_factor = 12; // How steep the bonus is, higher values means more bonus for high BPM
+
+            // Autobalance, it's expected for bonus multiplier to be 1 for the bpm base
+            double bpmBase = DifficultyCalculationUtils.BPMToMilliseconds(220, 4);
+            double bpmFactorMultiplierAtBase = bpmBase / (bpmBase - bpm_factor) - 1;
+            double multiplier = base_speedflow_multiplier / bpmFactorMultiplierAtBase;
+
+            double speeflowBonus = multiplier * diameter / osuCurrObj.AdjustedDeltaTime;
+            speeflowBonus *= Math.Pow(osuCurrObj.LazyJumpDistance / diameter, spacing_factor); // Spacing factor
+            speeflowBonus *= (osuCurrObj.AdjustedDeltaTime / (osuCurrObj.AdjustedDeltaTime - bpm_factor) - 1); // Bpm factor
+            flowDifficulty += speeflowBonus;
+
             flowDifficulty += angleBonus;
 
-            flowDifficulty *= 1.6;
+            flowDifficulty *= 1.35;
 
             if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
             {
