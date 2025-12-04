@@ -81,6 +81,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("flow_aim")]
         public double FlowAimDifficulty { get; set; }
 
+        [JsonProperty("aim_length_bonus")]
+        public double AimLengthBonus { get; set; }
+
+        [JsonProperty("speed_length_bonus")]
+        public double SpeedLengthBonus { get; set; }
+
+        [JsonProperty("length_bonus_slider_factor")]
+        public double LengthBonusSliderFactor { get; set; }
+
         [JsonProperty("nested_score_per_object")]
         public double NestedScorePerObject { get; set; }
 
@@ -133,8 +142,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             yield return (ATTRIB_ID_NESTED_SCORE_PER_OBJECT, NestedScorePerObject);
             yield return (ATTRIB_ID_LEGACY_SCORE_BASE_MULTIPLIER, LegacyScoreBaseMultiplier);
             yield return (ATTRIB_ID_MAXIMUM_LEGACY_COMBO_SCORE, MaximumLegacyComboScore);
-            yield return (ATTRIB_ID_SNAP_AIM_DIFFICULTY, SnapAimDifficulty);
-            yield return (ATTRIB_ID_FLOW_AIM_DIFFICULTY, FlowAimDifficulty);
         }
 
         public override void FromDatabaseAttributes(IReadOnlyDictionary<int, double> values, IBeatmapOnlineInfo onlineInfo)

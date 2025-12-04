@@ -173,6 +173,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double flowAimHighDeviationMultiplier = calculateFlowAimHighDeviationNerf(attributes);
             double aimDifficulty = double.Lerp(attributes.SnapAimDifficulty, attributes.AimDifficulty, flowAimHighDeviationMultiplier);
+            double lengthBonus = attributes.AimLengthBonus;
 
             if (attributes.SliderCount > 0 && attributes.AimDifficultSliderCount > 0)
             {
@@ -192,14 +193,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 }
 
                 double sliderNerfFactor = (1 - attributes.SliderFactor) * Math.Pow(1 - estimateImproperlyFollowedDifficultSliders / attributes.AimDifficultSliderCount, 3) + attributes.SliderFactor;
+                double lengthBonusSliderNerfFactor = (1 - attributes.LengthBonusSliderFactor) * Math.Pow(1 - estimateImproperlyFollowedDifficultSliders / attributes.AimDifficultSliderCount, 3) + attributes.LengthBonusSliderFactor;
                 aimDifficulty *= sliderNerfFactor;
+                lengthBonus *= lengthBonusSliderNerfFactor;
             }
 
             double aimValue = OsuStrainSkill.DifficultyToPerformance(aimDifficulty);
 
-            double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
-                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-            aimValue *= lengthBonus;
+            // Take away some performance before adding length bonus
+            aimValue *= 0.95;
+            aimValue += lengthBonus;
 
             if (effectiveMissCount > 0)
             {
@@ -230,9 +233,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double speedValue = OsuStrainSkill.DifficultyToPerformance(attributes.SpeedDifficulty);
 
-            double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
-                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-            speedValue *= lengthBonus;
+            // Take away some performance before adding length bonus
+            speedValue *= 0.95;
+            speedValue += attributes.SpeedLengthBonus;
 
             if (effectiveMissCount > 0)
             {

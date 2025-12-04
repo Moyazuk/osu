@@ -18,7 +18,7 @@ namespace osu.Game.Rulesets.Difficulty.Skills
         /// <summary>
         /// The weight by which each strain value decays.
         /// </summary>
-        protected virtual double DecayWeight => 0.9;
+        public virtual double DecayWeight => 0.9;
 
         /// <summary>
         /// The length of each strain section.

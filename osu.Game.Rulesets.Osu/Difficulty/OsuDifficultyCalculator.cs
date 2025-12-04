@@ -105,14 +105,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (flashlight is not null)
                 flashlightRating = osuRatingCalculator.ComputeFlashlightRating(flashlight.DifficultyValue());
 
+            double aimLengthBonus = OsuRatingCalculator.CalculateLengthBonus(aim, osuRatingCalculator.ComputeAimRating);
+            double aimNoSlidersLengthBonus = OsuRatingCalculator.CalculateLengthBonus(aimWithoutSliders, osuRatingCalculator.ComputeAimRating);
+            double lengthBonusSliderFactor = aimLengthBonus > 0 ? aimNoSlidersLengthBonus / aimLengthBonus : 1;
+            double speedLengthBonus = OsuRatingCalculator.CalculateLengthBonus(speed, osuRatingCalculator.ComputeSpeedRating);
+
             double sliderNestedScorePerObject = LegacyScoreUtils.CalculateNestedScorePerObject(beatmap, totalHits);
             double legacyScoreBaseMultiplier = LegacyScoreUtils.CalculateDifficultyPeppyStars(beatmap);
 
             var simulator = new OsuLegacyScoreSimulator();
             var scoreAttributes = simulator.Simulate(WorkingBeatmap, beatmap);
 
-            double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);
-            double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating);
+            double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating) * 0.95 + aimLengthBonus;
+            double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating) * 0.95 + speedLengthBonus;
             double baseFlashlightPerformance = Flashlight.DifficultyToPerformance(flashlightRating);
 
             double basePerformance =
@@ -138,6 +143,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 SpeedDifficultStrainCount = speedDifficultStrainCount,
                 AimTopWeightedSliderFactor = aimTopWeightedSliderFactor,
                 SpeedTopWeightedSliderFactor = speedTopWeightedSliderFactor,
+                AimLengthBonus = aimLengthBonus,
+                SpeedLengthBonus = speedLengthBonus,
+                LengthBonusSliderFactor = lengthBonusSliderFactor,
                 DrainRate = drainRate,
                 MaxCombo = beatmap.GetMaxCombo(),
                 HitCircleCount = hitCircleCount,

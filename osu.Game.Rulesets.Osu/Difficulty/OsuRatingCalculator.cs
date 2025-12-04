@@ -2,9 +2,11 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Difficulty.Skills;
 using osu.Game.Rulesets.Osu.Mods;
 
 namespace osu.Game.Rulesets.Osu.Difficulty
@@ -250,6 +252,34 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 readingBonus += (isAlwaysPartiallyVisible ? 0.01 : 0.1) * (1 - Math.Pow(1.5, approachRate)) * sliderVisibilityFactor;
 
             return readingBonus;
+        }
+
+        public static double CalculateLengthBonus(OsuStrainSkill skill, Func<double, double> calculateDifficultyRating)
+        {
+            double bonus = 0;
+
+            List<double> strains = skill.GetReducedStrains().ToList();
+
+            for (int i = 0; i < strains.Count; i++)
+            {
+                double difficulty = 0;
+                double weight = 1;
+
+                for (int j = i; j < Math.Min(strains.Count, i + 100); j++)
+                {
+                    difficulty += strains[j] * weight;
+                    weight *= skill.DecayWeight;
+                }
+
+                double performance = OsuStrainSkill.DifficultyToPerformance(calculateDifficultyRating(difficulty));
+                double multiplier = OsuStrainSkill.LengthBonusMultiplier(i) - OsuStrainSkill.LengthBonusMultiplier(i - 1);
+
+                double currStrainBonus = performance * multiplier;
+
+                bonus += currStrainBonus;
+            }
+
+            return bonus * 0.61;
         }
 
         public static double CalculateDifficultyRating(double difficultyValue) => Math.Sqrt(difficultyValue) * difficulty_multiplier;

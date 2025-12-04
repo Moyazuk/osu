@@ -28,11 +28,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
         }
 
-        public override double DifficultyValue()
+        public IEnumerable<double> GetReducedStrains()
         {
-            double difficulty = 0;
-            double weight = 1;
-
             // Sections with 0 strain are excluded to avoid worst-case time complexity of the following sort (e.g. /b/2351871).
             // These sections will not contribute to the difficulty.
             var peaks = GetCurrentStrainPeaks().Where(p => p > 0);
@@ -46,9 +43,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 strains[i] *= Interpolation.Lerp(ReducedStrainBaseline, 1.0, scale);
             }
 
+            return strains.OrderDescending();
+        }
+
+        public override double DifficultyValue()
+        {
+            double difficulty = 0;
+            double weight = 1;
+
+            var strains = GetReducedStrains();
+
             // Difficulty is the weighted sum of the highest strains from every section.
             // We're sorting from highest to lowest strain.
-            foreach (double strain in strains.OrderDescending())
+            foreach (double strain in strains)
             {
                 difficulty += strain * weight;
                 weight *= DecayWeight;
@@ -58,5 +65,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         }
 
         public static double DifficultyToPerformance(double difficulty) => Math.Pow(5.0 * Math.Max(1.0, difficulty / 0.0675) - 4.0, 3.0) / 100000.0;
+
+        // https://www.desmos.com/calculator/secrjaywao
+        public static double LengthBonusMultiplier(double strains) => Math.Min(0.5, strains / 500.0) + (strains > 250 ? Math.Log(strains / 500.0 + 0.5) : 0.0);
     }
 }
