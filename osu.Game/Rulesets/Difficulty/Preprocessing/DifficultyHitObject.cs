@@ -21,6 +21,11 @@ namespace osu.Game.Rulesets.Difficulty.Preprocessing
         public int Index;
 
         /// <summary>
+        /// The index of this <see cref="DifficultyHitObject"/> in the list of all <see cref="DifficultyHitObject"/>s, starting from the end.
+        /// </summary>
+        public int IndexFromEnd => difficultyHitObjects.Count - 1 - Index;
+
+        /// <summary>
         /// The <see cref="HitObject"/> this <see cref="DifficultyHitObject"/> wraps.
         /// </summary>
         public readonly HitObject BaseObject;

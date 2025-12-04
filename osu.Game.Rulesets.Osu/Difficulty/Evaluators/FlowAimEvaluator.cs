@@ -39,18 +39,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double flowDifficulty = velocity;
 
-            // Rescale the distance to make it closer d/t
-            if (osuCurrObj.LazyJumpDistance > diameter)
-            {
-                // Controls distance scaling for high spaced flow aim
-                flowDifficulty *= Math.Pow(osuCurrObj.LazyJumpDistance / diameter, 0.4);
-            }
-            else
-            {
-                // Controls distance scaling for low spaced flow aim
-                flowDifficulty *= Math.Pow(osuCurrObj.LazyJumpDistance / diameter, 0.8);
-            }
-
             double angleBonus = 0;
 
             if (osuCurrObj.AngleSigned != null && osuLast0Obj.AngleSigned != null && osuLast1Obj.AngleSigned != null)
@@ -75,12 +63,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             flowDifficulty += angleBonus;
 
-            flowDifficulty *= 1.05;
+            flowDifficulty *= 1.6;
 
             if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
             {
                 double sliderBonus = osuLast0Obj.TravelDistance / osuLast0Obj.TravelTime;
-                flowDifficulty += sliderBonus * AimEvaluator.SLIDER_MULTIPLIER;
+                flowDifficulty += sliderBonus * 0;
             }
 
             return flowDifficulty * osuCurrObj.SmallCircleBonus;
