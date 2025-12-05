@@ -35,7 +35,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             this.sliderFactor = sliderFactor;
         }
 
-        public static double SumTotalAimRating(double aimRating, double snapAimRating, double flowAimRating) => aimRating * 0.9 + snapAimRating * 0.1 + flowAimRating * 0.1;
+        public static double SumTotalAimRating(double aimRating, double snapAimRating, double flowAimRating) => aimRating * 1;
 
         public double ComputeCombinedAimRating(double aimDifficultyValue, double snapAimDifficultyValue, double flowAimDifficultyValue)
         {

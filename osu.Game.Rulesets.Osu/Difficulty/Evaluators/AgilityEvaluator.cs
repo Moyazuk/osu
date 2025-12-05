@@ -46,15 +46,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
             double prevAngle = osuPrevObj.Angle!.Value * 180 / Math.PI;
 
-            double angleBonus = 0.35 * Smootherstep(currentAngle, 45, 160);
+            double angleBonus = 0.50 * Smootherstep(currentAngle, 0, 120);
 
             double velocityChangeBonus = Math.Abs(prevVelocity - currVelocity) * agilityVelocityChangeMultiplier;
 
-            double baseBpm = baseBPMConstant / (1 + (angleBonus + velocityChangeBonus) * currDistanceMultiplier * prevDistanceMultiplier);
+            double distanceBonus = 0.00000075 * Math.Pow(osuCurrObj.LazyJumpDistance, 2)
+                                                 * Smootherstep(MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime, 2), 280, 320);
 
-            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, agilityExponent) - 1);
+            double baseBpm = 240 / (1 + (angleBonus + distanceBonus) * currDistanceMultiplier * prevDistanceMultiplier);
 
-            return agilityBonus * 0.475;
+            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 4) - 1);
+
+            return agilityBonus * 0.295;
         }
     }
 }
