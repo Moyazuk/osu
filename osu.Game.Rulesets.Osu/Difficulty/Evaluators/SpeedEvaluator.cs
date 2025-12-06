@@ -28,7 +28,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         /// <item><description>and how easily they can be cheesed.</description></item>
         /// </list>
         /// </summary>
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, IReadOnlyList<Mod> mods)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, IReadOnlyList<Mod> mods, OsuDifficultyTuning tuning)
         {
             if (current.BaseObject is Spinner)
                 return 0;
@@ -36,6 +36,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // derive strainTime for calculation
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuPrevObj = current.Index > 0 ? (OsuDifficultyHitObject)current.Previous(0) : null;
+            var osuNextObj = (OsuDifficultyHitObject)current.Next(0);
 
             double strainTime = osuCurrObj.AdjustedDeltaTime;
             double doubletapness = 1.0 - osuCurrObj.GetDoubletapness((OsuDifficultyHitObject?)osuCurrObj.Next(0));
@@ -66,8 +67,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (mods.OfType<OsuModAutopilot>().Any())
                 distanceBonus = 0;
 
+            double burstBonus = 0;
+
+            if (osuNextObj != null && osuNextObj.AdjustedDeltaTime <= strainTime / 2)
+            {
+                burstBonus = 1 * tuning.Speed_Burst_Multiplier;
+            }
+
             // Base difficulty with all bonuses
-            double difficulty = (1 + speedBonus + distanceBonus) * 1000 / strainTime;
+            double difficulty = (1 + speedBonus + distanceBonus + burstBonus) * 1000 / strainTime;
 
             // Apply penalty if there's doubletappable doubles
             return difficulty * doubletapness;

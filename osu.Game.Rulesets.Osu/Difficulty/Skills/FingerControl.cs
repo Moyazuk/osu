@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -16,9 +16,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to press keys with regards to keeping up with the speed at which objects need to be hit.
     /// </summary>
-    public class Speed : OsuStrainSkill
+    public class FingerControl : OsuStrainSkill
     {
-        private double skillMultiplier => 1.47;
+        private double skillMultiplier => 0;
         private double strainDecayBase => 0.3;
 
         private double currentStrain;
@@ -26,9 +26,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private readonly List<double> sliderStrains = new List<double>();
 
-        protected override int ReducedSectionCount => 5;
+        protected override int ReducedSectionCount => 0;
 
-        public Speed(Mod[] mods, OsuDifficultyTuning tuning)
+        public FingerControl(Mod[] mods, OsuDifficultyTuning tuning)
             : base(mods, tuning)
         {
         }
@@ -40,14 +40,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         protected override double StrainValueAt(DifficultyHitObject current)
         {
             currentStrain *= strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
-            currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current, Mods, Tuning) * skillMultiplier;
 
-            double totalStrain = currentStrain;
+            currentStrain += RhythmEvaluator.EvaluateDifficultyOf(current, Tuning) * Tuning.FingerControl_Skill_Multiplier;
 
             if (current.BaseObject is Slider)
-                sliderStrains.Add(totalStrain);
+                sliderStrains.Add(currentStrain);
 
-            return totalStrain;
+            return currentStrain;
         }
 
         public double RelevantNoteCount()
