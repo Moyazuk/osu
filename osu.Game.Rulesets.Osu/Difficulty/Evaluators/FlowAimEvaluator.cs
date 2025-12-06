@@ -24,8 +24,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var osuLast0Obj = (OsuDifficultyHitObject)current.Previous(0);
             var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
 
-            const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
-
             // Start with velocity
             double velocity = osuCurrObj.LazyJumpDistance / osuCurrObj.AdjustedDeltaTime;
 
@@ -38,18 +36,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
 
             double flowDifficulty = velocity;
-
-            // Rescale the distance to make it closer d/t
-            if (osuCurrObj.LazyJumpDistance > diameter)
-            {
-                // Controls distance scaling for high spaced flow aim
-                flowDifficulty *= Math.Pow(osuCurrObj.LazyJumpDistance / diameter, 0.4);
-            }
-            else
-            {
-                // Controls distance scaling for low spaced flow aim
-                flowDifficulty *= Math.Pow(osuCurrObj.LazyJumpDistance / diameter, 0.8);
-            }
 
             double angleBonus = 0;
 
@@ -75,7 +61,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             flowDifficulty += angleBonus;
 
-            flowDifficulty *= 1.08;
+            flowDifficulty += calculateJerkBonus(current);
+
+            flowDifficulty *= 1.2;
 
             if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
             {
@@ -146,6 +134,30 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             angleChangeBonus *= DifficultyCalculationUtils.ReverseLerp(largestPrevDistance, 0, diameter);
 
             return angleChangeBonus;
+        }
+
+        private static double calculateJerkBonus(DifficultyHitObject current)
+        {
+            if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
+                return 0;
+
+            var osuCurrObj = (OsuDifficultyHitObject)current;
+            var osuLast0Obj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(0);
+
+            if (osuCurrObj.AngleSigned == null || osuLast0Obj.AngleSigned == null)
+                return 0;
+
+            double currVelocity = osuCurrObj.LazyJumpDistance / osuCurrObj.AdjustedDeltaTime;
+            double prevVelocity = osuLast0Obj.LazyJumpDistance / osuLast0Obj.AdjustedDeltaTime;
+            double prev2Velocity = osuLast0Obj.LazyJumpDistance / osuLast1Obj.AdjustedDeltaTime;
+
+            double currVelocityDifference = Math.Abs(currVelocity - prevVelocity);
+            double prevVelocityDifference = Math.Abs(prevVelocity - prev2Velocity);
+
+            double jerk = Math.Abs(currVelocityDifference - prevVelocityDifference);
+
+            return jerk;
         }
     }
 }
