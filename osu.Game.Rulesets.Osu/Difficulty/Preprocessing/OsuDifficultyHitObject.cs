@@ -254,6 +254,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                 if (LazyJumpDistance < normalised_stack_distance_leniency)
                 {
                     Angle = lastDifficultyObject.Angle;
+                    NormalisedVectorAngle = lastDifficultyObject.NormalisedVectorAngle;
                 }
                 else
                 {
