@@ -61,7 +61,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             flowDifficulty += angleBonus;
 
-            flowDifficulty += calculateJerkBonus(current);
+            flowDifficulty += CalculateFlowVelocityChangeBonus(current);
 
             flowDifficulty *= 1.2;
 
@@ -133,31 +133,59 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double largestPrevDistance = Math.Max(Math.Max(osuCurrObj.LazyJumpDistance, osuLast0Obj.LazyJumpDistance), osuLast1Obj.LazyJumpDistance);
             angleChangeBonus *= DifficultyCalculationUtils.ReverseLerp(largestPrevDistance, 0, diameter);
 
-            return angleChangeBonus;
+            return angleChangeBonus * 1.2;
         }
 
-        private static double calculateJerkBonus(DifficultyHitObject current)
+        public static double CalculateFlowVelocityChangeBonus(DifficultyHitObject current)
         {
-            if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
+            if (current.BaseObject is Spinner || current.Index <= 2 || current.Previous(0).BaseObject is Spinner)
                 return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuLast0Obj = (OsuDifficultyHitObject)current.Previous(0);
-            var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
+            var osuLast2Obj = (OsuDifficultyHitObject)current.Previous(2);
 
-            if (osuCurrObj.AngleSigned == null || osuLast0Obj.AngleSigned == null)
-                return 0;
+            const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
+            const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
 
             double currVelocity = osuCurrObj.LazyJumpDistance / osuCurrObj.AdjustedDeltaTime;
             double prevVelocity = osuLast0Obj.LazyJumpDistance / osuLast0Obj.AdjustedDeltaTime;
-            double prev2Velocity = osuLast0Obj.LazyJumpDistance / osuLast1Obj.AdjustedDeltaTime;
 
-            double currVelocityDifference = Math.Abs(currVelocity - prevVelocity);
-            double prevVelocityDifference = Math.Abs(prevVelocity - prev2Velocity);
+            double minVelocity = Math.Min(currVelocity, prevVelocity);
+            double maxVelocity = Math.Max(currVelocity, prevVelocity);
 
-            double jerk = Math.Abs(currVelocityDifference - prevVelocityDifference);
+            double deltaVelocity = maxVelocity - minVelocity;
 
-            return jerk;
+            // Buff acceleration 2 times more than decceleration
+            if (currVelocity > prevVelocity) deltaVelocity *= 2;
+
+            // Don't buff velocity increase if previous note was slower
+            if (currVelocity > prevVelocity)
+                deltaVelocity *= DifficultyCalculationUtils.Smoothstep(osuCurrObj.AdjustedDeltaTime, osuLast0Obj.AdjustedDeltaTime * 0.55, osuLast0Obj.AdjustedDeltaTime * 0.75);
+
+            double prev1Distance = osuLast1Obj.LazyJumpDistance;
+            double prev2Distance = osuLast2Obj?.LazyJumpDistance ?? 0;
+
+            // If previously there was slow flow pattern - sudden velocity change is much easier because you could flow faster to give yourself more time
+            // Add radius to account for distance potenitally being very small
+            double distanceSimilarityFactor = DifficultyCalculationUtils.ReverseLerp(prev1Distance + radius, (prev2Distance + radius) * 0.8, (prev2Distance + radius) * 0.95);
+            double distanceFactor = 0.5 + 0.5 * DifficultyCalculationUtils.ReverseLerp(Math.Max(prev1Distance, prev2Distance), diameter * 1.5, diameter * 0.75);
+            // There also should be something like angleFactor, because if it has aim-control difficulty - you can't really speed-up flow aim that easily
+
+            deltaVelocity *= 1 - 0.5 * distanceSimilarityFactor * distanceFactor;
+
+            // Penalize rhythm change
+            deltaVelocity *= DifficultyCalculationUtils.ReverseLerp(osuLast0Obj.AdjustedDeltaTime, osuCurrObj.AdjustedDeltaTime * 0.55, osuCurrObj.AdjustedDeltaTime * 0.75);
+
+            // Don't reward very big differences too much
+            if (deltaVelocity > minVelocity * 2)
+            {
+                double rescaledBonus = deltaVelocity - minVelocity * 2;
+                return minVelocity * 2 + Math.Sqrt(2 * rescaledBonus + 1) - 1;
+            }
+
+            return deltaVelocity;
         }
     }
 }
