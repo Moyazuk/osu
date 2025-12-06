@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using osu.Framework.Extensions.ObjectExtensions;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Osu.Mods;
@@ -239,18 +240,46 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                 MinimumJumpDistance = Math.Max(0, Math.Min(LazyJumpDistance - (maximum_slider_radius - assumed_slider_radius), tailJumpDistance - maximum_slider_radius));
             }
 
-            if (lastLastDifficultyObject != null && lastLastDifficultyObject.BaseObject is not Spinner)
+            if (lastDifficultyObject != null && lastLastDifficultyObject != null && lastLastDifficultyObject.BaseObject is not Spinner)
             {
-                Vector2 lastLastCursorPosition = getEndCursorPosition(lastLastDifficultyObject);
+                const int normalised_stack_distance_leniency = 60;
 
-                Vector2 v1 = lastLastCursorPosition - LastObject.StackedPosition;
-                Vector2 v2 = BaseObject.StackedPosition - lastCursorPosition;
+                // If the current note is part of a stack
+                // Use the angle of the first note in the stack since it actually represents the way its played
+                if (LazyJumpDistance < normalised_stack_distance_leniency)
+                {
+                    Angle = lastDifficultyObject.Angle;
+                }
+                else
+                {
+                    OsuDifficultyHitObject lastLastNote = lastLastDifficultyObject;
 
-                float dot = Vector2.Dot(v1, v2);
-                float det = v1.X * v2.Y - v1.Y * v2.X;
+                    // If the last note was the second note in a stack
+                    // We want to form the angles using:
+                    // - the note before the stack
+                    // - the first note of the stack
+                    // - the current note (after the stack)
+                    // This is representative of how the user will play the pattern
+                    // As the fact they're stacked means no movement is required
+                    if (lastDifficultyObject.LazyJumpDistance < normalised_stack_distance_leniency)
+                    {
+                        OsuDifficultyHitObject? noteBeforeStack = (OsuDifficultyHitObject?)lastLastNote.Previous(0);
 
-                AngleSigned = Math.Atan2(det, dot);
-                Angle = Math.Abs((double)AngleSigned);
+                        if (noteBeforeStack.IsNotNull())
+                            lastLastNote = noteBeforeStack;
+                    }
+
+                    Vector2 lastLastCursorPosition = getEndCursorPosition(lastLastNote);
+
+                    Vector2 v1 = lastLastCursorPosition - lastDifficultyObject.BaseObject.StackedPosition;
+                    Vector2 v2 = BaseObject.StackedPosition - getEndCursorPosition(lastDifficultyObject);
+
+                    float dot = Vector2.Dot(v1, v2);
+                    float det = v1.X * v2.Y - v1.Y * v2.X;
+
+                    AngleSigned = Math.Atan2(det, dot);
+                    Angle = Math.Abs((double)AngleSigned);
+                }
             }
         }
 

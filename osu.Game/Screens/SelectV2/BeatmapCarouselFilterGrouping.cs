@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using osu.Framework.Extensions;
 using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Game.Beatmaps;
 using osu.Game.Collections;
@@ -40,17 +39,10 @@ namespace osu.Game.Screens.SelectV2
         private Dictionary<GroupedBeatmapSet, HashSet<CarouselItem>> setMap = new Dictionary<GroupedBeatmapSet, HashSet<CarouselItem>>();
         private Dictionary<GroupDefinition, HashSet<CarouselItem>> groupMap = new Dictionary<GroupDefinition, HashSet<CarouselItem>>();
 
-        private readonly Func<FilterCriteria> getCriteria;
-        private readonly Func<List<BeatmapCollection>> getCollections;
-        private readonly Func<FilterCriteria, IReadOnlyDictionary<Guid, ScoreRank>> getLocalUserTopRanks;
-
-        public BeatmapCarouselFilterGrouping(Func<FilterCriteria> getCriteria, Func<List<BeatmapCollection>> getCollections,
-                                             Func<FilterCriteria, IReadOnlyDictionary<Guid, ScoreRank>> getLocalUserTopRanks)
-        {
-            this.getCriteria = getCriteria;
-            this.getCollections = getCollections;
-            this.getLocalUserTopRanks = getLocalUserTopRanks;
-        }
+        public required Func<FilterCriteria> GetCriteria { get; init; }
+        public required Func<List<BeatmapCollection>> GetCollections { get; init; }
+        public required Func<FilterCriteria, IReadOnlyDictionary<Guid, ScoreRank>> GetLocalUserTopRanks { get; init; }
+        public required Func<HashSet<int>> GetFavouriteBeatmapSets { get; init; }
 
         public async Task<List<CarouselItem>> Run(IEnumerable<CarouselItem> items, CancellationToken cancellationToken)
         {
@@ -60,7 +52,7 @@ namespace osu.Game.Screens.SelectV2
                 var newSetMap = new Dictionary<GroupedBeatmapSet, HashSet<CarouselItem>>(setMap.Count);
                 var newGroupMap = new Dictionary<GroupDefinition, HashSet<CarouselItem>>(groupMap.Count);
 
-                var criteria = getCriteria();
+                var criteria = GetCriteria();
                 var newItems = new List<CarouselItem>();
 
                 BeatmapSetsGroupedTogether = ShouldGroupBeatmapsTogether(criteria);
@@ -193,7 +185,7 @@ namespace osu.Game.Screens.SelectV2
                     {
                         var date = b.LastPlayed;
 
-                        if (date == null || date == DateTimeOffset.MinValue)
+                        if (date == null)
                             return new GroupDefinition(int.MaxValue, "Never").Yield();
 
                         return defineGroupByDate(date.Value);
@@ -216,7 +208,7 @@ namespace osu.Game.Screens.SelectV2
 
                 case GroupMode.Collections:
                 {
-                    var collections = getCollections();
+                    var collections = GetCollections();
                     return getGroupsBy(b => defineGroupByCollection(b, collections), items);
                 }
 
@@ -225,13 +217,15 @@ namespace osu.Game.Screens.SelectV2
 
                 case GroupMode.RankAchieved:
                 {
-                    var topRankMapping = getLocalUserTopRanks(criteria);
+                    var topRankMapping = GetLocalUserTopRanks(criteria);
                     return getGroupsBy(b => defineGroupByRankAchieved(b, topRankMapping), items);
                 }
 
-                // TODO: need implementation
-                // case GroupMode.Favourites:
-                //     goto case GroupMode.None;
+                case GroupMode.Favourites:
+                {
+                    var favouriteBeatmapSets = GetFavouriteBeatmapSets();
+                    return getGroupsBy(b => defineGroupByFavourites(b, favouriteBeatmapSets), items);
+                }
 
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -315,28 +309,28 @@ namespace osu.Game.Screens.SelectV2
             {
                 case BeatmapOnlineStatus.Ranked:
                 case BeatmapOnlineStatus.Approved:
-                    return new GroupDefinition(0, BeatmapOnlineStatus.Ranked.GetDescription()).Yield();
+                    return new RankedStatusGroupDefinition(0, BeatmapOnlineStatus.Ranked).Yield();
 
                 case BeatmapOnlineStatus.Qualified:
-                    return new GroupDefinition(1, status.GetDescription()).Yield();
+                    return new RankedStatusGroupDefinition(1, status).Yield();
 
                 case BeatmapOnlineStatus.WIP:
-                    return new GroupDefinition(2, status.GetDescription()).Yield();
+                    return new RankedStatusGroupDefinition(2, status).Yield();
 
                 case BeatmapOnlineStatus.Pending:
-                    return new GroupDefinition(3, status.GetDescription()).Yield();
+                    return new RankedStatusGroupDefinition(3, status).Yield();
 
                 case BeatmapOnlineStatus.Graveyard:
-                    return new GroupDefinition(4, status.GetDescription()).Yield();
+                    return new RankedStatusGroupDefinition(4, status).Yield();
 
                 case BeatmapOnlineStatus.LocallyModified:
-                    return new GroupDefinition(5, status.GetDescription()).Yield();
+                    return new RankedStatusGroupDefinition(5, status).Yield();
 
                 case BeatmapOnlineStatus.None:
-                    return new GroupDefinition(6, status.GetDescription()).Yield();
+                    return new RankedStatusGroupDefinition(6, status).Yield();
 
                 case BeatmapOnlineStatus.Loved:
-                    return new GroupDefinition(7, status.GetDescription()).Yield();
+                    return new RankedStatusGroupDefinition(7, status).Yield();
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(status), status, null);
@@ -369,7 +363,10 @@ namespace osu.Game.Screens.SelectV2
             if (starInt == 1)
                 return new StarDifficultyGroupDefinition(1, "1 Star", starDifficulty).Yield();
 
-            return new StarDifficultyGroupDefinition(starInt, $"{starInt} Stars", starDifficulty).Yield();
+            if (starInt < 15)
+                return new StarDifficultyGroupDefinition(starInt, $"{starInt} Stars", starDifficulty).Yield();
+
+            return new StarDifficultyGroupDefinition(15, "Over 15 Stars", new StarDifficulty(15, 0)).Yield();
         }
 
         private IEnumerable<GroupDefinition> defineGroupByLength(double length)
@@ -399,15 +396,20 @@ namespace osu.Game.Screens.SelectV2
             return new GroupDefinition(0, source).Yield();
         }
 
-        private IEnumerable<GroupDefinition> defineGroupByCollection(BeatmapInfo beatmap, IEnumerable<BeatmapCollection> collections)
+        private IEnumerable<GroupDefinition> defineGroupByCollection(BeatmapInfo beatmap, List<BeatmapCollection> collections)
         {
             bool anyCollections = false;
 
-            foreach (var collection in collections)
+            for (int i = 0; i < collections.Count; i++)
             {
+                var collection = collections[i];
+
                 if (collection.BeatmapMD5Hashes.Contains(beatmap.MD5Hash))
                 {
-                    yield return new GroupDefinition(0, collection.Name);
+                    // NOTE: the ordering of the incoming collection list is significant and needs to be preserved.
+                    // the fallback to ordering by name cannot be relied on.
+                    // see xmldoc of `BeatmapCarousel.GetAllCollections()`.
+                    yield return new GroupDefinition(i, collection.Name);
 
                     anyCollections = true;
                 }
@@ -416,7 +418,7 @@ namespace osu.Game.Screens.SelectV2
             if (anyCollections)
                 yield break;
 
-            yield return new GroupDefinition(1, "Not in collection");
+            yield return new GroupDefinition(int.MaxValue, "Not in collection");
         }
 
         private IEnumerable<GroupDefinition> defineGroupByOwnMaps(BeatmapInfo beatmap, int? localUserId, string? localUserUsername)
@@ -436,6 +438,14 @@ namespace osu.Game.Screens.SelectV2
                 return new RankDisplayGroupDefinition(rank).Yield();
 
             return new GroupDefinition(int.MaxValue, "Unplayed").Yield();
+        }
+
+        private IEnumerable<GroupDefinition> defineGroupByFavourites(BeatmapInfo beatmap, HashSet<int> favouriteBeatmapSets)
+        {
+            if (beatmap.BeatmapSet?.OnlineID > 0 && favouriteBeatmapSets.Contains(beatmap.BeatmapSet.OnlineID))
+                return new GroupDefinition(0, "Favourites").Yield();
+
+            return [];
         }
 
         private record GroupMapping(GroupDefinition? Group, List<CarouselItem> ItemsInGroup);

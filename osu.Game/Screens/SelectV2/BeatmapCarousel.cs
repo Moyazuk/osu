@@ -28,9 +28,11 @@ using osu.Game.Database;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Carousel;
 using osu.Game.Graphics.UserInterface;
+using osu.Game.Online.API;
 using osu.Game.Rulesets;
 using osu.Game.Scoring;
 using osu.Game.Screens.Select;
+using osu.Game.Screens.Select.Filter;
 using Realms;
 
 namespace osu.Game.Screens.SelectV2
@@ -85,8 +87,7 @@ namespace osu.Game.Screens.SelectV2
             }
             else
             {
-                // `CurrentSelectionItem` cannot be used here because it may not be correctly set yet.
-                if (CurrentSelection != null && (CheckModelEquality(top.Model, CurrentSelection) || CheckModelEquality(bottom.Model, CurrentSelection)))
+                if (CurrentSelection != null && (top == CurrentSelectionItem || bottom == CurrentSelectionItem))
                     return SPACING * 2;
             }
 
@@ -105,7 +106,13 @@ namespace osu.Game.Screens.SelectV2
             {
                 new BeatmapCarouselFilterMatching(() => Criteria!),
                 new BeatmapCarouselFilterSorting(() => Criteria!),
-                grouping = new BeatmapCarouselFilterGrouping(() => Criteria!, GetAllCollections, GetBeatmapInfoGuidToTopRankMapping)
+                grouping = new BeatmapCarouselFilterGrouping
+                {
+                    GetCriteria = () => Criteria!,
+                    GetCollections = GetAllCollections,
+                    GetLocalUserTopRanks = GetBeatmapInfoGuidToTopRankMapping,
+                    GetFavouriteBeatmapSets = GetFavouriteBeatmapSets,
+                }
             };
 
             AddInternal(loading = new LoadingLayer());
@@ -554,8 +561,19 @@ namespace osu.Game.Screens.SelectV2
 
             var beatmaps = items.Select(i => i.Model).OfType<GroupedBeatmap>();
 
-            if (beatmaps.Any(b => b.Equals(CurrentSelection as GroupedBeatmap)))
+            // do not request recommended selection if the user already had selected a difficulty within the single filtered beatmap set,
+            // as it could change the difficulty that will be selected
+            var preexistingSelection = beatmaps.FirstOrDefault(b => b.Equals(CurrentSelection as GroupedBeatmap));
+
+            if (preexistingSelection != null)
+            {
+                // the selection might not have an item associated with it, if it was fully filtered away previously
+                // in this case, request to reselect it
+                if (CurrentSelectionItem == null)
+                    RequestSelection(preexistingSelection);
+
                 return;
+            }
 
             RequestRecommendedSelection(beatmaps);
         }
@@ -772,6 +790,9 @@ namespace osu.Game.Screens.SelectV2
 
             Criteria = criteria;
 
+            if (criteria.Group == GroupMode.None)
+                userCollapsedGroup = false;
+
             loadingDebounce ??= Scheduler.AddDelayed(() =>
             {
                 if (loading.State.Value == Visibility.Visible)
@@ -801,12 +822,23 @@ namespace osu.Game.Screens.SelectV2
 
         #endregion
 
-        #region Database fetches for grouping support
+        #region Fetches for grouping support
 
         [Resolved]
         private RealmAccess realm { get; set; } = null!;
 
-        protected virtual List<BeatmapCollection> GetAllCollections() => realm.Run(r => r.All<BeatmapCollection>().AsEnumerable().Detach());
+        [Resolved]
+        private IAPIProvider api { get; set; } = null!;
+
+        /// <remarks>
+        /// FOOTGUN WARNING: this being sorted on the realm side before detaching is IMPORTANT.
+        /// realm supports sorting as an internal operation, and realm's implementation of string sorting does NOT match dotnet's
+        /// with respect to treatment of punctuation characters like <c>-</c> or <c>_</c>, among others.
+        /// All other places that show lists of collections also use the realm-side sorting implementation,
+        /// because they use the sorting operation inside subscription queries for efficient drawable management,
+        /// so this usage kind of has to follow suit.
+        /// </remarks>
+        protected virtual List<BeatmapCollection> GetAllCollections() => realm.Run(r => r.All<BeatmapCollection>().OrderBy(c => c.Name).AsEnumerable().Detach());
 
         protected virtual Dictionary<Guid, ScoreRank> GetBeatmapInfoGuidToTopRankMapping(FilterCriteria criteria) => realm.Run(r =>
         {
@@ -830,6 +862,13 @@ namespace osu.Game.Screens.SelectV2
             return topRankMapping;
         });
 
+        /// <remarks>
+        /// Note that calling <c>.ToHashSet()</c> below has two purposes:
+        /// one being performance of contain checks in filtering code,
+        /// another being slightly better thread safety (as <see cref="ILocalUserState.FavouriteBeatmapSets"/> could be mutated during async filtering).
+        /// </remarks>
+        protected HashSet<int> GetFavouriteBeatmapSets() => api.LocalUserState.FavouriteBeatmapSets.ToHashSet();
+
         #endregion
 
         #region Drawable pooling
@@ -840,9 +879,11 @@ namespace osu.Game.Screens.SelectV2
         private readonly DrawablePool<PanelGroup> groupPanelPool = new DrawablePool<PanelGroup>(100);
         private readonly DrawablePool<PanelGroupStarDifficulty> starsGroupPanelPool = new DrawablePool<PanelGroupStarDifficulty>(11);
         private readonly DrawablePool<PanelGroupRankDisplay> ranksGroupPanelPool = new DrawablePool<PanelGroupRankDisplay>(9);
+        private readonly DrawablePool<PanelGroupRankedStatus> statusGroupPanelPool = new DrawablePool<PanelGroupRankedStatus>(8);
 
         private void setupPools()
         {
+            AddInternal(statusGroupPanelPool);
             AddInternal(ranksGroupPanelPool);
             AddInternal(starsGroupPanelPool);
             AddInternal(groupPanelPool);
@@ -880,6 +921,9 @@ namespace osu.Game.Screens.SelectV2
             if (x is RankDisplayGroupDefinition rankX && y is RankDisplayGroupDefinition rankY)
                 return rankX.Equals(rankY);
 
+            if (x is RankedStatusGroupDefinition statusX && y is RankedStatusGroupDefinition statusY)
+                return statusX.Equals(statusY);
+
             return base.CheckModelEquality(x, y);
         }
 
@@ -887,6 +931,9 @@ namespace osu.Game.Screens.SelectV2
         {
             switch (item.Model)
             {
+                case RankedStatusGroupDefinition:
+                    return statusGroupPanelPool.Get();
+
                 case StarDifficultyGroupDefinition:
                     return starsGroupPanelPool.Get();
 
@@ -1153,6 +1200,11 @@ namespace osu.Game.Screens.SelectV2
     /// Defines a grouping header for a set of carousel items grouped by achieved rank.
     /// </summary>
     public record RankDisplayGroupDefinition(ScoreRank Rank) : GroupDefinition(-(int)Rank, Rank.GetLocalisableDescription());
+
+    /// <summary>
+    /// Defines a grouping header for a set of carousel items grouped by ranked status.
+    /// </summary>
+    public record RankedStatusGroupDefinition(int Order, BeatmapOnlineStatus Status) : GroupDefinition(Order, Status.GetLocalisableDescription());
 
     /// <summary>
     /// Used to represent a portion of a <see cref="BeatmapSetInfo"/> under a <see cref="GroupDefinition"/>.
