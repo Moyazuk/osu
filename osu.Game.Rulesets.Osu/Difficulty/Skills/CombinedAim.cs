@@ -16,8 +16,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double StrainValueOf(DifficultyHitObject current)
         {
-            double snap = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
-            double flow = FlowAimEvaluator.EvaluateDifficultyOf(current);
+            double snap = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) + AgilityEvaluator.EvaluateDifficultyOf(current);
+            double flow = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
 
             double pSnap = ProbabilityOf(flow / snap);
             double pFlow = 1 - pSnap; // same as ProbabilityOf(snap / flow)

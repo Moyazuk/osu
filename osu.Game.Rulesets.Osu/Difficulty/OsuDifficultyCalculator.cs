@@ -23,7 +23,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
     {
         private const double star_rating_multiplier = 0.0265;
 
-        public override int Version => 20251020;
+        public override int Version => 20250306;
 
         public OsuDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
             : base(ruleset, beatmap)
@@ -88,10 +88,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double flowAimDifficultyValue = skills.OfType<FlowAim>().Single().DifficultyValue();
             double speedDifficultyValue = speed.DifficultyValue();
 
-            double mechanicalDifficultyRating = calculateMechanicalDifficultyRating(aimDifficultyValue, snapAimDifficultyValue, flowAimDifficultyValue, speedDifficultyValue);
-            double sliderFactor = aimDifficultyValue > 0
-                ? OsuRatingCalculator.CalculateDifficultyRating(aimNoSlidersDifficultyValue) / OsuRatingCalculator.CalculateDifficultyRating(aimDifficultyValue)
-                : 1;
+            double mechanicalDifficultyRating = calculateMechanicalDifficultyRating(aimDifficultyValue, speedDifficultyValue);
+            double sliderFactor = aimDifficultyValue > 0 ? OsuRatingCalculator.CalculateDifficultyRating(aimNoSlidersDifficultyValue) / OsuRatingCalculator.CalculateDifficultyRating(aimDifficultyValue) : 1;
 
             var osuRatingCalculator = new OsuRatingCalculator(mods, totalHits, approachRate, overallDifficulty, mechanicalDifficultyRating, sliderFactor);
 
@@ -155,15 +153,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return attributes;
         }
 
-        private double calculateMechanicalDifficultyRating(double aimDifficultyValue, double snapAimDifficultyValue, double flowAimDifficultyValue, double speedDifficultyValue)
+        private double calculateMechanicalDifficultyRating(double aimDifficultyValue, double speedDifficultyValue)
         {
-            double totalAimRating = OsuRatingCalculator.SumTotalAimRating(
-                OsuRatingCalculator.CalculateDifficultyRating(aimDifficultyValue),
-                OsuRatingCalculator.CalculateDifficultyRating(snapAimDifficultyValue),
-                OsuRatingCalculator.CalculateDifficultyRating(flowAimDifficultyValue)
-            );
-
-            double aimValue = OsuStrainSkill.DifficultyToPerformance(totalAimRating);
+            double aimValue = OsuStrainSkill.DifficultyToPerformance(OsuRatingCalculator.CalculateDifficultyRating(aimDifficultyValue));
             double speedValue = OsuStrainSkill.DifficultyToPerformance(OsuRatingCalculator.CalculateDifficultyRating(speedDifficultyValue));
 
             double totalValue = Math.Pow(Math.Pow(aimValue, 1.1) + Math.Pow(speedValue, 1.1), 1 / 1.1);
