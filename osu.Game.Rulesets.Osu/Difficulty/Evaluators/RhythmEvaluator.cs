@@ -55,7 +55,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             (5.0 / 3.0,   tuning.RhythmPrev2_5over3),
             (2.0,         tuning.RhythmPrev2_2over1),
             (2.5,         tuning.RhythmPrev2_5over2),
-            (3.0,         tuning.RhythmPrev2_3over1),
+            (3.0,         0),
             (4.0,         tuning.RhythmPrev2_4over1),
         };
 
@@ -210,9 +210,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             strain *= nextMultiplier * next2Multiplier;
 
-            double doubletapness = 1.0 - osuCurrent.GetDoubletapness((OsuDifficultyHitObject?)osuCurrent.Next(0));
 
-            // Console.WriteLine($"strain: {strain}, repetitionVal: {repetitionVal}, multiplier: {multiplier}, nextMult: {nextMultiplier}, downtimeScale: {downtimeScale}, appearanceScale {appearanceScale}, uniqueScale, {uniqueScale}");
+            strain *= 1 - osuCurrent.GetDoubletapness((OsuDifficultyHitObject)current.Next(0));
+
             return strain;
         }
 

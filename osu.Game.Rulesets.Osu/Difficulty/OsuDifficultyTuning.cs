@@ -6,53 +6,47 @@ namespace osu.Game.Rulesets.Osu.Difficulty
     {
         public static OsuDifficultyTuning Default { get; } = new OsuDifficultyTuning();
 
-public double RhythmPrevSame { get; init; }           = 0.18204614332420946;
-public double RhythmPrev_4over3 { get; init; }        = 1.7477937905038308;
-public double RhythmPrev_3over2 { get; init; }        = 0.22073379081703295;
-public double RhythmPrev_5over3 { get; init; }        = 0.9164905159056068;
-public double RhythmPrev_2over1 { get; init; }        = 0.5214479927422407;
-public double RhythmPrev_5over2 { get; init; }        = 9.082718470263325;
-public double RhythmPrev_3over1 { get; init; }        = 0.11756607295348734;
-public double RhythmPrev_4over1 { get; init; }        = 0.258795970739696;
+public double RhythmPrevSame            { get; init; } = 0.3259437360425038;
+public double RhythmPrev_4over3         { get; init; } = 0.001274441740005855;
+public double RhythmPrev_3over2         { get; init; } = 0.21819343740210662;
+public double RhythmPrev_5over3         { get; init; } = 0.4377158166601563;
+public double RhythmPrev_2over1         { get; init; } = 0.5780649411877421;
+public double RhythmPrev_5over2         { get; init; } = 8.072146795521881;
+public double RhythmPrev_3over1         { get; init; } = 0.11214497037882809;
+public double RhythmPrev_4over1         { get; init; } = 0.10696043663502434;
 
-public double RhythmNextSame { get; init; }           = 0.025137167637841948;
-public double RhythmNext_4over3 { get; init; }        = 1.0698682465105485;
-public double RhythmNext_3over2 { get; init; }        = 0.535264520024332;
-public double RhythmNext_5over3 { get; init; }        = 0.19721491195776125;
-public double RhythmNext_2over1 { get; init; }        = 0.09107399667207179;
-public double RhythmNext_5over2 { get; init; }        = 0.8035457795771961;
-public double RhythmNext_3over1 { get; init; }        = 0.4253593856656883;
-public double RhythmNext_4over1 { get; init; }        = 0.3592376127847374;
+public double RhythmNextSame            { get; init; } = 0.022977969025782585;
+public double RhythmNext_4over3         { get; init; } = 1.745530417366166;
+public double RhythmNext_3over2         { get; init; } = 0.33011421571569005;
+public double RhythmNext_5over3         { get; init; } = 0;
+public double RhythmNext_2over1         { get; init; } = 0.06398664563904001;
+public double RhythmNext_5over2         { get; init; } = 0.34849431501616074;
+public double RhythmNext_3over1         { get; init; } = 0.00112237196924423;
+public double RhythmNext_4over1         { get; init; } = 0.0011115603186338896;
 
-public double FingerControl_Skill_Multiplier { get; init; } = 26.98320592872538;
-public double Speed_Burst_Multiplier { get; init; }         = 3.689614190831363;
+public double FingerControl_Skill_Multiplier { get; init; } = 9.11344711206346;
+public double Speed_Burst_Multiplier    { get; init; } = 3.0407581171777642;
 
-// Previous-2 multipliers
-public double RhythmPrev2Same { get; init; }        = 1.9946438975783503;
-public double RhythmPrev2_4over3 { get; init; }     = 0.9600843756553028;
-public double RhythmPrev2_3over2 { get; init; }     = 1.016736655939538;
-public double RhythmPrev2_5over3 { get; init; }     = 0.9580311573975129;
-public double RhythmPrev2_2over1 { get; init; }     = 0.8761278331033272;
-public double RhythmPrev2_5over2 { get; init; }     = 0.790782060674392;
-public double RhythmPrev2_3over1 { get; init; }     = 1.1558440725878187;
-public double RhythmPrev2_4over1 { get; init; }     = 0.9807703617611822;
+public double RhythmPrev2Same           { get; init; } = 7.334737127866351;
+public double RhythmPrev2_4over3        { get; init; } = 0.997088943909741;
+public double RhythmPrev2_3over2        { get; init; } = 1.9765346106114774;
+public double RhythmPrev2_5over3        { get; init; } = 1.066581892059917;
+public double RhythmPrev2_2over1        { get; init; } = 0.6697916732180355;
+public double RhythmPrev2_5over2        { get; init; } = 0.361446711627019;
+public double RhythmPrev2_3over1        { get; init; } = 0.002242173886498486;
+public double RhythmPrev2_4over1        { get; init; } = 0.0012950415027351164;
 
-// Next-2 multipliers
-public double RhythmNext2Same { get; init; }        = 1.5439727021956822;
-public double RhythmNext2_4over3 { get; init; }     = 0.6389635396666126;
-public double RhythmNext2_3over2 { get; init; }     = 1.1612574242241256;
-public double RhythmNext2_5over3 { get; init; }     = 0.7479085833446782;
-public double RhythmNext2_2over1 { get; init; }     = 0.6807449339801217;
-public double RhythmNext2_5over2 { get; init; }     = 1.8028649715014315;
-public double RhythmNext2_3over1 { get; init; }     = 0.9148896215868557;
-public double RhythmNext2_4over1 { get; init; }     = 3.231086736136281;
+public double RhythmNext2Same           { get; init; } = 3.3158387138829446;
+public double RhythmNext2_4over3        { get; init; } = 0.3031390859734716;
+public double RhythmNext2_3over2        { get; init; } = 1.5788511998411576;
+public double RhythmNext2_5over3        { get; init; } = 0.471148521081547;
+public double RhythmNext2_2over1        { get; init; } = 0.5602841202404043;
+public double RhythmNext2_5over2        { get; init; } = 1.262941837545127;
+public double RhythmNext2_3over1        { get; init; } = 0.0014987653891473459;
+public double RhythmNext2_4over1        { get; init; } = 0.001000003387394558;
 
-public double Uniqueness_Divisor { get; init; }     = 8;
-
-public double Uniqueness_Exponent { get; init; }     = 4;
-
-
-
+public double Uniqueness_Divisor        { get; init; } = 19.754227669560123;
+public double Uniqueness_Exponent       { get; init; } = 2.4582656313645748;
 
     }
 }
