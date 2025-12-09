@@ -46,6 +46,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public double FlashlightDifficulty { get; set; }
 
         /// <summary>
+        /// The difficulty corresponding to the reading skill.
+        /// </summary>
+        [JsonProperty("reading_difficulty")]
+        public double ReadingDifficulty { get; set; }
+
+        /// <summary>
         /// Describes how much of <see cref="AimDifficulty"/> is contributed to by hitcircles or sliders.
         /// A value closer to 1.0 indicates most of <see cref="AimDifficulty"/> is contributed by hitcircles.
         /// A value closer to 0.0 indicates most of <see cref="AimDifficulty"/> is contributed by sliders.
@@ -80,6 +86,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         [JsonProperty("flow_aim")]
         public double FlowAimDifficulty { get; set; }
+
+        [JsonProperty("reading_difficult_note_count")]
+        public double ReadingDifficultNoteCount { get; set; }
 
         [JsonProperty("nested_score_per_object")]
         public double NestedScorePerObject { get; set; }
@@ -117,6 +126,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             yield return (ATTRIB_ID_AIM, AimDifficulty);
             yield return (ATTRIB_ID_SPEED, SpeedDifficulty);
+            yield return (ATTRIB_ID_READING, ReadingDifficulty);
             yield return (ATTRIB_ID_DIFFICULTY, StarRating);
 
             if (ShouldSerializeFlashlightDifficulty())
@@ -135,6 +145,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             yield return (ATTRIB_ID_MAXIMUM_LEGACY_COMBO_SCORE, MaximumLegacyComboScore);
             yield return (ATTRIB_ID_SNAP_AIM_DIFFICULTY, SnapAimDifficulty);
             yield return (ATTRIB_ID_FLOW_AIM_DIFFICULTY, FlowAimDifficulty);
+            yield return (ATTRIB_ID_READING_DIFFICULT_NOTE_COUNT, ReadingDifficultNoteCount);
         }
 
         public override void FromDatabaseAttributes(IReadOnlyDictionary<int, double> values, IBeatmapOnlineInfo onlineInfo)
@@ -143,6 +154,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             AimDifficulty = values[ATTRIB_ID_AIM];
             SpeedDifficulty = values[ATTRIB_ID_SPEED];
+            ReadingDifficulty = values[ATTRIB_ID_READING];
             StarRating = values[ATTRIB_ID_DIFFICULTY];
             FlashlightDifficulty = values.GetValueOrDefault(ATTRIB_ID_FLASHLIGHT);
             SliderFactor = values[ATTRIB_ID_SLIDER_FACTOR];
@@ -157,6 +169,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             MaximumLegacyComboScore = values[ATTRIB_ID_MAXIMUM_LEGACY_COMBO_SCORE];
             SnapAimDifficulty = values[ATTRIB_ID_SNAP_AIM_DIFFICULTY];
             FlowAimDifficulty = values[ATTRIB_ID_FLOW_AIM_DIFFICULTY];
+            ReadingDifficultNoteCount = values[ATTRIB_ID_READING_DIFFICULT_NOTE_COUNT];
             DrainRate = onlineInfo.DrainRate;
             HitCircleCount = onlineInfo.CircleCount;
             SliderCount = onlineInfo.SliderCount;
