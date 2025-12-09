@@ -69,7 +69,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double aimNoSlidersDifficultStrainCount = aimWithoutSliders.CountTopWeightedStrains();
             double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders();
-            Polynomial aimMissPenaltyCurve = ((OsuProbabilitySkill)skills[0]).GetMissPenaltyCurve();
+            Polynomial aimMissPenaltyCurve = ((OsuTimeSkill)skills[0]).GetMissPenaltyCurve();
 
             double aimTopWeightedSliderFactor = aimNoSlidersTopWeightedSliderCount / Math.Max(1, aimNoSlidersDifficultStrainCount - aimNoSlidersTopWeightedSliderCount);
 
