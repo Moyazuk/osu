@@ -55,7 +55,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             var aim = skills.OfType<CombinedAim>().Single(a => a.IncludeSliders);
             var aimWithoutSliders = skills.OfType<CombinedAim>().Single(a => !a.IncludeSliders);
-            var speed = skills.OfType<Speed>().Single();
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
             var reading = skills.OfType<Reading>().Single();
 
@@ -85,6 +84,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             int spinnerCount = beatmap.HitObjects.Count(h => h is Spinner);
 
             int totalHits = beatmap.HitObjects.Count;
+
+            double drainRate = beatmap.Difficulty.DrainRate;
 
             double aimDifficultyValue = aim.DifficultyValue();
             double aimNoSlidersDifficultyValue = aimWithoutSliders.DifficultyValue();

@@ -63,7 +63,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             flowDifficulty += CalculateFlowVelocityChangeBonus(current);
 
-            flowDifficulty *= 1.2;
+            flowDifficulty *= 1.1;
 
             if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
             {

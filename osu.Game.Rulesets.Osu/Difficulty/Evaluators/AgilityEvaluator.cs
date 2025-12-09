@@ -22,7 +22,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
 
-            double prevDistanceMultiplier = DifficultyCalculationUtils.Smootherstep(osuPrevObj.LazyJumpDistance / radius, 0.5, 1);
+            double prevDistanceMultiplier = DifficultyCalculationUtils.Smootherstep(osuPrevObj.LazyJumpDistance, radius / 2.0, radius);
 
             // If the previous notes are stacked, we add the previous note's strainTime since there was no movement since at least 2 notes earlier.
             // https://youtu.be/-yJPIk-YSLI?t=186
@@ -37,7 +37,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double currAngle = osuCurrObj.Angle.Value;
                 double lastAngle = osuPrevObj.Angle.Value;
 
-                wideBonus += calcWideAngleBonus(currAngle);
+                wideBonus += calcWideAngleBonus(currAngle) * prevDistanceMultiplier;
 
                 baseFactor = 1 - 0.5 * DifficultyCalculationUtils.Smoothstep(lastAngle, double.DegreesToRadians(90), double.DegreesToRadians(40)) * angleDifference(currAngle, lastAngle);
             }
@@ -46,13 +46,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double angleRepetitionNerf = Math.Pow(baseFactor + (1 - baseFactor) * angleVectorRepetition(osuCurrObj), 2);
 
             // Agility bonus of 1 at base BPM.
-            double agilityBonus = Math.Max(0, Math.Pow(DifficultyCalculationUtils.MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / (270.0 / wideBonus), 6) - 1);
+            double agilityBonus = Math.Max(0, Math.Pow(DifficultyCalculationUtils.MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / (270.0 / wideBonus), 6.5) - 1);
 
             double difficulty = agilityBonus * angleRepetitionNerf;
 
             difficulty *= osuCurrObj.SmallCircleBonus;
 
-            return difficulty * 0.18;
+            return difficulty * 0.2;
         }
 
         private static double angleDifference(double curAngle, double lastAngle)
