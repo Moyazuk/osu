@@ -54,8 +54,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
 
             // Calculate the velocity to the current hitobject, which starts with a base distance / time assuming the last object is a hitcircle.
-            double currVelocity = osuCurrObj.LazyJumpDistance / osuCurrObj.AdjustedDeltaTime;
-
+            double currVelocity = osuCurrObj.LazyJumpDistance / osuCurrObj.MinimumJumpTime;
+            /*
             // But if the last object is a slider, then we extend the travel velocity through the slider into the current object.
             if (osuLastObj.BaseObject is Slider && withSliderTravelDistance)
             {
@@ -64,10 +64,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 currVelocity = Math.Max(currVelocity, movementVelocity + travelVelocity); // take the larger total combined velocity.
             }
-
+            */
             // As above, do the same for the previous hitobject.
-            double prevVelocity = osuLastObj.LazyJumpDistance / osuLastObj.AdjustedDeltaTime;
-
+            double prevVelocity = osuLastObj.LazyJumpDistance / osuLastObj.MinimumJumpTime;
+            /*
             if (osuLastLastObj.BaseObject is Slider && withSliderTravelDistance)
             {
                 double travelVelocity = osuLastLastObj.TravelDistance / osuLastLastObj.TravelTime;
@@ -75,7 +75,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 prevVelocity = Math.Max(prevVelocity, movementVelocity + travelVelocity);
             }
-
+            */
             double wideAngleBonus = 0;
             double sliderBonus = 0;
             double velocityChangeBonus = 0;
