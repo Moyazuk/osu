@@ -193,5 +193,13 @@ namespace osu.Game.Rulesets.Difficulty.Utils
 
         public static double SmoothstepTwoDirectional(double x, double y, double lowerMultiplier, double higherMultiplier) => Smoothstep(x, y * lowerMultiplier, y * higherMultiplier) * Smoothstep(y, x * lowerMultiplier, x * higherMultiplier);
         public static double ReverseLerpTwoDirectional(double x, double y, double lowerMultiplier, double higherMultiplier) => ReverseLerp(x, y * lowerMultiplier, y * higherMultiplier) * ReverseLerp(y, x * lowerMultiplier, x * higherMultiplier);
+
+        /// <summary>
+        /// Power (generalised) mean function (https://en.m.wikipedia.org/wiki/Power_mean)
+        /// </summary>
+        public static double PowerMean(double exponent, params double[] values)
+        {
+            return Math.Pow(values.Select(x => Math.Pow(x, exponent)).Sum(), 1.0 / exponent);
+        }
     }
 }

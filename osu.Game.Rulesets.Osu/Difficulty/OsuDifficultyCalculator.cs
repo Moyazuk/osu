@@ -57,10 +57,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
             var reading = skills.OfType<Reading>().Single();
 
+            var speed = skills.OfType<Speed>().Single(s => !s.WithoutStamina);
+            var speedWithoutStamina = skills.OfType<Speed>().Single(s => s.WithoutStamina);
             double speedNotes = speed.RelevantNoteCount();
 
             double aimDifficultStrainCount = aim.CountTopWeightedStrains();
-            double speedDifficultStrainCount = speed.CountTopWeightedStrains();
+            double speedDifficultStrainCount = speed.CountTopWeightedNotes();
             double readingDifficultNoteCount = reading.CountTopWeightedNotes();
 
             double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders();
@@ -102,6 +104,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double snapAimRating = osuRatingCalculator.ComputeSnapAimRating(snapAimDifficultyValue);
             double flowAimRating = osuRatingCalculator.ComputeFlowAimRating(flowAimDifficultyValue);
 
+            double speedRatingNoStamina = osuRatingCalculator.ComputeSpeedRating(speedWithoutStamina.DifficultyValue());
+            double staminaFactor = speedRating > 0 ? speedRatingNoStamina / speedRating : 1;
+
             double flashlightRating = 0.0;
 
             if (flashlight is not null)
@@ -136,6 +141,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 AimDifficultSliderCount = difficultSliders,
                 SpeedDifficulty = speedRating,
                 SpeedNoteCount = speedNotes,
+                StaminaFactor = staminaFactor,
                 FlashlightDifficulty = flashlightRating,
                 ReadingDifficulty = readingRating,
                 SliderFactor = sliderFactor,
@@ -187,7 +193,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 new CombinedAim(mods, true),
                 new CombinedAim(mods, false),
-                new Speed(mods),
+                new Speed(mods, false),
+                new Speed(mods, true),
                 new SnapAim(mods),
                 new FlowAim(mods),
                 new Reading(beatmap, mods, clockRate)

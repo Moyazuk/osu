@@ -40,6 +40,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public double SpeedNoteCount { get; set; }
 
         /// <summary>
+        /// Describes how much of <see cref="SpeedDifficulty"/> is contributed to by the stamina strains.
+        /// </summary>
+        [JsonProperty("stamina_factor")]
+        public double StaminaFactor { get; set; }
+
+        /// <summary>
         /// The difficulty corresponding to the flashlight skill.
         /// </summary>
         [JsonProperty("flashlight_difficulty")]
@@ -146,6 +152,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             yield return (ATTRIB_ID_SNAP_AIM_DIFFICULTY, SnapAimDifficulty);
             yield return (ATTRIB_ID_FLOW_AIM_DIFFICULTY, FlowAimDifficulty);
             yield return (ATTRIB_ID_READING_DIFFICULT_NOTE_COUNT, ReadingDifficultNoteCount);
+            yield return (ATTRIB_ID_STAMINA_FACTOR, StaminaFactor);
         }
 
         public override void FromDatabaseAttributes(IReadOnlyDictionary<int, double> values, IBeatmapOnlineInfo onlineInfo)
@@ -170,6 +177,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             SnapAimDifficulty = values[ATTRIB_ID_SNAP_AIM_DIFFICULTY];
             FlowAimDifficulty = values[ATTRIB_ID_FLOW_AIM_DIFFICULTY];
             ReadingDifficultNoteCount = values[ATTRIB_ID_READING_DIFFICULT_NOTE_COUNT];
+            StaminaFactor = values[ATTRIB_ID_STAMINA_FACTOR];
             DrainRate = onlineInfo.DrainRate;
             HitCircleCount = onlineInfo.CircleCount;
             SliderCount = onlineInfo.SliderCount;
