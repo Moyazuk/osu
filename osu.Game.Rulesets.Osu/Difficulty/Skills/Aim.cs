@@ -21,14 +21,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public abstract class Aim : OsuTimeSkill
     {
         public readonly bool IncludeSliders;
+        public readonly bool WithCheesability;
 
         protected Aim(Mod[] mods, bool includeSliders)
             : base(mods)
         {
             IncludeSliders = includeSliders;
+            WithCheesability = withCheesability;
             previousStrains = new List<(double, double)>();
         }
 
+        private double inaccuraciesWhileCheesing = 0;
+        private double maxStrain = 0;
         private double currentStrain;
 
         private const double backwards_strain_influence = 1000;
@@ -64,7 +68,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentStrain);
 
-            return currentDifficulty + currentStrain;
+            currentDifficulty += currentStrain;
+
+            inaccuraciesWhileCheesing += isInaccurateWhileCheesed(current) * currentDifficulty;
+            if (currentDifficulty > maxStrain)
+                maxStrain = currentDifficulty;
+
+            return currentDifficulty;
         }
 
                 private double getCurrentStrainValue(double endTime, List<(double Time, double Diff)> previousDifficulties)
@@ -145,5 +155,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         }
 
         public double CountTopWeightedSliders() => OsuStrainUtils.CountTopWeightedSliders(sliderStrains, DifficultyValue());
+
+        public double GetInaccuraciesWithCheesing() => maxStrain > 0 ? inaccuraciesWhileCheesing / maxStrain : 0;
+
+        // Check if cheesing the current object still results in a great.
+        private static int isInaccurateWhileCheesed(DifficultyHitObject current)
+        {
+            var osuCurrObj = (OsuDifficultyHitObject)current;
+
+            // Assume even on Lazer that cheesing does not happen on sliders
+            if (osuCurrObj.BaseObject is Slider)
+                return 0;
+
+            return osuCurrObj.ExtraDeltaTime > osuCurrObj.HitWindowGreat ? 1 : 0;
+        }
     }
 }

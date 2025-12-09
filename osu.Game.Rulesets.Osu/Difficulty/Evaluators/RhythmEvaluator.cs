@@ -54,7 +54,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double rhythmComplexitySum = 0;
 
-            double deltaDifferenceEpsilon = ((OsuDifficultyHitObject)current).HitWindowGreat * 0.3;
+            double deltaDifferenceEpsilon = ((OsuDifficultyHitObject)current).HitWindowGreat * 0.15;
 
             var island = new Island(deltaDifferenceEpsilon);
             var previousIsland = new Island(deltaDifferenceEpsilon);

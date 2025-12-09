@@ -53,8 +53,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (beatmap.HitObjects.Count == 0)
                 return new OsuDifficultyAttributes { Mods = mods };
 
-            var aim = skills.OfType<CombinedAim>().Single(a => a.IncludeSliders);
-            var aimWithoutSliders = skills.OfType<CombinedAim>().Single(a => !a.IncludeSliders);
+            var aim = skills.OfType<CombinedAim>().Single(a => a.IncludeSliders && !a.WithCheesability);
+            var aimWithoutSliders = skills.OfType<CombinedAim>().Single(a => !a.IncludeSliders && !a.WithCheesability);
+            var aimCheesed = skills.OfType<CombinedAim>().Single(a => a.IncludeSliders && a.WithCheesability);
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
             var reading = skills.OfType<Reading>().Single();
 
@@ -91,10 +92,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimNoSlidersDifficultyValue = aimWithoutSliders.DifficultyValue();
             double snapAimDifficultyValue = skills.OfType<SnapAim>().Single().DifficultyValue();
             double flowAimDifficultyValue = skills.OfType<FlowAim>().Single().DifficultyValue();
+            double cheesedAimDifficultyValue = aimCheesed.DifficultyValue();
             double speedDifficultyValue = speed.DifficultyValue();
             double readingDifficultyValue = reading.DifficultyValue();
 
             double sliderFactor = aimDifficultyValue > 0 ? OsuRatingCalculator.CalculateDifficultyRating(aimNoSlidersDifficultyValue) / OsuRatingCalculator.CalculateDifficultyRating(aimDifficultyValue) : 1;
+            double cheeseFactor = aimDifficultyValue > 0 ? OsuRatingCalculator.CalculateDifficultyRating(cheesedAimDifficultyValue) / OsuRatingCalculator.CalculateDifficultyRating(aimDifficultyValue) : 1;
 
             var osuRatingCalculator = new OsuRatingCalculator(mods, totalHits, overallDifficulty);
 
@@ -119,6 +122,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             var simulator = new OsuLegacyScoreSimulator();
             var scoreAttributes = simulator.Simulate(WorkingBeatmap, beatmap);
+            double greatsWithCheesing = aim.GetInaccuraciesWithCheesing();
 
             double baseAimPerformance = OsuStrainSkill.DifficultyToPerformance(aimRating);
             double baseSpeedPerformance = OsuStrainSkill.DifficultyToPerformance(speedRating);
@@ -148,6 +152,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 ReadingDifficulty = readingRating,
                 SliderFactor = sliderFactor,
                 AimMissPenaltyCurve = aimMissPenaltyCurve,
+                CheeseFactor = cheeseFactor,
+                InaccuraciesWithCheesing = greatsWithCheesing,
                 SpeedDifficultStrainCount = speedDifficultStrainCount,
                 ReadingDifficultNoteCount = readingDifficultNoteCount,
                 AimTopWeightedSliderFactor = aimTopWeightedSliderFactor,
@@ -192,8 +198,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         {
             var skills = new List<Skill>
             {
-                new CombinedAim(mods, true),
-                new CombinedAim(mods, false),
+                new CombinedAim(mods, true, false),
+                new CombinedAim(mods, false, false),
+                new CombinedAim(mods, true, true),
                 new Speed(mods, false),
                 new Speed(mods, true),
                 new SnapAim(mods),

@@ -147,7 +147,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (maxStrain == 0)
                 return 0;
 
-            return noteDifficulties.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / maxStrain * 12.0 - 6.0))));
+            return ObjectStrains.Sum(strain => strain / maxStrain);
         }
 
         public double CountTopWeightedSliders()
@@ -163,5 +163,4 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             // Use a weighted sum of all notes. Constants are arbitrary and give nice values
             return sliderStrains.Sum(s => DifficultyCalculationUtils.Logistic(s / consistentTopNote, 3, 5, 1.1));
         }
-    }
 }
