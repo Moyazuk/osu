@@ -20,9 +20,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public class Speed : Skill
     {
         private double totalMultiplier => 0.55;
-        private double burstMultiplier => 2.3;
-        private double streamMultiplier => 0.010;
-        private double staminaMultiplier => 0.08;
+        private double burstMultiplier => 2.7;
+        private double streamMultiplier => 0.02;
+        private double staminaMultiplier => 0.14;
         private double meanExponent => 1.25;
 
         private readonly List<double> noteDifficulties = new List<double>();

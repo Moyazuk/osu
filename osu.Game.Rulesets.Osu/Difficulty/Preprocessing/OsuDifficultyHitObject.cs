@@ -134,9 +134,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
             // Capped to 25ms to prevent difficulty calculation breaking from simultaneous objects.
             AdjustedDeltaTime = Math.Max(DeltaTime, MIN_DELTA_TIME);
 
-            SmallCircleBonus = Math.Max(1.0, 1.0 + (30 - BaseObject.Radius) / 60);
+            SmallCircleBonus = Math.Max(1.0, 1.0 + (30 - BaseObject.Radius) / 40);
 
             double hitWindowOk;
+
             if (BaseObject is Slider sliderObject)
             {
                 HitWindowGreat = sliderObject.HeadCircle.HitWindows.WindowFor(HitResult.Great) / clockRate;
@@ -229,7 +230,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                 NormalisedVectorAngle = Movements.First().NormalisedVectorAngle(PreviousMovement);
             }
 
-
             LazyJumpDistance = Movements.First().Distance;
             MinimumJumpTime = Movements.First().Time;
             MinimumJumpDistance = LazyJumpDistance;
@@ -241,6 +241,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                 TravelDistance = LazyTravelDistance;
                 TravelTime = Math.Max(LazyTravelTime / clockRate, MIN_DELTA_TIME);
             }
+
             // Worst case if the player wanted to cheese notes while still getting 100s.
             // The extra delta time is repeatedly halved if the delta time says constant.
             // If a slowdown occurs (deltaTimeDifference > 0), add the slowdown to the extra delta time,

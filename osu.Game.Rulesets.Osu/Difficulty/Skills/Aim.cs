@@ -36,7 +36,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private const double backwards_strain_influence = 1000;
 
-        private double skillMultiplier => 111;
+        private double skillMultiplier => 121;
         private double strainDecayBase => 0.15;
 
         private readonly List<(double, double)> previousStrains;
