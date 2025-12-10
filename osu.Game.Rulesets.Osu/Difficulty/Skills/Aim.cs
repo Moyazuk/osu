@@ -7,7 +7,6 @@ using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
-using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Difficulty.Utils;
@@ -23,7 +22,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         public readonly bool IncludeSliders;
         public readonly bool WithCheesability;
 
-        protected Aim(Mod[] mods, bool includeSliders)
+        protected Aim(Mod[] mods, bool includeSliders, bool withCheesability)
             : base(mods)
         {
             IncludeSliders = includeSliders;
@@ -37,7 +36,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private const double backwards_strain_influence = 1000;
 
-        private double skillMultiplier => 132;
+        private double skillMultiplier => 111;
         private double strainDecayBase => 0.15;
 
         private readonly List<(double, double)> previousStrains;
@@ -61,7 +60,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             var osuCurrent = (OsuDifficultyHitObject)current;
             double currentDifficulty = StrainValueOf(current) * skillMultiplier;
 
-            currentStrain = getCurrentStrainValue(osuCurrent.StartTime, previousStrains) * 4.25;
+            currentStrain = getCurrentStrainValue(osuCurrent.StartTime, previousStrains) * 5.25;
 
             previousStrains.Add((osuCurrent.StartTime, currentDifficulty));
 
@@ -77,7 +76,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return currentDifficulty;
         }
 
-                private double getCurrentStrainValue(double endTime, List<(double Time, double Diff)> previousDifficulties)
+        private double getCurrentStrainValue(double endTime, List<(double Time, double Diff)> previousDifficulties)
         {
             if (previousDifficulties.Count < 2)
                 return 0;

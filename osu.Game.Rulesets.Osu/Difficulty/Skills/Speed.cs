@@ -20,7 +20,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public class Speed : Skill
     {
         private double totalMultiplier => 0.55;
-        private double burstMultiplier => 3.1;
+        private double burstMultiplier => 2.3;
         private double streamMultiplier => 0.010;
         private double staminaMultiplier => 0.08;
         private double meanExponent => 1.25;
@@ -147,7 +147,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (maxStrain == 0)
                 return 0;
 
-            return ObjectStrains.Sum(strain => strain / maxStrain);
+            return noteDifficulties.Sum(strain => strain / maxStrain);
         }
 
         public double CountTopWeightedSliders()
@@ -163,4 +163,5 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             // Use a weighted sum of all notes. Constants are arbitrary and give nice values
             return sliderStrains.Sum(s => DifficultyCalculationUtils.Logistic(s / consistentTopNote, 3, 5, 1.1));
         }
+    }
 }

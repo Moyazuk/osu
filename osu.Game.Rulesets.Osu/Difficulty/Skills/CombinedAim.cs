@@ -9,14 +9,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
     public class CombinedAim : Aim
     {
-        public CombinedAim(Mod[] mods, bool includeSliders)
-            : base(mods, includeSliders)
+        public CombinedAim(Mod[] mods, bool includeSliders, bool withCheesability)
+            : base(mods, includeSliders, withCheesability)
         {
         }
 
         protected override double StrainValueOf(DifficultyHitObject current)
         {
-            double snap = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) + AgilityEvaluator.EvaluateDifficultyOf(current);
+            double snap = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, WithCheesability) + AgilityEvaluator.EvaluateDifficultyOf(current);
             double flow = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
 
             double pSnap = ProbabilityOf(flow / snap);

@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using osu.Framework.Extensions.ObjectExtensions;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Osu.Mods;
@@ -135,7 +134,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
             // Capped to 25ms to prevent difficulty calculation breaking from simultaneous objects.
             AdjustedDeltaTime = Math.Max(DeltaTime, MIN_DELTA_TIME);
 
-            SmallCircleBonus = Math.Max(1.0, 1.0 + (30 - BaseObject.Radius) / 40);
+            SmallCircleBonus = Math.Max(1.0, 1.0 + (30 - BaseObject.Radius) / 60);
 
             double hitWindowOk;
             if (BaseObject is Slider sliderObject)
@@ -224,7 +223,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
             computeSliderMovements(clockRate);
 
             if (PreviousMovement != null)
+            {
                 Angle = Movements.First().Angle(PreviousMovement);
+                AngleSigned = Movements.First().AngleSigned(PreviousMovement);
+                NormalisedVectorAngle = Movements.First().NormalisedVectorAngle(PreviousMovement);
+            }
+
 
             LazyJumpDistance = Movements.First().Distance;
             MinimumJumpTime = Movements.First().Time;

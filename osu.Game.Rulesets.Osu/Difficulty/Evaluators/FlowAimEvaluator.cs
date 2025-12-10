@@ -25,15 +25,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
 
             // Start with velocity
-            double velocity = osuCurrObj.LazyJumpDistance / osuCurrObj.AdjustedDeltaTime;
-
-            if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
-            {
-                double travelVelocity = osuLast0Obj.TravelDistance / osuLast0Obj.TravelTime; // calculate the slider velocity from slider head to slider end.
-                double movementVelocity = osuCurrObj.MinimumJumpDistance / osuCurrObj.MinimumJumpTime; // calculate the movement velocity from slider end to current object
-
-                velocity = Math.Max(velocity, movementVelocity + travelVelocity); // take the larger total combined velocity.
-            }
+            double velocity = osuCurrObj.LazyJumpDistance / osuCurrObj.MinimumJumpTime;
 
             double flowDifficulty = velocity;
 
@@ -63,12 +55,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             flowDifficulty += CalculateFlowVelocityChangeBonus(current);
 
-            flowDifficulty *= 1.1;
+            flowDifficulty *= 1.7;
 
             if (osuLast0Obj.BaseObject is Slider && withSliderTravelDistance)
             {
                 double sliderBonus = osuLast0Obj.TravelDistance / osuLast0Obj.TravelTime;
-                flowDifficulty += sliderBonus * AimEvaluator.SLIDER_MULTIPLIER;
+                flowDifficulty += sliderBonus * 0.7;
             }
 
             return flowDifficulty * osuCurrObj.SmallCircleBonus;
@@ -100,7 +92,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currAngleBonus = AimEvaluator.CalcAcuteAngleBonus(currAngle);
 
             double currVelocity = osuCurrObj.LazyJumpDistance / osuCurrObj.AdjustedDeltaTime;
-            double acuteAngleBonus = currVelocity * currAngleBonus;
+            double acuteAngleBonus = currVelocity * currAngleBonus * 1.5;
 
             return acuteAngleBonus;
         }
@@ -133,7 +125,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double largestPrevDistance = Math.Max(Math.Max(osuCurrObj.LazyJumpDistance, osuLast0Obj.LazyJumpDistance), osuLast1Obj.LazyJumpDistance);
             angleChangeBonus *= DifficultyCalculationUtils.ReverseLerp(largestPrevDistance, 0, diameter);
 
-            return angleChangeBonus * 1.2;
+            return angleChangeBonus;
         }
 
         public static double CalculateFlowVelocityChangeBonus(DifficultyHitObject current)
