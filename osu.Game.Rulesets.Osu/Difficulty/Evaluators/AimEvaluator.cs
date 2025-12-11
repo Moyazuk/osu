@@ -66,16 +66,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double currAngle = osuCurrObj.Angle.Value;
                 double lastAngle = osuLastObj.Angle.Value;
 
-                double baseFactor = 1 - 0.15 * DifficultyCalculationUtils.Smoothstep(lastAngle, double.DegreesToRadians(90), double.DegreesToRadians(40)) * angleDifference(currAngle, lastAngle);
+                double baseFactor = 1 - 0.15 * DifficultyCalculationUtils.Smoothstep(lastAngle, double.DegreesToRadians(90), double.DegreesToRadians(40)) * AngleDifference(currAngle, lastAngle);
 
                 // Penalize angle repetition.
-                angleRepetitionNerf = Math.Pow(baseFactor + (1 - baseFactor) * angleVectorRepetition(osuCurrObj), 2);
+                angleRepetitionNerf = Math.Pow(baseFactor + (1 - baseFactor) * AngleVectorRepetition(osuCurrObj), 2);
 
                 wideAngleBonus = calcWideAngleBonus(currAngle);
 
                 double wideAngleBase = Math.Min(currVelocity, prevVelocity);
 
-                wideAngleBonus *= wideAngleBase / Math.Max(osuLastObj.AdjustedDeltaTime, osuCurrObj.AdjustedDeltaTime);
+                wideAngleBonus *= wideAngleBase / Math.Pow(Math.Max(osuLastObj.AdjustedDeltaTime, osuCurrObj.AdjustedDeltaTime), 2);
             }
 
             // We want to use the average velocity over the whole object when awarding differences, not the individual jump and slider path velocities.
@@ -106,7 +106,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             aimStrain += velocityChangeBonus * 0.3;
 
-            aimStrain += wideAngleBonus * 60;
+            aimStrain += wideAngleBonus * 11512;
 
             // Apply high circle size bonus
             aimStrain *= osuCurrObj.SmallCircleBonus;
@@ -118,12 +118,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             return aimStrain;
         }
 
-        private static double angleDifference(double curAngle, double lastAngle)
+        public static double AngleDifference(double curAngle, double lastAngle)
         {
             return Math.Cos(2 * Math.Min(Math.PI / 4, Math.Abs(curAngle - lastAngle)));
         }
 
-        private static double angleVectorRepetition(OsuDifficultyHitObject current)
+        public static double AngleVectorRepetition(OsuDifficultyHitObject current)
         {
             const double note_limit = 6;
 

@@ -39,13 +39,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             }
 
             // Agility bonus of 1 at base BPM.
-            double agilityBonus = Math.Max(0, Math.Pow(DifficultyCalculationUtils.MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / (230.0 / (1 + wideBonus)), 5.5) - 1);
+            double agilityBonus = Math.Max(0, Math.Pow(DifficultyCalculationUtils.MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / 230.0, 6) - 1);
 
             double difficulty = agilityBonus;
 
+            difficulty *= 1 + wideBonus;
+
             difficulty *= osuCurrObj.SmallCircleBonus;
 
-            return difficulty * 0.2;
+            return difficulty * 0.15;
         }
 
         private static double calcWideAngleBonus(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(60), double.DegreesToRadians(110));
