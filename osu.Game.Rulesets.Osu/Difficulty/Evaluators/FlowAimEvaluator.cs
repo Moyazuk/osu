@@ -38,27 +38,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double wiggleBonus = 0;
 
-            if (osuCurrObj.Angle.HasValue &&
-                osuPrevObj?.Angle != null &&
-                Math.Abs(osuCurrObj.DeltaTime - osuPrevObj.DeltaTime) < 25)
-            {
-                double angleDifference = Math.Abs(osuCurrObj.Angle.Value - osuPrevObj.Angle.Value);
-                double angleDifferenceAdjusted = Math.Sin(angleDifference / 2) * 180.0;
-                double angularVelocity = angleDifferenceAdjusted / (0.1 * osuCurrObj.AdjustedDeltaTime);
-                double angularVelocityBonus = Math.Max(0.0, Math.Pow(angularVelocity, 0.5) - 1.0);
-                //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
-                //angularVelocityBonus *= DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, radius * 0.5, radius * 2);
-                adjustedDistanceScale = 1 + angularVelocityBonus * 0.05;
-
-                // Apply wiggle bonus for jumps that are [radius, 3*diameter] in distance, with < 110 angle
-                // https://www.desmos.com/calculator/dp0v0nvowc
-                wiggleBonus = currVelocity
-                              * DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance, radius, diameter)
-                              * DifficultyCalculationUtils.Smootherstep(osuCurrObj.Angle.Value, double.DegreesToRadians(110), double.DegreesToRadians(60))
-                              * DifficultyCalculationUtils.Smootherstep(osuPrevObj.LazyJumpDistance, radius, diameter)
-                              * DifficultyCalculationUtils.Smootherstep(osuPrevObj.Angle.Value, double.DegreesToRadians(110), double.DegreesToRadians(60));
-            }
-
             double currLazyJumpDistance = AdjustFlowDistance(osuCurrObj);
 
             // Base snap difficulty is velocity.
@@ -73,6 +52,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 difficulty = Math.Max(difficulty, movementVelocity + travelVelocity); // take the larger total combined velocity.
             }
 
+            difficulty += CalculateJerk(current) * 0.05;
+
+            difficulty *= 1 + CalculateAngularVelocity(current) * 25;
+
             if (osuPrevObj.BaseObject is Slider)
             {
                 // Reward sliders based on velocity.
@@ -81,11 +64,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double flowVelChange = Math.Abs(prevVelocity - currVelocity);
 
-            difficulty += flowVelChange * velocityChangeMultiplier;
+            difficulty += flowVelChange * 1;
 
             wiggleBonus *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 1);
 
-            difficulty += wiggleBonus * 1200;
+            difficulty += wiggleBonus * 0;
 
             // Flow aim is harder on High BPM
             const double base_speedflow_multiplier = 0.175; // Base multiplier for speedflow bonus
@@ -112,7 +95,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (withSliderTravelDistance)
                 difficulty += sliderBonus * 0.3;
 
-            return difficulty * 0.875 * osuCurrObj.SmallCircleBonus;
+            return difficulty * 2.075 * osuCurrObj.SmallCircleBonus;
         }
 
         /// <summary>
@@ -147,14 +130,62 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double angleScale = 1.0 - DifficultyCalculationUtils.Smootherstep(angle, 0, maxBonusAngle);
 
             //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
-            angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius, radius * 4);
+            angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius, radius * 2);
 
             angleScale *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 0.05);
 
 
-            double velocityBonus = 1.1 + Math.Pow(previousVelocity, 1) * angleScale * 0.35;
+            double velocityBonus = 1 + Math.Pow(previousVelocity, 1) * angleScale * 0.25;
 
             return Math.Pow(distanceTravelled, velocityBonus);
+        }
+
+        private static double SignedAngleDiff(double a, double b)
+        {
+            double d = a - b;
+
+            if (d > Math.PI)
+                d -= 2 * Math.PI;
+            else if (d < -Math.PI)
+                d += 2 * Math.PI;
+
+            return d;
+        }
+
+        public static double CalculateAngularVelocity(DifficultyHitObject current)
+        {
+            var curr = (OsuDifficultyHitObject)current;
+            var prev = (OsuDifficultyHitObject)current.Previous(0);
+
+            if (prev == null)
+                return 0;
+
+            if (!curr.AngleSigned.HasValue || !prev.AngleSigned.HasValue)
+                return 0;
+
+            double dTheta =
+                Math.Abs(SignedAngleDiff(
+                    curr.AngleSigned.Value,
+                    prev.AngleSigned.Value
+                ));
+
+            return (dTheta / curr.DeltaTime);
+        }
+
+        public static double CalculateJerk(DifficultyHitObject current)
+        {
+            var osuCurrObj = (OsuDifficultyHitObject)current;
+            var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuPrev2Obj = (OsuDifficultyHitObject)current.Previous(1);
+            var osuPrev3Obj = (OsuDifficultyHitObject)current.Previous(2);
+
+            if (osuPrevObj == null || osuPrev2Obj == null || osuPrev3Obj == null)
+                return 0;
+
+            double currDistanceDifference = Math.Abs(osuCurrObj.LazyJumpDistance - osuPrevObj.LazyJumpDistance);
+            double prevDistanceDifference = Math.Abs(osuPrevObj.LazyJumpDistance - osuPrev2Obj.LazyJumpDistance);
+
+            return Math.Sqrt(Math.Max(0, Math.Abs(currDistanceDifference - prevDistanceDifference) - 5) / 5);
         }
 
         public static double GetOverlapness(DifficultyHitObject current)

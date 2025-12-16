@@ -176,7 +176,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 prevObj = currObj;
             }
 
-            double rhythmDifficulty = Math.Sqrt(4 + rhythmComplexitySum * rhythm_overall_multiplier) / 2.0; // produces multiplier that can be applied to strain. range [1, infinity) (not really though)
+            double rhythmDifficulty = Math.Sqrt(4 + rhythmComplexitySum * 1.25) / 2.0; // produces multiplier that can be applied to strain. range [1, infinity) (not really though)
             rhythmDifficulty *= 1 - currentOsuObject.GetDoubletapness((OsuDifficultyHitObject)current.Next(0));
 
             return rhythmDifficulty;

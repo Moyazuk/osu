@@ -52,20 +52,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
             double prevAngle = osuPrevObj.Angle!.Value * 180 / Math.PI;
 
-            double angleBonus = 0.65 * Smootherstep(currentAngle, 0, 120);
+            double angleBonus = 0.65 * Smootherstep(currentAngle, 0, 180);
             double baseFactor = 1 - 0.3 * SnapAimEvaluator.AngleDifference(currentAngle, prevAngle);
             double angleRepetitionNerf = Math.Pow(baseFactor + (1 - baseFactor) * 0.95 * SnapAimEvaluator.AngleVectorRepetition(osuCurrObj), 2);
 
             double velocityChangeBonus = Math.Abs(prevVelocity - currVelocity) * agilityVelocityChangeMultiplier;
 
-            double distanceBonus = distanceBonusMultiplier * Math.Pow(osuCurrObj.LazyJumpDistance, 3)
-                                   * Smootherstep(MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime, 2), 280, 320);
-
-            double baseBpm = baseBPMConstant / (1 + (angleBonus + distanceBonus + velocityChangeBonus) * currDistanceMultiplier * prevDistanceMultiplier);
+            double baseBpm = baseBPMConstant / (1 + (angleBonus) * currDistanceMultiplier * prevDistanceMultiplier);
 
             double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, agilityExponent) - 1);
 
-            return agilityBonus * angleRepetitionNerf * 0.0125;
+            return agilityBonus * angleRepetitionNerf * 0.0255;
         }
     }
 }

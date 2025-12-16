@@ -71,12 +71,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double auxiliaryStrainValue = 0;
             double currentStrainDifficulty = 0;
             double transitionBonus = 0;
-            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, WithCheesability) * (skillMultiplier - 3);
+            double strainMultiplier = 0;
+            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, WithCheesability) * skillMultiplier;
             double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
             double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current, WithCheesability) * skillMultiplier;
 
-            double snapTransitionBonus = previousWasFlow.HasValue && previousWasFlow.Value ? 1.25 : 1.0;
-            double flowTransitionBonus = previousWasFlow.HasValue && !previousWasFlow.Value ? 1.25 : 1.0;
+            double snapTransitionBonus = previousWasFlow.HasValue && previousWasFlow.Value ? 1.0 : 1.0;
+            double flowTransitionBonus = previousWasFlow.HasValue && !previousWasFlow.Value ? 1.0 : 1.0;
 
             bool isFlow = (flowDifficulty) * flowTransitionBonus < (snapDifficulty + currentAgilityStrain + agilityDifficulty) * snapTransitionBonus;
 
@@ -89,6 +90,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 currentStrainDifficulty = currentDifficulty;
                 auxiliaryStrainValue = 0;
                 transitionBonus = flowTransitionBonus;
+                strainMultiplier = 1.25;
 
             }
                 //for snap aim, the notes difficulty itself contributes to strain and we update the value of agilityStrain only when the note is snapped
@@ -99,9 +101,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 auxiliaryStrainValue = currentAgilityStrain;
                 currentStrainDifficulty = snapDifficulty;
                 transitionBonus = snapTransitionBonus;
+                strainMultiplier = 4.25;
             }
 
-            currentStrain = getCurrentStrainValue(osuCurrent.StartTime, previousStrains) * 4.25;
+            currentStrain = getCurrentStrainValue(osuCurrent.StartTime, previousStrains) * strainMultiplier;
             previousStrains.Add((osuCurrent.StartTime, currentStrainDifficulty));
 
             previousWasFlow = isFlow;
