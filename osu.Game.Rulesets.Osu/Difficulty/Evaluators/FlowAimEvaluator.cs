@@ -52,7 +52,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 difficulty = Math.Max(difficulty, movementVelocity + travelVelocity); // take the larger total combined velocity.
             }
 
-            difficulty += CalculateJerk(current) * 0.05;
+            difficulty += CalculateJerk(current) * 0.025;
 
             difficulty *= 1 + CalculateAngularVelocity(current) * 25;
 
@@ -95,7 +95,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (withSliderTravelDistance)
                 difficulty += sliderBonus * 0.3;
 
-            return difficulty * 2.075 * osuCurrObj.SmallCircleBonus;
+            return difficulty * 2.175 * osuCurrObj.SmallCircleBonus;
         }
 
         /// <summary>
@@ -135,7 +135,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             angleScale *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 0.05);
 
 
-            double velocityBonus = 1 + Math.Pow(previousVelocity, 1) * angleScale * 0.25;
+            double velocityBonus = 1 + Math.Pow(previousVelocity, 1) * angleScale * 0.1;
 
             return Math.Pow(distanceTravelled, velocityBonus);
         }
