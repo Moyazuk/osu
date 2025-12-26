@@ -5,21 +5,15 @@ using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
-using static osu.Game.Rulesets.Osu.Difficulty.Preprocessing.OsuDifficultyHitObject;
 using osu.Game.Rulesets.Osu.Objects;
 using osuTK;
+using osu.Game.Rulesets.Osu.Difficulty;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class FlowAimEvaluator
     {
-
-        public static double angleScaleMultiplier = 0.4;
-        public static double flowOverallMultiplier = 0.725;
-        public static double velocityChangeMultiplier = 4;
-        public static double angularVelocityMultiplier = 0.05;
-
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance, OsuDifficultyTuning tuning)
         {
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
@@ -30,18 +24,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currVelocity = osuCurrObj.LazyJumpDistance / osuCurrObj.AdjustedDeltaTime;
             double prevVelocity = osuPrevObj.LazyJumpDistance / osuPrevObj.AdjustedDeltaTime;
 
-            const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
-            const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
-
-            double adjustedDistanceScale = 1.0;
             double sliderBonus = 0;
 
-            double wiggleBonus = 0;
-
-            double currLazyJumpDistance = AdjustFlowDistance(osuCurrObj);
+            double currLazyJumpDistance = AdjustFlowDistance(osuCurrObj, tuning);
 
             // Base snap difficulty is velocity.
-            double difficulty = Math.Pow(currLazyJumpDistance, adjustedDistanceScale) / osuCurrObj.AdjustedDeltaTime;
+            double difficulty = Math.Pow(currLazyJumpDistance, tuning.FlowDistanceExponent) / osuCurrObj.AdjustedDeltaTime;
 
             // But if the last object is a slider, then we extend the travel velocity through the slider into the current object.
             if (osuPrevObj.BaseObject is Slider && withSliderTravelDistance)
@@ -52,9 +40,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 difficulty = Math.Max(difficulty, movementVelocity + travelVelocity); // take the larger total combined velocity.
             }
 
-            difficulty += CalculateJerk(current) * 0.025;
+            difficulty += CalculateJerk(current, tuning) * tuning.FlowJerkScale;
 
-            difficulty *= 1 + CalculateAngularVelocity(current) * 25;
+            difficulty *= 1 + CalculateAngularVelocity(current) * tuning.FlowAngularVelocityScale;
 
             if (osuPrevObj.BaseObject is Slider)
             {
@@ -64,38 +52,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double flowVelChange = Math.Abs(prevVelocity - currVelocity);
 
-            difficulty += flowVelChange * 1;
-
-            wiggleBonus *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 1);
-
-            difficulty += wiggleBonus * 0;
-
-            // Flow aim is harder on High BPM
-            const double base_speedflow_multiplier = 0.175; // Base multiplier for speedflow bonus
-            const double bpm_factor = 12; // How steep the bonus is, higher values means more bonus for high BPM
-
-            // Autobalance, it's expected for bonus multiplier to be 1 for the bpm base
-            double bpmBase = DifficultyCalculationUtils.BPMToMilliseconds(220, 4);
-            double bpmFactorMultiplierAtBase = bpmBase / (bpmBase - bpm_factor) - 1;
-            double multiplier = base_speedflow_multiplier / bpmFactorMultiplierAtBase;
-
-            // Start from base of the bonus
-            double speeflowBonus = multiplier * diameter / osuCurrObj.AdjustedDeltaTime;
-
-            // Spacing factor, reward up to 1 radius. The reason why we're doing this is because we want to be close live speedflow
-            // If we won't do this - it will be similar to multiplicative speed and distance bonuses, not additive
-            speeflowBonus *= DifficultyCalculationUtils.Smoothstep(osuCurrObj.LazyJumpDistance, -radius, radius);
-
-            // Bpm factor
-            speeflowBonus *= (osuCurrObj.AdjustedDeltaTime / (osuCurrObj.AdjustedDeltaTime - bpm_factor) - 1);
-
-            difficulty += 0;
+            difficulty += flowVelChange * tuning.FlowVelocityChangeScale;
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
-                difficulty += sliderBonus * 0.3;
+                difficulty += sliderBonus * tuning.FlowSliderBonusScale;
 
-            return difficulty * 2.175 * osuCurrObj.SmallCircleBonus;
+            return difficulty * tuning.FlowOverallScale * osuCurrObj.SmallCircleBonus;
         }
 
         /// <summary>
@@ -104,7 +67,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         /// <param name="current"></param>
         /// <returns></returns>
 
-        public static double AdjustFlowDistance(DifficultyHitObject current)
+        public static double AdjustFlowDistance(DifficultyHitObject current, OsuDifficultyTuning tuning)
         {
             var osuCurr = (OsuDifficultyHitObject)current;
             var osuPrev = (OsuDifficultyHitObject)current.Previous(0);
@@ -118,7 +81,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double angle = osuCurr.Angle.Value;
             double distanceTravelled = osuCurr.LazyJumpDistance;
 
-            double maxBonusAngle = double.DegreesToRadians(170);
+            double maxBonusAngle = tuning.FlowMaxAngleRadians;
 
             if (angle >= maxBonusAngle)
                 return distanceTravelled;
@@ -132,10 +95,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
             angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius, radius * 2);
 
-            angleScale *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 0.05);
+            angleScale *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, tuning.FlowOverlapNerfMax);
 
-
-            double velocityBonus = 1 + Math.Pow(previousVelocity, 1) * angleScale * 0.1;
+            double velocityBonus = 1 + Math.Pow(previousVelocity, tuning.FlowVelocityBonusExponent) * angleScale * tuning.FlowVelocityBonusScale;
 
             return Math.Pow(distanceTravelled, velocityBonus);
         }
@@ -172,7 +134,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             return (dTheta / curr.DeltaTime);
         }
 
-        public static double CalculateJerk(DifficultyHitObject current)
+        public static double CalculateJerk(DifficultyHitObject current, OsuDifficultyTuning tuning)
         {
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
@@ -185,12 +147,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double currDistanceDifference = Math.Abs(osuCurrObj.LazyJumpDistance - osuPrevObj.LazyJumpDistance);
             double prevDistanceDifference = Math.Abs(osuPrevObj.LazyJumpDistance - osuPrev2Obj.LazyJumpDistance);
 
-            return Math.Sqrt(Math.Max(0, Math.Abs(currDistanceDifference - prevDistanceDifference) - 5) / 5);
+            double difference = Math.Abs(currDistanceDifference - prevDistanceDifference) - tuning.FlowJerkDistanceThreshold;
+
+            return Math.Sqrt(Math.Max(0, difference) / tuning.FlowJerkDistanceScale);
         }
 
         public static double GetOverlapness(DifficultyHitObject current)
         {
-            if (!IsValid(current, 1))
+            if (!OsuDifficultyHitObject.IsValid(current, 1))
                 return 0;
 
             OsuHitObject o1 = (OsuHitObject)current.BaseObject, o2 = (OsuHitObject)current.Previous(0).BaseObject;

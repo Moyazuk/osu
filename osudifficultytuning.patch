@@ -1,0 +1,567 @@
+diff --git a/osu.Game.Rulesets.Osu/Difficulty/Evaluators/AimEvaluator.cs b/osu.Game.Rulesets.Osu/Difficulty/Evaluators/AimEvaluator.cs
+index dcf8ac0..32ca629 100644
+--- a/osu.Game.Rulesets.Osu/Difficulty/Evaluators/AimEvaluator.cs
++++ b/osu.Game.Rulesets.Osu/Difficulty/Evaluators/AimEvaluator.cs
+@@ -11,12 +11,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
+ {
+     public static class AimEvaluator
+     {
+-        private const double wide_angle_multiplier = 1.5;
+-        private const double acute_angle_multiplier = 2.55;
+-        private const double slider_multiplier = 1.35;
+-        private const double velocity_change_multiplier = 0.75;
+-        private const double wiggle_multiplier = 1.02;
+-
+         /// <summary>
+         /// Evaluates the difficulty of aiming the current object, based on:
+         /// <list type="bullet">
+@@ -26,7 +20,7 @@ public static class AimEvaluator
+         /// <item><description>and slider difficulty.</description></item>
+         /// </list>
+         /// </summary>
+-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
++        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance, OsuDifficultyTuning tuning)
+         {
+             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
+                 return 0;
+@@ -149,18 +143,18 @@ public static double EvaluateDifficultyOf(DifficultyHitObject current, bool with
+                 sliderBonus = osuLastObj.TravelDistance / osuLastObj.TravelTime;
+             }
+ 
+-            aimStrain += wiggleBonus * wiggle_multiplier;
+-            aimStrain += velocityChangeBonus * velocity_change_multiplier;
++            aimStrain += wiggleBonus * tuning.AimWiggleBonusScale;
++            aimStrain += velocityChangeBonus * tuning.AimVelocityChangeBonusScale;
+ 
+             // Add in acute angle bonus or wide angle bonus, whichever is larger.
+-            aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier);
++            aimStrain += Math.Max(acuteAngleBonus * tuning.AimAcuteAngleScale, wideAngleBonus * tuning.AimWideAngleBonusScale);
+ 
+             // Apply high circle size bonus
+             aimStrain *= osuCurrObj.SmallCircleBonus;
+ 
+             // Add in additional slider velocity bonus.
+             if (withSliderTravelDistance)
+-                aimStrain += sliderBonus * slider_multiplier;
++                aimStrain += sliderBonus * tuning.AimSliderBonusScale;
+ 
+             return aimStrain;
+         }
+diff --git a/osu.Game.Rulesets.Osu/Difficulty/Evaluators/FlashlightEvaluator.cs b/osu.Game.Rulesets.Osu/Difficulty/Evaluators/FlashlightEvaluator.cs
+index 55192df..f9b6924 100644
+--- a/osu.Game.Rulesets.Osu/Difficulty/Evaluators/FlashlightEvaluator.cs
++++ b/osu.Game.Rulesets.Osu/Difficulty/Evaluators/FlashlightEvaluator.cs
+@@ -10,14 +10,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
+ {
+     public static class FlashlightEvaluator
+     {
+-        private const double max_opacity_bonus = 0.4;
+-        private const double hidden_bonus = 0.2;
+-
+-        private const double min_velocity = 0.5;
+-        private const double slider_multiplier = 1.3;
+-
+-        private const double min_angle_multiplier = 0.2;
+-
+         /// <summary>
+         /// Evaluates the difficulty of memorising and hitting an object, based on:
+         /// <list type="bullet">
+@@ -28,7 +20,7 @@ public static class FlashlightEvaluator
+         /// <item><description>and whether the hidden mod is enabled.</description></item>
+         /// </list>
+         /// </summary>
+-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool hidden)
++        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool hidden, OsuDifficultyTuning tuning)
+         {
+             if (current.BaseObject is Spinner)
+                 return 0;
+@@ -66,7 +58,7 @@ public static double EvaluateDifficultyOf(DifficultyHitObject current, bool hidd
+                     double stackNerf = Math.Min(1.0, (currentObj.LazyJumpDistance / scalingFactor) / 25.0);
+ 
+                     // Bonus based on how visible the object is.
+-                    double opacityBonus = 1.0 + max_opacity_bonus * (1.0 - osuCurrent.OpacityAt(currentHitObject.StartTime, hidden));
++                    double opacityBonus = 1.0 + tuning.FlashlightMaxOpacityBonusScale * (1.0 - osuCurrent.OpacityAt(currentHitObject.StartTime, hidden));
+ 
+                     result += stackNerf * opacityBonus * scalingFactor * jumpDistance / cumulativeStrainTime;
+ 
+@@ -85,10 +77,10 @@ public static double EvaluateDifficultyOf(DifficultyHitObject current, bool hidd
+ 
+             // Additional bonus for Hidden due to there being no approach circles.
+             if (hidden)
+-                result *= 1.0 + hidden_bonus;
++                result *= 1.0 + tuning.FlashlightHiddenBonusScale;
+ 
+             // Nerf patterns with repeated angles.
+-            result *= min_angle_multiplier + (1.0 - min_angle_multiplier) / (angleRepeatCount + 1.0);
++            result *= tuning.FlashlightMinAngleScale + (1.0 - tuning.FlashlightMinAngleScale) / (angleRepeatCount + 1.0);
+ 
+             double sliderBonus = 0.0;
+ 
+@@ -98,7 +90,7 @@ public static double EvaluateDifficultyOf(DifficultyHitObject current, bool hidd
+                 double pixelTravelDistance = osuCurrent.LazyTravelDistance / scalingFactor;
+ 
+                 // Reward sliders based on velocity.
+-                sliderBonus = Math.Pow(Math.Max(0.0, pixelTravelDistance / osuCurrent.TravelTime - min_velocity), 0.5);
++                sliderBonus = Math.Pow(Math.Max(0.0, pixelTravelDistance / osuCurrent.TravelTime - tuning.FlashlightMinVelocityScale), 0.5);
+ 
+                 // Longer sliders require more memorisation.
+                 sliderBonus *= pixelTravelDistance;
+@@ -108,7 +100,7 @@ public static double EvaluateDifficultyOf(DifficultyHitObject current, bool hidd
+                     sliderBonus /= (osuSlider.RepeatCount + 1);
+             }
+ 
+-            result += sliderBonus * slider_multiplier;
++            result += sliderBonus * tuning.FlashlightSliderBonusScale;
+ 
+             return result;
+         }
+diff --git a/osu.Game.Rulesets.Osu/Difficulty/Evaluators/RhythmEvaluator.cs b/osu.Game.Rulesets.Osu/Difficulty/Evaluators/RhythmEvaluator.cs
+index 9349083..a566b2e 100644
+--- a/osu.Game.Rulesets.Osu/Difficulty/Evaluators/RhythmEvaluator.cs
++++ b/osu.Game.Rulesets.Osu/Difficulty/Evaluators/RhythmEvaluator.cs
+@@ -13,15 +13,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
+ {
+     public static class RhythmEvaluator
+     {
+-        private const int history_time_max = 5 * 1000; // 5 seconds
+-        private const int history_objects_max = 32;
+-        private const double rhythm_overall_multiplier = 1.0;
+-        private const double rhythm_ratio_multiplier = 15.0;
+-
+         /// <summary>
+         /// Calculates a rhythm multiplier for the difficulty of the tap associated with historic data of the current <see cref="OsuDifficultyHitObject"/>.
+         /// </summary>
+-        public static double EvaluateDifficultyOf(DifficultyHitObject current)
++        public static double EvaluateDifficultyOf(DifficultyHitObject current, OsuDifficultyTuning tuning)
+         {
+             if (current.BaseObject is Spinner)
+                 return 0;
+@@ -43,11 +38,11 @@ public static double EvaluateDifficultyOf(DifficultyHitObject current)
+ 
+             bool firstDeltaSwitch = false;
+ 
+-            int historicalNoteCount = Math.Min(current.Index, history_objects_max);
++            int historicalNoteCount = Math.Min(current.Index, tuning.RhythmHistoryObjectsMax);
+ 
+             int rhythmStart = 0;
+ 
+-            while (rhythmStart < historicalNoteCount - 2 && current.StartTime - current.Previous(rhythmStart).StartTime < history_time_max)
++            while (rhythmStart < historicalNoteCount - 2 && current.StartTime - current.Previous(rhythmStart).StartTime < tuning.RhythmHistoryTimeMax)
+                 rhythmStart++;
+ 
+             OsuDifficultyHitObject prevObj = (OsuDifficultyHitObject)current.Previous(rhythmStart);
+@@ -59,7 +54,7 @@ public static double EvaluateDifficultyOf(DifficultyHitObject current)
+                 OsuDifficultyHitObject currObj = (OsuDifficultyHitObject)current.Previous(i - 1);
+ 
+                 // scales note 0 to 1 from history to now
+-                double timeDecay = (history_time_max - (current.StartTime - currObj.StartTime)) / history_time_max;
++                double timeDecay = (tuning.RhythmHistoryTimeMax - (current.StartTime - currObj.StartTime)) / tuning.RhythmHistoryTimeMax;
+                 double noteDecay = (double)(historicalNoteCount - i) / historicalNoteCount;
+ 
+                 double currHistoricalDecay = Math.Min(noteDecay, timeDecay); // either we're limited by time or limited by object count.
+@@ -76,7 +71,7 @@ public static double EvaluateDifficultyOf(DifficultyHitObject current)
+                 // Take only the fractional part of the value since we're only interested in punishing multiples
+                 double deltaDifferenceFraction = deltaDifference - Math.Truncate(deltaDifference);
+ 
+-                double currRatio = 1.0 + rhythm_ratio_multiplier * Math.Min(0.5, DifficultyCalculationUtils.SmoothstepBellCurve(deltaDifferenceFraction));
++                double currRatio = 1.0 + tuning.RhythmRatioScale * Math.Min(0.5, DifficultyCalculationUtils.SmoothstepBellCurve(deltaDifferenceFraction));
+ 
+                 // reduce ratio bonus if delta difference is too big
+                 double differenceMultiplier = Math.Clamp(2.0 - deltaDifference / 8.0, 0.0, 1.0);
+@@ -176,7 +171,7 @@ public static double EvaluateDifficultyOf(DifficultyHitObject current)
+                 prevObj = currObj;
+             }
+ 
+-            double rhythmDifficulty = Math.Sqrt(4 + rhythmComplexitySum * rhythm_overall_multiplier) / 2.0; // produces multiplier that can be applied to strain. range [1, infinity) (not really though)
++            double rhythmDifficulty = Math.Sqrt(4 + rhythmComplexitySum * tuning.RhythmOverallScale) / 2.0; // produces multiplier that can be applied to strain. range [1, infinity) (not really though)
+             rhythmDifficulty *= 1 - currentOsuObject.GetDoubletapness((OsuDifficultyHitObject)current.Next(0));
+ 
+             return rhythmDifficulty;
+diff --git a/osu.Game.Rulesets.Osu/Difficulty/Evaluators/SpeedEvaluator.cs b/osu.Game.Rulesets.Osu/Difficulty/Evaluators/SpeedEvaluator.cs
+index a58c1d3..b5ba3be 100644
+--- a/osu.Game.Rulesets.Osu/Difficulty/Evaluators/SpeedEvaluator.cs
++++ b/osu.Game.Rulesets.Osu/Difficulty/Evaluators/SpeedEvaluator.cs
+@@ -15,11 +15,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
+ {
+     public static class SpeedEvaluator
+     {
+-        private const double single_spacing_threshold = OsuDifficultyHitObject.NORMALISED_DIAMETER * 1.25; // 1.25 circles distance between centers
+-        private const double min_speed_bonus = 200; // 200 BPM 1/4th
+-        private const double speed_balancing_factor = 40;
+-        private const double distance_multiplier = 0.8;
+-
+         /// <summary>
+         /// Evaluates the difficulty of tapping the current object, based on:
+         /// <list type="bullet">
+@@ -28,7 +23,7 @@ public static class SpeedEvaluator
+         /// <item><description>and how easily they can be cheesed.</description></item>
+         /// </list>
+         /// </summary>
+-        public static double EvaluateDifficultyOf(DifficultyHitObject current, IReadOnlyList<Mod> mods)
++        public static double EvaluateDifficultyOf(DifficultyHitObject current, OsuDifficultyTuning tuning, IReadOnlyList<Mod> mods)
+         {
+             if (current.BaseObject is Spinner)
+                 return 0;
+@@ -48,17 +43,17 @@ public static double EvaluateDifficultyOf(DifficultyHitObject current, IReadOnly
+             double speedBonus = 0.0;
+ 
+             // Add additional scaling bonus for streams/bursts higher than 200bpm
+-            if (DifficultyCalculationUtils.MillisecondsToBPM(strainTime) > min_speed_bonus)
+-                speedBonus = 0.75 * Math.Pow((DifficultyCalculationUtils.BPMToMilliseconds(min_speed_bonus) - strainTime) / speed_balancing_factor, 2);
++            if (DifficultyCalculationUtils.MillisecondsToBPM(strainTime) > tuning.SpeedMinBonusBpm)
++                speedBonus = 0.75 * Math.Pow((DifficultyCalculationUtils.BPMToMilliseconds(tuning.SpeedMinBonusBpm) - strainTime) / tuning.SpeedBalancingFactor, 2);
+ 
+             double travelDistance = osuPrevObj?.TravelDistance ?? 0;
+             double distance = travelDistance + osuCurrObj.MinimumJumpDistance;
+ 
+             // Cap distance at single_spacing_threshold
+-            distance = Math.Min(distance, single_spacing_threshold);
++            distance = Math.Min(distance, tuning.SpeedSingleSpacingThreshold);
+ 
+             // Max distance bonus is 1 * `distance_multiplier` at single_spacing_threshold
+-            double distanceBonus = Math.Pow(distance / single_spacing_threshold, 3.95) * distance_multiplier;
++            double distanceBonus = Math.Pow(distance / tuning.SpeedSingleSpacingThreshold, 3.95) * tuning.SpeedDistanceScale;
+ 
+             // Apply reduced small circle bonus because flow aim difficulty on small circles doesn't scale as hard as jumps
+             distanceBonus *= Math.Sqrt(osuCurrObj.SmallCircleBonus);
+diff --git a/osu.Game.Rulesets.Osu/Difficulty/OsuDifficultyAttributes.cs b/osu.Game.Rulesets.Osu/Difficulty/OsuDifficultyAttributes.cs
+index be5e038..c1dd14e 100644
+--- a/osu.Game.Rulesets.Osu/Difficulty/OsuDifficultyAttributes.cs
++++ b/osu.Game.Rulesets.Osu/Difficulty/OsuDifficultyAttributes.cs
+@@ -99,6 +99,9 @@ public class OsuDifficultyAttributes : DifficultyAttributes
+         /// </summary>
+         public int SpinnerCount { get; set; }
+ 
++        [JsonIgnore]
++        public OsuDifficultyTuning Tuning { get; init; } = OsuDifficultyTuning.Default;
++
+         public override IEnumerable<(int attributeId, object value)> ToDatabaseAttributes()
+         {
+             foreach (var v in base.ToDatabaseAttributes())
+diff --git a/osu.Game.Rulesets.Osu/Difficulty/OsuDifficultyCalculator.cs b/osu.Game.Rulesets.Osu/Difficulty/OsuDifficultyCalculator.cs
+index 32e3829..599e89d 100644
+--- a/osu.Game.Rulesets.Osu/Difficulty/OsuDifficultyCalculator.cs
++++ b/osu.Game.Rulesets.Osu/Difficulty/OsuDifficultyCalculator.cs
+@@ -22,11 +22,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty
+ {
+     public class OsuDifficultyCalculator : DifficultyCalculator
+     {
++        private readonly OsuDifficultyTuning tuning;
++
+         public override int Version => 20250306;
+ 
+-        public OsuDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
++        public OsuDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap, OsuDifficultyTuning? tuning = null)
+             : base(ruleset, beatmap)
+         {
++            this.tuning = tuning ?? OsuDifficultyTuning.Default;
+         }
+ 
+         public static double CalculateRateAdjustedApproachRate(double approachRate, double clockRate)
+@@ -48,7 +51,7 @@ public static double CalculateRateAdjustedOverallDifficulty(double overallDiffic
+         protected override DifficultyAttributes CreateDifficultyAttributes(IBeatmap beatmap, Mod[] mods, Skill[] skills, double clockRate)
+         {
+             if (beatmap.HitObjects.Count == 0)
+-                return new OsuDifficultyAttributes { Mods = mods };
++                return new OsuDifficultyAttributes { Mods = mods, Tuning = tuning };
+ 
+             var aim = skills.OfType<Aim>().Single(a => a.IncludeSliders);
+             var aimWithoutSliders = skills.OfType<Aim>().Single(a => !a.IncludeSliders);
+@@ -130,7 +133,8 @@ protected override DifficultyAttributes CreateDifficultyAttributes(IBeatmap beat
+                 SpinnerCount = spinnerCount,
+                 NestedScorePerObject = sliderNestedScorePerObject,
+                 LegacyScoreBaseMultiplier = legacyScoreBaseMultiplier,
+-                MaximumLegacyComboScore = scoreAttributes.ComboScore
++                MaximumLegacyComboScore = scoreAttributes.ComboScore,
++                Tuning = tuning
+             };
+ 
+             return attributes;
+@@ -169,13 +173,13 @@ protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clo
+         {
+             var skills = new List<Skill>
+             {
+-                new Aim(mods, true),
+-                new Aim(mods, false),
+-                new Speed(mods)
++                new Aim(mods, tuning, true),
++                new Aim(mods, tuning, false),
++                new Speed(mods, tuning)
+             };
+ 
+             if (mods.Any(h => h is OsuModFlashlight))
+-                skills.Add(new Flashlight(mods));
++                skills.Add(new Flashlight(mods, tuning));
+ 
+             return skills.ToArray();
+         }
+diff --git a/osu.Game.Rulesets.Osu/Difficulty/OsuDifficultyTuning.cs b/osu.Game.Rulesets.Osu/Difficulty/OsuDifficultyTuning.cs
+new file mode 100644
+index 0000000..107d6c2
+--- /dev/null
++++ b/osu.Game.Rulesets.Osu/Difficulty/OsuDifficultyTuning.cs
+@@ -0,0 +1,60 @@
++// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
++// See the LICENCE file in the repository root for full licence text.
++
++namespace osu.Game.Rulesets.Osu.Difficulty
++{
++    public record OsuDifficultyTuning
++    {
++        public static OsuDifficultyTuning Default { get; } = new OsuDifficultyTuning();
++        /// <summary>
++        /// Scales the aim component of performance.
++        /// </summary>
++        public double AimPerformanceScale { get; init; } = 1.0;
++
++        /// <summary>
++        /// Scales the speed component of performance.
++        /// </summary>
++        public double SpeedPerformanceScale { get; init; } = 1.0;
++
++        /// <summary>
++        /// Scales the accuracy component of performance.
++        /// </summary>
++        public double AccuracyPerformanceScale { get; init; } = 1.0;
++
++        /// <summary>
++        /// Scales the flashlight component of performance.
++        /// </summary>
++        public double FlashlightPerformanceScale { get; init; } = 1.0;
++
++        /// <summary>
++        /// Scales the combined performance value.
++        /// </summary>
++        public double TotalPerformanceScale { get; init; } = 1.0;
++
++        public double AimSkillStrainScale { get; init; } = 1.0;
++        public double SpeedSkillStrainScale { get; init; } = 1.0;
++        public double FlashlightSkillStrainScale { get; init; } = 1.0;
++
++        public double AimWideAngleBonusScale { get; init; } = 1.5;
++        public double AimAcuteAngleScale { get; init; } = 2.55;
++        public double AimSliderBonusScale { get; init; } = 1.35;
++        public double AimVelocityChangeBonusScale { get; init; } = 0.75;
++        public double AimWiggleBonusScale { get; init; } = 1.02;
++
++        public double FlashlightMaxOpacityBonusScale { get; init; } = 0.4;
++        public double FlashlightHiddenBonusScale { get; init; } = 0.2;
++        public double FlashlightMinVelocityScale { get; init; } = 0.5;
++        public double FlashlightSliderBonusScale { get; init; } = 1.3;
++        public double FlashlightMinAngleScale { get; init; } = 0.2;
++
++        public int RhythmHistoryTimeMax { get; init; } = 5 * 1000; // 5 seconds
++        public int RhythmHistoryObjectsMax { get; init; } = 32;
++        public double RhythmOverallScale { get; init; } = 1.0;
++        public double RhythmRatioScale { get; init; } = 15.0;
++
++        public double SpeedSingleSpacingThreshold { get; init; } = 125;
++        public double SpeedMinBonusBpm { get; init; } = 200;
++        public double SpeedBalancingFactor { get; init; } = 40;
++        public double SpeedDistanceScale { get; init; } = 0.8;
++    }
++}
+diff --git a/osu.Game.Rulesets.Osu/Difficulty/OsuPerformanceAttributes.cs b/osu.Game.Rulesets.Osu/Difficulty/OsuPerformanceAttributes.cs
+index 8577eff..d73ea01 100644
+--- a/osu.Game.Rulesets.Osu/Difficulty/OsuPerformanceAttributes.cs
++++ b/osu.Game.Rulesets.Osu/Difficulty/OsuPerformanceAttributes.cs
+@@ -39,6 +39,9 @@ public class OsuPerformanceAttributes : PerformanceAttributes
+         [JsonProperty("speed_estimated_slider_breaks")]
+         public double SpeedEstimatedSliderBreaks { get; set; }
+ 
++        [JsonIgnore]
++        public OsuDifficultyTuning Tuning { get; init; } = OsuDifficultyTuning.Default;
++
+         public override IEnumerable<PerformanceDisplayAttribute> GetAttributesForDisplay()
+         {
+             foreach (var attribute in base.GetAttributesForDisplay())
+diff --git a/osu.Game.Rulesets.Osu/Difficulty/OsuPerformanceCalculator.cs b/osu.Game.Rulesets.Osu/Difficulty/OsuPerformanceCalculator.cs
+index 9dde9df..df88bc5 100644
+--- a/osu.Game.Rulesets.Osu/Difficulty/OsuPerformanceCalculator.cs
++++ b/osu.Game.Rulesets.Osu/Difficulty/OsuPerformanceCalculator.cs
+@@ -22,6 +22,7 @@ public class OsuPerformanceCalculator : PerformanceCalculator
+         public const double PERFORMANCE_BASE_MULTIPLIER = 1.12; // This is being adjusted to keep the final pp value scaled around what it used to be when changing things.
+         public const double PERFORMANCE_NORM_EXPONENT = 1.1;
+ 
++        private readonly OsuDifficultyTuning fallbackTuning;
+         private bool usingClassicSliderAccuracy;
+         private bool usingScoreV2;
+ 
+@@ -61,14 +62,16 @@ public class OsuPerformanceCalculator : PerformanceCalculator
+         private double aimEstimatedSliderBreaks;
+         private double speedEstimatedSliderBreaks;
+ 
+-        public OsuPerformanceCalculator()
+-            : base(new OsuRuleset())
++        public OsuPerformanceCalculator(OsuDifficultyTuning? tuning = null)
++            : base(new OsuRuleset(tuning))
+         {
++            fallbackTuning = tuning ?? OsuDifficultyTuning.Default;
+         }
+ 
+         protected override PerformanceAttributes CreatePerformanceAttributes(ScoreInfo score, DifficultyAttributes attributes)
+         {
+             var osuAttributes = (OsuDifficultyAttributes)attributes;
++            var tuning = osuAttributes.Tuning ?? fallbackTuning;
+ 
+             usingClassicSliderAccuracy = score.Mods.OfType<OsuModClassic>().Any(m => m.NoSliderHeadAccuracy.Value);
+             usingScoreV2 = score.Mods.Any(m => m is ModScoreV2);
+@@ -141,12 +144,12 @@ protected override PerformanceAttributes CreatePerformanceAttributes(ScoreInfo s
+ 
+             speedDeviation = calculateSpeedDeviation(osuAttributes);
+ 
+-            double aimValue = computeAimValue(score, osuAttributes);
+-            double speedValue = computeSpeedValue(score, osuAttributes);
+-            double accuracyValue = computeAccuracyValue(score, osuAttributes);
+-            double flashlightValue = computeFlashlightValue(score, osuAttributes);
++            double aimValue = computeAimValue(score, osuAttributes) * tuning.AimPerformanceScale;
++            double speedValue = computeSpeedValue(score, osuAttributes) * tuning.SpeedPerformanceScale;
++            double accuracyValue = computeAccuracyValue(score, osuAttributes) * tuning.AccuracyPerformanceScale;
++            double flashlightValue = computeFlashlightValue(score, osuAttributes) * tuning.FlashlightPerformanceScale;
+ 
+-            double totalValue = DifficultyCalculationUtils.Norm(PERFORMANCE_NORM_EXPONENT, aimValue, speedValue, accuracyValue, flashlightValue) * multiplier;
++            double totalValue = DifficultyCalculationUtils.Norm(PERFORMANCE_NORM_EXPONENT, aimValue, speedValue, accuracyValue, flashlightValue) * multiplier * tuning.TotalPerformanceScale;
+ 
+             return new OsuPerformanceAttributes
+             {
+@@ -160,7 +163,8 @@ protected override PerformanceAttributes CreatePerformanceAttributes(ScoreInfo s
+                 AimEstimatedSliderBreaks = aimEstimatedSliderBreaks,
+                 SpeedEstimatedSliderBreaks = speedEstimatedSliderBreaks,
+                 SpeedDeviation = speedDeviation,
+-                Total = totalValue
++                Total = totalValue,
++                Tuning = tuning
+             };
+         }
+ 
+diff --git a/osu.Game.Rulesets.Osu/Difficulty/Skills/Aim.cs b/osu.Game.Rulesets.Osu/Difficulty/Skills/Aim.cs
+index 5816d27..5243750 100644
+--- a/osu.Game.Rulesets.Osu/Difficulty/Skills/Aim.cs
++++ b/osu.Game.Rulesets.Osu/Difficulty/Skills/Aim.cs
+@@ -19,8 +19,8 @@ public class Aim : OsuStrainSkill
+     {
+         public readonly bool IncludeSliders;
+ 
+-        public Aim(Mod[] mods, bool includeSliders)
+-            : base(mods)
++        public Aim(Mod[] mods, OsuDifficultyTuning tuning, bool includeSliders)
++            : base(mods, tuning)
+         {
+             IncludeSliders = includeSliders;
+         }
+@@ -39,7 +39,7 @@ public Aim(Mod[] mods, bool includeSliders)
+         protected override double StrainValueAt(DifficultyHitObject current)
+         {
+             currentStrain *= strainDecay(current.DeltaTime);
+-            currentStrain += AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
++            currentStrain += AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, Tuning) * skillMultiplier * Tuning.AimSkillStrainScale;
+ 
+             if (current.BaseObject is Slider)
+                 sliderStrains.Add(currentStrain);
+diff --git a/osu.Game.Rulesets.Osu/Difficulty/Skills/Flashlight.cs b/osu.Game.Rulesets.Osu/Difficulty/Skills/Flashlight.cs
+index 6c839ea..9500c73 100644
+--- a/osu.Game.Rulesets.Osu/Difficulty/Skills/Flashlight.cs
++++ b/osu.Game.Rulesets.Osu/Difficulty/Skills/Flashlight.cs
+@@ -17,10 +17,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
+     public class Flashlight : StrainSkill
+     {
+         private readonly bool hasHiddenMod;
++        private readonly OsuDifficultyTuning tuning;
+ 
+-        public Flashlight(Mod[] mods)
++        public Flashlight(Mod[] mods, OsuDifficultyTuning tuning)
+             : base(mods)
+         {
++            this.tuning = tuning;
+             hasHiddenMod = mods.Any(m => m is OsuModHidden);
+         }
+ 
+@@ -36,7 +38,7 @@ public Flashlight(Mod[] mods)
+         protected override double StrainValueAt(DifficultyHitObject current)
+         {
+             currentStrain *= strainDecay(current.DeltaTime);
+-            currentStrain += FlashlightEvaluator.EvaluateDifficultyOf(current, hasHiddenMod) * skillMultiplier;
++            currentStrain += FlashlightEvaluator.EvaluateDifficultyOf(current, hasHiddenMod, tuning) * skillMultiplier * tuning.FlashlightSkillStrainScale;
+ 
+             return currentStrain;
+         }
+diff --git a/osu.Game.Rulesets.Osu/Difficulty/Skills/OsuStrainSkill.cs b/osu.Game.Rulesets.Osu/Difficulty/Skills/OsuStrainSkill.cs
+index 916b6e7..4b0b141 100644
+--- a/osu.Game.Rulesets.Osu/Difficulty/Skills/OsuStrainSkill.cs
++++ b/osu.Game.Rulesets.Osu/Difficulty/Skills/OsuStrainSkill.cs
+@@ -23,9 +23,11 @@ public abstract class OsuStrainSkill : StrainSkill
+         /// </summary>
+         protected virtual double ReducedStrainBaseline => 0.75;
+ 
+-        protected OsuStrainSkill(Mod[] mods)
+-            : base(mods)
++        protected OsuDifficultyTuning Tuning { get; }
++
++        protected OsuStrainSkill(Mod[] mods, OsuDifficultyTuning tuning) : base(mods)
+         {
++            Tuning = tuning;
+         }
+ 
+         public override double DifficultyValue()
+diff --git a/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs b/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
+index 8fe3df4..f21d948 100644
+--- a/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
++++ b/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
+@@ -28,8 +28,8 @@ public class Speed : OsuStrainSkill
+ 
+         protected override int ReducedSectionCount => 5;
+ 
+-        public Speed(Mod[] mods)
+-            : base(mods)
++        public Speed(Mod[] mods, OsuDifficultyTuning tuning)
++            : base(mods, tuning)
+         {
+         }
+ 
+@@ -40,9 +40,9 @@ public Speed(Mod[] mods)
+         protected override double StrainValueAt(DifficultyHitObject current)
+         {
+             currentStrain *= strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
+-            currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current, Mods) * skillMultiplier;
++            currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current, Tuning, Mods) * skillMultiplier * Tuning.SpeedSkillStrainScale;
+ 
+-            currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
++            currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current, Tuning);
+ 
+             double totalStrain = currentStrain * currentRhythm;
+ 
+diff --git a/osu.Game.Rulesets.Osu/OsuRuleset.cs b/osu.Game.Rulesets.Osu/OsuRuleset.cs
+index 49d945e..ca64b69 100644
+--- a/osu.Game.Rulesets.Osu/OsuRuleset.cs
++++ b/osu.Game.Rulesets.Osu/OsuRuleset.cs
+@@ -51,6 +51,18 @@ namespace osu.Game.Rulesets.Osu
+ {
+     public class OsuRuleset : Ruleset, ILegacyRuleset
+     {
++        public OsuDifficultyTuning DifficultyTuning { get; }
++
++        public OsuRuleset()
++        {
++            DifficultyTuning = OsuDifficultyTuning.Default;
++        }
++
++        public OsuRuleset(OsuDifficultyTuning? tuning = null)
++        {
++            DifficultyTuning = tuning ?? OsuDifficultyTuning.Default;
++        }
++
+         public override DrawableRuleset CreateDrawableRulesetWith(IBeatmap beatmap, IReadOnlyList<Mod>? mods = null) => new DrawableOsuRuleset(this, beatmap, mods);
+ 
+         public override ScoreProcessor CreateScoreProcessor() => new OsuScoreProcessor();
+@@ -237,9 +249,9 @@ public override IEnumerable<Mod> GetModsFor(ModType type)
+ 
+         public override Drawable CreateIcon() => new SpriteIcon { Icon = OsuIcon.RulesetOsu };
+ 
+-        public override DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap) => new OsuDifficultyCalculator(RulesetInfo, beatmap);
++        public override DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap) => new OsuDifficultyCalculator(RulesetInfo, beatmap, DifficultyTuning);
+ 
+-        public override PerformanceCalculator CreatePerformanceCalculator() => new OsuPerformanceCalculator();
++        public override PerformanceCalculator CreatePerformanceCalculator() => new OsuPerformanceCalculator(DifficultyTuning);
+ 
+         public override HitObjectComposer CreateHitObjectComposer() => new OsuHitObjectComposer(this);
+ 

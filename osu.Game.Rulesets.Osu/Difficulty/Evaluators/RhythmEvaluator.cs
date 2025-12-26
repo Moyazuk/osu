@@ -8,20 +8,16 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
+using osu.Game.Rulesets.Osu.Difficulty;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class RhythmEvaluator
     {
-        private const int history_time_max = 5 * 1000; // 5 seconds
-        private const int history_objects_max = 32;
-        private const double rhythm_overall_multiplier = 1.0;
-        private const double rhythm_ratio_multiplier = 15.0;
-
         /// <summary>
         /// Calculates a rhythm multiplier for the difficulty of the tap associated with historic data of the current <see cref="OsuDifficultyHitObject"/>.
         /// </summary>
-        public static double EvaluateDifficultyOf(DifficultyHitObject current)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, OsuDifficultyTuning tuning)
         {
             if (current.BaseObject is Spinner)
                 return 0;
@@ -30,7 +26,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double rhythmComplexitySum = 0;
 
-            double deltaDifferenceEpsilon = ((OsuDifficultyHitObject)current).HitWindowGreat * 0.3;
+            double deltaDifferenceEpsilon = ((OsuDifficultyHitObject)current).HitWindowGreat * tuning.RhythmDeltaDifferenceEpsilonMultiplier;
 
             var island = new Island(deltaDifferenceEpsilon);
             var previousIsland = new Island(deltaDifferenceEpsilon);
@@ -43,11 +39,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             bool firstDeltaSwitch = false;
 
-            int historicalNoteCount = Math.Min(current.Index, history_objects_max);
+            int historicalNoteCount = Math.Min(current.Index, tuning.RhythmHistoryObjectsMax);
 
             int rhythmStart = 0;
 
-            while (rhythmStart < historicalNoteCount - 2 && current.StartTime - current.Previous(rhythmStart).StartTime < history_time_max)
+            while (rhythmStart < historicalNoteCount - 2 && current.StartTime - current.Previous(rhythmStart).StartTime < tuning.RhythmHistoryTimeMax)
                 rhythmStart++;
 
             OsuDifficultyHitObject prevObj = (OsuDifficultyHitObject)current.Previous(rhythmStart);
@@ -59,7 +55,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 OsuDifficultyHitObject currObj = (OsuDifficultyHitObject)current.Previous(i - 1);
 
                 // scales note 0 to 1 from history to now
-                double timeDecay = (history_time_max - (current.StartTime - currObj.StartTime)) / history_time_max;
+                double timeDecay = (tuning.RhythmHistoryTimeMax - (current.StartTime - currObj.StartTime)) / tuning.RhythmHistoryTimeMax;
                 double noteDecay = (double)(historicalNoteCount - i) / historicalNoteCount;
 
                 double currHistoricalDecay = Math.Min(noteDecay, timeDecay); // either we're limited by time or limited by object count.
@@ -76,10 +72,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 // Take only the fractional part of the value since we're only interested in punishing multiples
                 double deltaDifferenceFraction = deltaDifference - Math.Truncate(deltaDifference);
 
-                double currRatio = 1.0 + rhythm_ratio_multiplier * Math.Min(0.5, DifficultyCalculationUtils.SmoothstepBellCurve(deltaDifferenceFraction));
+                double currRatio = 1.0 + tuning.RhythmRatioScale * Math.Min(tuning.RhythmRatioCap, DifficultyCalculationUtils.SmoothstepBellCurve(deltaDifferenceFraction));
 
                 // reduce ratio bonus if delta difference is too big
-                double differenceMultiplier = Math.Clamp(2.0 - deltaDifference / 8.0, 0.0, 1.0);
+                double differenceMultiplier = Math.Clamp(tuning.RhythmDifferenceMultiplierBase - deltaDifference / tuning.RhythmDifferenceMultiplierScale, 0.0, 1.0);
 
                 double windowPenalty = Math.Min(1, Math.Max(0, Math.Abs(prevDelta - currDelta) - deltaDifferenceEpsilon) / deltaDifferenceEpsilon);
 
@@ -96,25 +92,25 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                     {
                         // bpm change is into slider, this is easy acc window
                         if (currObj.BaseObject is Slider)
-                            effectiveRatio *= 0.125;
+                            effectiveRatio *= tuning.RhythmSliderChangeScale;
 
                         // bpm change was from a slider, this is easier typically than circle -> circle
                         // unintentional side effect is that bursts with kicksliders at the ends might have lower difficulty than bursts without sliders
                         if (prevObj.BaseObject is Slider)
-                            effectiveRatio *= 0.3;
+                            effectiveRatio *= tuning.RhythmPrevSliderChangeScale;
 
                         // repeated island polarity (2 -> 4, 3 -> 5)
                         if (island.IsSimilarPolarity(previousIsland))
-                            effectiveRatio *= 0.5;
+                            effectiveRatio *= tuning.RhythmRepeatedPolarityScale;
 
                         // previous increase happened a note ago, 1/1->1/2-1/4, dont want to buff this.
                         if (lastDelta > prevDelta + deltaDifferenceEpsilon && prevDelta > currDelta + deltaDifferenceEpsilon)
-                            effectiveRatio *= 0.125;
+                            effectiveRatio *= tuning.RhythmSpeedUpSlowDownScale;
 
                         // repeated island size (ex: triplet -> triplet)
                         // TODO: remove this nerf since its staying here only for balancing purposes because of the flawed ratio calculation
                         if (previousIsland.DeltaCount == island.DeltaCount)
-                            effectiveRatio *= 0.5;
+                            effectiveRatio *= tuning.RhythmRepeatedIslandScale;
 
                         var islandCount = islandCounts.FirstOrDefault(x => x.Island.Equals(island));
 
@@ -127,8 +123,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                                 islandCount.Count++;
 
                             // repeated island (ex: triplet -> triplet)
-                            double power = DifficultyCalculationUtils.Logistic(island.Delta, maxValue: 2.75, multiplier: 0.24, midpointOffset: 58.33);
-                            effectiveRatio *= Math.Min(3.0 / islandCount.Count, Math.Pow(1.0 / islandCount.Count, power));
+                            double power = DifficultyCalculationUtils.Logistic(island.Delta, maxValue: tuning.RhythmIslandPowerMaxValue, multiplier: tuning.RhythmIslandPowerMultiplier, midpointOffset: tuning.RhythmIslandPowerMidpointOffset);
+                            effectiveRatio *= Math.Min(tuning.RhythmIslandRepeatLimit / islandCount.Count, Math.Pow(1.0 / islandCount.Count, power));
 
                             islandCounts[countIndex] = (islandCount.Island, islandCount.Count);
                         }
@@ -139,7 +135,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                         // scale down the difficulty if the object is doubletappable
                         double doubletapness = prevObj.GetDoubletapness(currObj);
-                        effectiveRatio *= 1 - doubletapness * 0.75;
+                        effectiveRatio *= 1 - doubletapness * tuning.RhythmDoubletapnessScale;
 
                         rhythmComplexitySum += Math.Sqrt(effectiveRatio * startRatio) * currHistoricalDecay;
 
@@ -160,12 +156,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                     // bpm change is into slider, this is easy acc window
                     if (currObj.BaseObject is Slider)
-                        effectiveRatio *= 0.6;
+                        effectiveRatio *= tuning.RhythmSpeedUpSliderScale;
 
                     // bpm change was from a slider, this is easier typically than circle -> circle
                     // unintentional side effect is that bursts with kicksliders at the ends might have lower difficulty than bursts without sliders
                     if (prevObj.BaseObject is Slider)
-                        effectiveRatio *= 0.6;
+                        effectiveRatio *= tuning.RhythmSpeedUpSliderScale;
 
                     startRatio = effectiveRatio;
 
@@ -176,7 +172,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 prevObj = currObj;
             }
 
-            double rhythmDifficulty = Math.Sqrt(4 + rhythmComplexitySum * 1.25) / 2.0; // produces multiplier that can be applied to strain. range [1, infinity) (not really though)
+            double rhythmDifficulty = Math.Sqrt(4 + rhythmComplexitySum * tuning.RhythmOverallScale) / 2.0; // produces multiplier that can be applied to strain. range [1, infinity) (not really though)
             rhythmDifficulty *= 1 - currentOsuObject.GetDoubletapness((OsuDifficultyHitObject)current.Next(0));
 
             return rhythmDifficulty;

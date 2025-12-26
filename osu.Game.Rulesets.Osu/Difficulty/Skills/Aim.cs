@@ -12,6 +12,7 @@ using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Objects;
+using osu.Game.Rulesets.Osu.Difficulty;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
@@ -23,9 +24,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         public readonly bool IncludeSliders;
         public readonly bool WithCheesability;
 
-        public Aim(Mod[] mods, bool includeSliders, bool withCheesability)
+        private readonly OsuDifficultyTuning tuning;
+
+        public Aim(Mod[] mods, OsuDifficultyTuning tuning, bool includeSliders, bool withCheesability)
             : base(mods)
         {
+            this.tuning = tuning;
             previousStrains = new List<(double, double)>();
             IncludeSliders = includeSliders;
             WithCheesability = withCheesability;
@@ -37,14 +41,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentflowStrain;
 
-        private bool? previousWasFlow = null;
+        private double strainDecayBase => tuning.AimStrainDecayBase;
 
-        public static double skillMultiplier = 162;
-        private double strainDecayBase => 0.15;
-
-        private double agilityStrainDecayBase => 0.85;
-
-        private const double backwards_strain_influence = 1000;
+        private double agilityStrainDecayBase => tuning.AimAgilityStrainDecayBase;
 
         private readonly List<(double, double)> previousStrains;
 
@@ -72,14 +71,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double currentStrainDifficulty = 0;
             double transitionBonus = 0;
             double strainMultiplier = 0;
-            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, WithCheesability) * skillMultiplier;
-            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplier;
-            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current, WithCheesability) * skillMultiplier;
+            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, WithCheesability, tuning) * tuning.AimSkillMultiplier * tuning.AimSnapDifficultyScale;
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, tuning) * tuning.AimSkillMultiplier * tuning.AimFlowDifficultyScale;
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current, WithCheesability, tuning) * tuning.AimSkillMultiplier * tuning.AimAgilityDifficultyScale;
 
-            double snapTransitionBonus = previousWasFlow.HasValue && previousWasFlow.Value ? 1.0 : 1.0;
-            double flowTransitionBonus = previousWasFlow.HasValue && !previousWasFlow.Value ? 1.0 : 1.0;
+            double snapTransitionBonus = tuning.AimSnapTransitionScale;
+            double flowTransitionBonus = tuning.AimFlowTransitionScale;
 
-            bool isFlow = (flowDifficulty) * flowTransitionBonus < (snapDifficulty + currentAgilityStrain + agilityDifficulty) * snapTransitionBonus;
+            bool isFlow = flowDifficulty * flowTransitionBonus < (snapDifficulty + currentAgilityStrain + agilityDifficulty) * snapTransitionBonus;
 
             if (isFlow)
 
@@ -90,7 +89,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 currentStrainDifficulty = currentDifficulty;
                 auxiliaryStrainValue = 0;
                 transitionBonus = flowTransitionBonus;
-                strainMultiplier = 1.25;
+                strainMultiplier = tuning.AimFlowStrainMultiplier;
 
             }
                 //for snap aim, the notes difficulty itself contributes to strain and we update the value of agilityStrain only when the note is snapped
@@ -101,13 +100,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 auxiliaryStrainValue = currentAgilityStrain;
                 currentStrainDifficulty = snapDifficulty;
                 transitionBonus = snapTransitionBonus;
-                strainMultiplier = 4.25;
+                strainMultiplier = tuning.AimSnapStrainMultiplier;
             }
 
             currentStrain = getCurrentStrainValue(osuCurrent.StartTime, previousStrains) * strainMultiplier;
             previousStrains.Add((osuCurrent.StartTime, currentStrainDifficulty));
-
-            previousWasFlow = isFlow;
 
             if (current.BaseObject is Slider)
             {
@@ -138,7 +135,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 double prevDifficulty = previousDifficulties[index - 1].Diff;
 
                 // How much of the current deltaTime does not fall under the backwards strain influence value.
-                double startTimeOffset = Math.Max(0, endTime - prevTime - backwards_strain_influence);
+                double startTimeOffset = Math.Max(0, endTime - prevTime - tuning.AimBackwardsStrainInfluence);
 
                 // If the deltaTime doesn't fall into the backwards strain influence value at all, we can remove its corresponding difficulty.
                 // We don't iterate index because the list moves backwards.

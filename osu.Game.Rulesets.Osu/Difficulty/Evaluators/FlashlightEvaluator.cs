@@ -5,19 +5,12 @@ using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
+using osu.Game.Rulesets.Osu.Difficulty;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class FlashlightEvaluator
     {
-        private const double max_opacity_bonus = 0.4;
-        private const double hidden_bonus = 0.2;
-
-        private const double min_velocity = 0.5;
-        private const double slider_multiplier = 1.3;
-
-        private const double min_angle_multiplier = 0.2;
-
         /// <summary>
         /// Evaluates the difficulty of memorising and hitting an object, based on:
         /// <list type="bullet">
@@ -28,7 +21,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         /// <item><description>and whether the hidden mod is enabled.</description></item>
         /// </list>
         /// </summary>
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool hidden)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool hidden, OsuDifficultyTuning tuning)
         {
             if (current.BaseObject is Spinner)
                 return 0;
@@ -47,7 +40,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double angleRepeatCount = 0.0;
 
             // This is iterating backwards in time from the current object.
-            for (int i = 0; i < Math.Min(current.Index, 10); i++)
+            for (int i = 0; i < Math.Min(current.Index, tuning.FlashlightHistoryLength); i++)
             {
                 var currentObj = (OsuDifficultyHitObject)current.Previous(i);
                 var currentHitObject = (OsuHitObject)(currentObj.BaseObject);
@@ -60,35 +53,35 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                     // We want to nerf objects that can be easily seen within the Flashlight circle radius.
                     if (i == 0)
-                        smallDistNerf = Math.Min(1.0, jumpDistance / 75.0);
+                        smallDistNerf = Math.Min(1.0, jumpDistance / tuning.FlashlightSmallDistanceNerfDistance);
 
                     // We also want to nerf stacks so that only the first object of the stack is accounted for.
-                    double stackNerf = Math.Min(1.0, (currentObj.LazyJumpDistance / scalingFactor) / 25.0);
+                    double stackNerf = Math.Min(1.0, (currentObj.LazyJumpDistance / scalingFactor) / tuning.FlashlightStackNerfDistance);
 
                     // Bonus based on how visible the object is.
-                    double opacityBonus = 1.0 + max_opacity_bonus * (1.0 - osuCurrent.OpacityAt(currentHitObject.StartTime, hidden));
+                    double opacityBonus = 1.0 + tuning.FlashlightMaxOpacityBonusScale * (1.0 - osuCurrent.OpacityAt(currentHitObject.StartTime, hidden));
 
                     result += stackNerf * opacityBonus * scalingFactor * jumpDistance / cumulativeStrainTime;
 
                     if (currentObj.Angle != null && osuCurrent.Angle != null)
                     {
                         // Objects further back in time should count less for the nerf.
-                        if (Math.Abs(currentObj.Angle.Value - osuCurrent.Angle.Value) < 0.02)
-                            angleRepeatCount += Math.Max(1.0 - 0.1 * i, 0.0);
+                        if (Math.Abs(currentObj.Angle.Value - osuCurrent.Angle.Value) < tuning.FlashlightAngleRepeatThreshold)
+                            angleRepeatCount += Math.Max(1.0 - tuning.FlashlightAngleRepeatDecayScale * i, 0.0);
                     }
                 }
 
                 lastObj = currentObj;
             }
 
-            result = Math.Pow(smallDistNerf * result, 2.0);
+            result = Math.Pow(smallDistNerf * result, tuning.FlashlightResultExponent);
 
             // Additional bonus for Hidden due to there being no approach circles.
             if (hidden)
-                result *= 1.0 + hidden_bonus;
+                result *= 1.0 + tuning.FlashlightHiddenBonusScale;
 
             // Nerf patterns with repeated angles.
-            result *= min_angle_multiplier + (1.0 - min_angle_multiplier) / (angleRepeatCount + 1.0);
+            result *= tuning.FlashlightMinAngleScale + (1.0 - tuning.FlashlightMinAngleScale) / (angleRepeatCount + 1.0);
 
             double sliderBonus = 0.0;
 
@@ -98,7 +91,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 double pixelTravelDistance = osuCurrent.LazyTravelDistance / scalingFactor;
 
                 // Reward sliders based on velocity.
-                sliderBonus = Math.Pow(Math.Max(0.0, pixelTravelDistance / osuCurrent.TravelTime - min_velocity), 0.5);
+                sliderBonus = Math.Pow(Math.Max(0.0, pixelTravelDistance / osuCurrent.TravelTime - tuning.FlashlightMinVelocityScale), tuning.FlashlightSliderVelocityExponent);
 
                 // Longer sliders require more memorisation.
                 sliderBonus *= pixelTravelDistance;
@@ -108,7 +101,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                     sliderBonus /= (osuSlider.RepeatCount + 1);
             }
 
-            result += sliderBonus * slider_multiplier;
+            result += sliderBonus * tuning.FlashlightSliderBonusScale;
 
             return result;
         }
