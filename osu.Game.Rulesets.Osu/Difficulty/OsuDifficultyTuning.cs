@@ -15,6 +15,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public double FlashlightPerformanceScale { get; init; } = 1.0;
         public double TotalPerformanceScale { get; init; } = 1.0038706194956604;
 
+
+        public double AccuracyBase { get; init; } = 120;
+
         public double AimSkillMultiplier { get; init; } = 161.36223340053525;
         public double AimSnapDifficultyScale { get; init; } = 0.9880152365659264;
         public double AimFlowDifficultyScale { get; init; } = 1.0056361584220896;
