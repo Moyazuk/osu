@@ -84,6 +84,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("cheese_factor")]
         public double CheeseFactor { get; set; }
 
+        [JsonProperty("inaccuracies_with_cheesing")]
+        public double InaccuraciesWithCheesing { get; set; }
+
         [JsonProperty("aim_difficult_strain_count")]
         public double AimDifficultStrainCount { get; set; }
 

@@ -214,15 +214,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 aimDifficulty *= sliderNerfFactor;
             }
 
-            double aimValue = OsuStrainSkill.AimDifficultyToPerformance(aimDifficulty) * 1.2;
+            double cheesedAimDifficulty = aimDifficulty * attributes.CheeseFactor;
+            double cheesedProbability = calculateCheesePValue(score, attributes);
+            aimDifficulty = double.Lerp(aimDifficulty, cheesedAimDifficulty, cheesedProbability);
 
-            double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
-                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
+            double aimValue = OsuStrainSkill.AimDifficultyToPerformance(aimDifficulty);
 
             if (effectiveMissCount > 0)
             {
                 aimEstimatedSliderBreaks = calculateEstimatedSliderBreaks(attributes.AimTopWeightedSliderFactor, attributes);
-                aimValue *= calculateCurveFittedMissPenalty(effectiveMissCount + aimEstimatedSliderBreaks, attributes.AimMissPenaltyCurve);
+
+                double relevantMissCount = Math.Min(effectiveMissCount + aimEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
+
+                aimValue *= calculateCurveFittedMissPenalty(relevantMissCount, attributes.AimMissPenaltyCurve);
             }
 
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
@@ -230,12 +234,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 aimValue *= 1.3 + (totalHits * (0.0016 / (1 + 2 * effectiveMissCount)) * Math.Pow(accuracy, 16)) * (1 - 0.003 * attributes.DrainRate * attributes.DrainRate);
             else if (score.Mods.Any(m => m is OsuModTraceable))
             {
-                aimValue *= 1.0 + OsuRatingCalculator.CalculateVisibilityBonus(score.Mods, approachRate, sliderFactor: attributes.SliderFactor);
+                aimValue *= 1.0 + OsuRatingCalculator.CalculateVisibilityBonus(score.Mods, approachRate);
             }
-
-            // Scale the aim value by how cheesable it is.
-            double cheesedAimValue = aimValue * Math.Pow(attributes.CheeseFactor, 3);
-            aimValue = double.Lerp(cheesedAimValue, aimValue, DifficultyCalculationUtils.Erf(20 / (Math.Sqrt(2) * (double)deviation)));
 
             return aimValue;
         }
@@ -247,13 +247,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double speedValue = OsuStrainSkill.DifficultyToPerformance(attributes.SpeedDifficulty);
 
-            double lengthBonus = 0.95 + 0.4 * Math.Min(1.0, totalHits / 2000.0) +
-                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-
             if (effectiveMissCount > 0)
             {
                 speedEstimatedSliderBreaks = calculateEstimatedSliderBreaks(attributes.SpeedTopWeightedSliderFactor, attributes);
-                speedValue *= calculateMissPenalty(effectiveMissCount + speedEstimatedSliderBreaks, attributes.SpeedDifficultStrainCount);
+
+                double relevantMissCount = Math.Min(effectiveMissCount + speedEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
+
+                speedValue *= calculateMissPenalty(relevantMissCount, attributes.SpeedDifficultStrainCount);
             }
 
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
@@ -266,9 +266,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 speedValue *= 1.0 + OsuRatingCalculator.CalculateVisibilityBonus(score.Mods, approachRate);
             }
-
-            double speedHighDeviationMultiplier = calculateSpeedHighDeviationNerf(attributes);
-            speedValue *= speedHighDeviationMultiplier;
 
             // Calculate accuracy assuming the worst case scenario
             double relevantTotalDiff = Math.Max(0, totalHits - attributes.SpeedNoteCount);
@@ -292,14 +289,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private double computeAccuracyValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
+            var tuning = attributes.Tuning ?? fallbackTuning;
+
             if (score.Mods.Any(h => h is OsuModRelax) || deviation == null)
                 return 0.0;
 
-            int amountHitObjectsWithAccuracy = attributes.HitCircleCount;
-            if (!usingClassicSliderAccuracy || usingScoreV2)
-                amountHitObjectsWithAccuracy += attributes.SliderCount;
-
-            double accuracyValue = ACCURACY_BASE * Math.Pow(7.5 / (double)deviation, 2);
+            double accuracyValue = tuning.AccuracyBase * Math.Pow(7.5 / (double)deviation, 2);
 
             // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
             if (score.Mods.Any(m => m is OsuModBlinds))
@@ -307,7 +302,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             else if (score.Mods.Any(m => m is OsuModHidden || m is OsuModTraceable))
             {
                 // Decrease bonus for AR > 10
-                accuracyValue *= 1 + 0.08 * Math.Clamp((11.5 - approachRate) / (11.5 - 10), 0, 1);
+                accuracyValue *= 1 + 0.08 * DifficultyCalculationUtils.ReverseLerp(approachRate, 11.5, 10);
             }
 
             if (score.Mods.Any(m => m is OsuModFlashlight))
@@ -443,18 +438,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         /// Estimates the player's tap deviation based on the OD, given number of greats, oks, mehs and misses,
         /// assuming the player's mean hit error is 0. The estimation is consistent in that two SS scores on the same map with the same settings
         /// will always return the same deviation. Misses are ignored because they are usually due to misaiming.
-        /// This method actually gives an upper bound for deviation; i.e. we can be 99% confident that deviation is below this value.
-        /// This is so long maps can be less harshly nerfed.
+        /// This method actually gives an upper bound for deviation given the parameter z, which represents a quantile of the z-distribution.
+        /// The default is z = 2.32634787404, which corresponds to the 99% quantile of the z-distribution, effectively giving the
+        /// maximum deviation where the probability of observing the inaccuracies is at least 1%.
+        /// This is so long maps can be less harshly nerfed and that luck/RNG is accounted for when scaling accuracy pp.
         /// Greats and oks are assumed to follow a normal distribution, whereas mehs are assumed to follow a uniform distribution.
         /// </summary>
-        private double? calculateDeviation(ScoreInfo score, OsuDifficultyAttributes attributes)
+        private double? calculateDeviation(ScoreInfo score, OsuDifficultyAttributes attributes, double z = 2.32634787404)
         {
             if (totalSuccessfulHits == 0)
                 return null;
 
-            const double z = 2.32634787404; // 99% critical value for the normal distribution (one-tailed).
-
-            if (score.Mods.Any(m => m is OsuModClassic))
+            if (usingClassicSliderAccuracy)
             {
                 int circleCount = attributes.HitCircleCount;
                 int missCountCircles = Math.Min(countMiss, circleCount);
@@ -467,6 +462,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 if (greatCountCircles > 0)
                 {
                     double n = circleCount - missCountCircles - mehCountCircles;
+
+                    if (greatCountCircles == n && z == 0)
+                        return 0;
 
                     // Proportion of greats hit on circles, ignoring misses and 50s.
                     double p = greatCountCircles / n;
@@ -520,6 +518,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 double n = countGreat + countOk;
 
+                if (n == 0)
+                    return null;
+
+                if (countGreat == n && z == 0)
+                    return 0;
+
                 // Proportion of greats hit on circles, ignoring misses and 50s.
                 double p = countGreat / n;
 
@@ -550,30 +554,47 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             }
         }
 
-        // Calculates multiplier for speed to account for improper tapping based on the deviation and speed difficulty
-        // https://www.desmos.com/calculator/dmogdhzofn
-        private double calculateSpeedHighDeviationNerf(OsuDifficultyAttributes attributes)
+        private double calculateCheesePValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            if (speedDeviation == null)
+            // Use z = 0 to get the MLE estimate for deviation, which is most appropriate here,
+            // since it does not account for length or any luck factors.
+            double? sigma = calculateDeviation(score, attributes, 0);
+            if (sigma == 0)
                 return 0;
 
-            double speedValue = OsuStrainSkill.DifficultyToPerformance(attributes.SpeedDifficulty);
+            if (sigma == null)
+                return 1;
 
-            // Decides a point where the PP value achieved compared to the speed deviation is assumed to be tapped improperly. Any PP above this point is considered "excess" speed difficulty.
-            // This is used to cause PP above the cutoff to scale logarithmically towards the original speed value thus nerfing the value.
-            double excessSpeedDifficultyCutoff = 100 + 220 * Math.Pow(22 / speedDeviation.Value, 6.5);
+            static double gaussianCdf(double x) => 0.5 * (1 + DifficultyCalculationUtils.Erf(x / Math.Sqrt(2)));
+            double n = attributes.HitCircleCount + attributes.SliderCount;
+            double countGreatsWhileCheesing = n - (int)attributes.InaccuraciesWithCheesing;
 
-            if (speedValue <= excessSpeedDifficultyCutoff)
-                return 1.0;
+            double aimDifficulty = attributes.AimDifficulty;
+            double speedDifficulty = attributes.SpeedDifficulty;
 
-            const double scale = 50;
-            double adjustedSpeedValue = scale * (Math.Log((speedValue - excessSpeedDifficultyCutoff) / scale + 1) + excessSpeedDifficultyCutoff / scale);
+            // High speed difficulty usually results in 100s
+            if (speedDifficulty > aimDifficulty)
+            {
+                double weight = 1 - aimDifficulty / speedDifficulty;
+                countGreatsWhileCheesing = double.Lerp(countGreatsWhileCheesing, Math.Max(0, countGreatsWhileCheesing - attributes.SpeedNoteCount / 2), weight);
+            }
 
-            // 220 UR and less are considered tapped correctly to ensure that normal scores will be punished as little as possible
-            double lerp = 1 - DifficultyCalculationUtils.ReverseLerp(speedDeviation.Value, 22.0, 27.0);
-            adjustedSpeedValue = double.Lerp(adjustedSpeedValue, speedValue, lerp);
+            // Use Gaussian approximation with continuity correction for the Binomial CDF to compute the probability of cheesing.
+            double expectedGreatProportion = DifficultyCalculationUtils.Erf(greatHitWindow / (Math.Sqrt(2) * (double)sigma));
+            if (usingClassicSliderAccuracy)
+            {
+                double expectedGreatProportionSliders = DifficultyCalculationUtils.Erf(mehHitWindow / (Math.Sqrt(2) * (double)sigma));
+                expectedGreatProportion = (expectedGreatProportion * attributes.HitCircleCount + expectedGreatProportionSliders * attributes.SliderCount) / n;
+            }
 
-            return adjustedSpeedValue / speedValue;
+            double mean = n * expectedGreatProportion;
+            double stdev = Math.Sqrt(n * expectedGreatProportion * (1 - expectedGreatProportion));
+
+            if (countGreatsWhileCheesing >= n || expectedGreatProportion == 0)
+                return 1;
+
+            double pValue = gaussianCdf((countGreatsWhileCheesing + 0.5 - mean) / stdev);
+            return pValue;
         }
 
         // With the curve fitted miss penalty, we use a pre-computed curve of skill levels for each miss count, raised to the power of 1.5 as
