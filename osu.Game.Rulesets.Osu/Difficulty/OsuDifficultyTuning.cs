@@ -33,7 +33,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public double FlowDistanceExponent { get; init; } = 0.9990365423372973;
         public double FlowJerkScale { get; init; } = 0.025031046966124553;
         public double FlowAngularVelocityScale { get; init; } = 25.29832019213616;
-        public double FlowVelocityChangeScale { get; init; } = 1.0031017291188102;
         public double FlowSliderBonusScale { get; init; } = 0.3019225126649998;
         public double FlowOverallScale { get; init; } = 2.1841320216100897;
         public double FlowMaxAngleRadians { get; init; } = 2.973519710902897;

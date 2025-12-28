@@ -50,10 +50,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 sliderBonus = osuPrevObj.TravelDistance / osuPrevObj.TravelTime;
             }
 
-            double flowVelChange = Math.Abs(prevVelocity - currVelocity);
-
-            difficulty += flowVelChange * tuning.FlowVelocityChangeScale;
-
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
                 difficulty += sliderBonus * tuning.FlowSliderBonusScale;
@@ -136,20 +132,43 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
         public static double CalculateJerk(DifficultyHitObject current, OsuDifficultyTuning tuning)
         {
-            var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
-            var osuPrev2Obj = (OsuDifficultyHitObject)current.Previous(1);
-            var osuPrev3Obj = (OsuDifficultyHitObject)current.Previous(2);
+            var c = (OsuDifficultyHitObject)current;
+            var p1 = (OsuDifficultyHitObject)current.Previous(0);
+            var p2 = (OsuDifficultyHitObject)current.Previous(1);
+            var p3 = (OsuDifficultyHitObject)current.Previous(2);
 
-            if (osuPrevObj == null || osuPrev2Obj == null || osuPrev3Obj == null)
+            if (p1 == null || p2 == null || p3 == null)
                 return 0;
 
-            double currDistanceDifference = Math.Abs(osuCurrObj.LazyJumpDistance - osuPrevObj.LazyJumpDistance);
-            double prevDistanceDifference = Math.Abs(osuPrevObj.LazyJumpDistance - osuPrev2Obj.LazyJumpDistance);
+            double dt3 = c.AdjustedDeltaTime;
+            double dt2 = p1.AdjustedDeltaTime;
+            double dt1 = p2.AdjustedDeltaTime;
 
-            double difference = Math.Abs(currDistanceDifference - prevDistanceDifference) - tuning.FlowJerkDistanceThreshold;
+            if (dt1 <= 0 || dt2 <= 0 || dt3 <= 0)
+                return 0;
 
-            return Math.Sqrt(Math.Max(0, difference) / tuning.FlowJerkDistanceScale);
+            double v1 = p2.LazyJumpDistance / dt1;
+            double v2 = p1.LazyJumpDistance / dt2;
+            double v3 = c.LazyJumpDistance / dt3;
+
+            double dtA2 = 0.5 * (dt1 + dt2);
+            double dtA3 = 0.5 * (dt2 + dt3);
+            if (dtA2 <= 0 || dtA3 <= 0)
+                return 0;
+
+            double a2 = (v2 - v1) / dtA2;
+            double a3 = (v3 - v2) / dtA3;
+
+            // jerk (px/ms^3)
+            double dtJ = 0.5 * (dtA2 + dtA3);
+            if (dtJ <= 0)
+                return 0;
+
+            double jerk = Math.Abs(a3 - a2) / dtJ;
+
+            // threshold + scale like before (but you WILL need retuning!)
+            double excess = jerk - tuning.FlowJerkDistanceThreshold;
+            return Math.Sqrt(Math.Max(0, excess) / tuning.FlowJerkDistanceScale);
         }
 
         public static double GetOverlapness(DifficultyHitObject current)
