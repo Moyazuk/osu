@@ -11,21 +11,27 @@ using osu.Game.Rulesets.Osu.Difficulty.Utils;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 {
-    public abstract class OsuFcProbSkill : Skill
+    public abstract class OsuFcTimeSkill : Skill
     {
-        protected OsuFcProbSkill(Mod[] mods)
+        protected OsuFcTimeSkill(Mod[] mods)
             : base(mods)
         {
         }
 
-        // We return the skill level that, on average, requires 50 retries to attain a full combo.
-        private const double attempt_threshold = 50;
-        private const double probability_threshold = 1 / attempt_threshold;
+        private const double ms_to_minutes = 1.0 / 60000.0;
 
+        // FC time specific constants
+        private const double time_threshold_minutes = 24;
+        private const double max_delta_time = 5000;
+
+        // Bin specific constants
         private const double bin_threshold_note_count = 64;
-        private const int difficulty_bin_count = 32;
+        private const int difficulty_bin_count = 8;
+        private const int time_bin_count = 16;
 
         private const double epsilon = 1e-4;
+
+        private readonly List<double> times = new List<double>();
 
         /// <summary>
         /// Returns the strain value at <see cref="DifficultyHitObject"/>. This value is calculated with or without respect to previous objects.
@@ -34,6 +40,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 
         protected override double ProcessInternal(DifficultyHitObject current)
         {
+            times.Add(times.LastOrDefault() + Math.Min(current.DeltaTime, max_delta_time));
+
             return StrainValueAt(current);
         }
 
@@ -49,37 +57,49 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 
             if (ObjectDifficulties.Count > bin_threshold_note_count)
             {
-                binList = Bin.CreateBins(ObjectDifficulties, difficulty_bin_count);
+                binList = Bin.CreateBins(ObjectDifficulties, times, difficulty_bin_count, time_bin_count);
             }
 
             // Lower bound and upper bound are generally unimportant
-            return RootFinding.FindRootExpand(skill => probabilityOfFcAtSkill(skill, binList) - probability_threshold, 0, 10);
+            return RootFinding.FindRootExpand(skill => timeSpentRetryingAtSkill(skill, binList) - time_threshold_minutes, 0, 10);
         }
 
-        private double probabilityOfFcAtSkill(double skill, List<Bin>? binList = null)
+        private double timeSpentRetryingAtSkill(double skill, List<Bin>? binList = null)
         {
-            if (skill <= 0)
-                return 0;
+            if (skill <= 0) return double.PositiveInfinity;
 
-            double fcProbability = 1;
+            double timeSpentRetrying = 0;
+            double hitProbabilityProduct = 1;
 
             // We use bins, falling back to exact difficulty calculation if not available.
             if (binList is not null)
             {
-                foreach (Bin bin in binList)
+                for (int timeIndex = time_bin_count - 1; timeIndex >= 0; timeIndex--)
                 {
-                    fcProbability *= Math.Pow(HitProbability(skill, bin.Difficulty), bin.NoteCount);
+                    double deltaTime = times.LastOrDefault() / time_bin_count;
+
+                    for (int difficultyIndex = 0; difficultyIndex < difficulty_bin_count; difficultyIndex++)
+                    {
+                        Bin bin = binList[difficulty_bin_count * timeIndex + difficultyIndex];
+
+                        hitProbabilityProduct *= Math.Pow(HitProbability(skill, bin.Difficulty), bin.NoteCount);
+                    }
+
+                    timeSpentRetrying += deltaTime / hitProbabilityProduct - deltaTime;
                 }
             }
             else
             {
-                foreach (double difficulty in ObjectDifficulties)
+                for (int n = ObjectDifficulties.Count - 1; n >= 0; n--)
                 {
-                    fcProbability *= HitProbability(skill, difficulty);
+                    double deltaTime = n > 0 ? times[n] - times[n - 1] : times[n];
+
+                    hitProbabilityProduct *= HitProbability(skill, ObjectDifficulties[n]);
+                    timeSpentRetrying += deltaTime / hitProbabilityProduct - deltaTime;
                 }
             }
 
-            return fcProbability;
+            return timeSpentRetrying * ms_to_minutes;
         }
 
         /// <summary>
@@ -98,7 +118,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
 
             double fcSkill = DifficultyValue();
 
-            var bins = Bin.CreateBins(ObjectDifficulties, difficulty_bin_count);
+            var bins = Bin.CreateBins(ObjectDifficulties, times, difficulty_bin_count, time_bin_count);
 
             foreach (double skillProportion in Polynomial.SKILL_PROPORTIONS)
             {
@@ -120,20 +140,63 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Aggregation
         }
 
         /// <summary>
-        /// Find the lowest miss count that a player with the provided <paramref name="skill"/> would likely achieve within 50 attempts.
+        /// Find the lowest misscount that a player with the provided <paramref name="skill"/> would likely achieve within 12 minutes of retrying.
         /// </summary>
         private double getMissCountAtSkill(double skill, List<Bin> bins)
         {
             double maxDiff = ObjectDifficulties.Max();
+            double endTime = times.Max();
 
             if (maxDiff == 0)
                 return 0;
             if (skill <= 0)
                 return ObjectDifficulties.Count;
 
-            var poiBin = ObjectDifficulties.Count > bin_threshold_note_count ? new PoissonBinomial(bins, skill, HitProbability) : new PoissonBinomial(ObjectDifficulties, skill, HitProbability);
+            IterativePoissonBinomial poiBin = new IterativePoissonBinomial();
 
-            return Math.Max(0, RootFinding.FindRootExpand(x => poiBin.CDF(x) - probability_threshold, -50, 1000, accuracy: 1e-4));
+            return Math.Max(0, RootFinding.FindRootExpand(x => retryTimeRequiredToObtainMissCount(x) - time_threshold_minutes, -50, 1000, accuracy: 0.01));
+
+            double retryTimeRequiredToObtainMissCount(double missCount)
+            {
+                poiBin.Reset();
+
+                double timeSpentRetrying = 0;
+
+                if (ObjectDifficulties.Count > time_bin_count * difficulty_bin_count)
+                {
+                    double binTimeSteps = endTime / time_bin_count;
+
+                    for (int timeIndex = 0; timeIndex < time_bin_count; timeIndex++)
+                    {
+                        for (int difficultyIndex = 0; difficultyIndex < difficulty_bin_count; difficultyIndex++)
+                        {
+                            Bin bin = bins[timeIndex * difficulty_bin_count + difficultyIndex];
+
+                            double missProb = 1 - HitProbability(skill, bin.Difficulty);
+                            poiBin.AddBinnedProbabilities(missProb, bin.NoteCount);
+                        }
+
+                        timeSpentRetrying += binTimeSteps * poiBin.Cdf(missCount);
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < ObjectDifficulties.Count; i++)
+                    {
+                        double deltaTime = i > 0 ? times[i] - times[i - 1] : times[i];
+
+                        double missProb = 1 - HitProbability(skill, ObjectDifficulties[i]);
+                        poiBin.AddProbability(missProb);
+
+                        timeSpentRetrying += deltaTime * poiBin.Cdf(missCount);
+                    }
+                }
+
+                if (poiBin.Cdf(missCount) < 1e-10)
+                    return double.PositiveInfinity;
+
+                return (timeSpentRetrying / poiBin.Cdf(missCount) - endTime) * ms_to_minutes;
+            }
         }
 
         /// <summary>
