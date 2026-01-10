@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
@@ -16,214 +17,399 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         private const int history_time_max = 5 * 1000; // 5 seconds
         private const int history_objects_max = 32;
         private const double rhythm_overall_multiplier = 1.0;
-        private const double rhythm_ratio_multiplier = 15.0;
+
+        private static double identicalStrainTolerance;
+
+        private static readonly List<double> note_history = new List<double>();
+        private static readonly List<double> note_history_virtual = new List<double>();
+
+        private static (double ratio, double multiplier)[] createPreviousRatioTable(OsuDifficultyTuning tuning) => new[]
+        {
+            (1.0,         tuning.RhythmPrevSame),
+            (4.0 / 3.0,   tuning.RhythmPrev_4over3),
+            (1.5,         tuning.RhythmPrev_3over2),
+            (5.0 / 3.0,   tuning.RhythmPrev_5over3),
+            (2.0,         tuning.RhythmPrev_2over1),
+            (2.5,         tuning.RhythmPrev_5over2),
+            (3.0,         tuning.RhythmPrev_3over1),
+            (4.0,         tuning.RhythmPrev_4over1),
+        };
+
+        private static (double ratio, double multiplier)[] createNextRatioTable(OsuDifficultyTuning tuning) => new[]
+        {
+            (1.0,         tuning.RhythmNextSame),
+            (4.0 / 3.0,   tuning.RhythmNext_4over3),
+            (1.5,         tuning.RhythmNext_3over2),
+            (5.0 / 3.0,   tuning.RhythmNext_5over3),
+            (2.0,         tuning.RhythmNext_2over1),
+            (2.5,         tuning.RhythmNext_5over2),
+            (3.0,         tuning.RhythmNext_3over1),
+            (4.0,         tuning.RhythmNext_4over1),
+        };
+
+        private static (double ratio, double multiplier)[] createPrevious2RatioTable(OsuDifficultyTuning tuning) => new[]
+        {
+            (1.0,         tuning.RhythmPrev2Same),
+            (4.0 / 3.0,   tuning.RhythmPrev2_4over3),
+            (1.5,         tuning.RhythmPrev2_3over2),
+            (5.0 / 3.0,   tuning.RhythmPrev2_5over3),
+            (2.0,         tuning.RhythmPrev2_2over1),
+            (2.5,         tuning.RhythmPrev2_5over2),
+            (3.0,         0),
+            (4.0,         tuning.RhythmPrev2_4over1),
+        };
+
+        private static (double ratio, double multiplier)[] createNext2RatioTable(OsuDifficultyTuning tuning) => new[]
+        {
+            (1.0,         tuning.RhythmNext2Same),
+            (4.0 / 3.0,   tuning.RhythmNext2_4over3),
+            (1.5,         tuning.RhythmNext2_3over2),
+            (5.0 / 3.0,   tuning.RhythmNext2_5over3),
+            (2.0,         tuning.RhythmNext2_2over1),
+            (2.5,         tuning.RhythmNext2_5over2),
+            (3.0,         tuning.RhythmNext2_3over1),
+            (4.0,         tuning.RhythmNext2_4over1),
+        };
 
         /// <summary>
         /// Calculates a rhythm multiplier for the difficulty of the tap associated with historic data of the current <see cref="OsuDifficultyHitObject"/>.
         /// </summary>
-        public static double EvaluateDifficultyOf(DifficultyHitObject current)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, OsuDifficultyTuning tuning)
         {
             if (current.BaseObject is Spinner)
                 return 0;
 
-            double rhythmComplexitySum = 0;
+            OsuDifficultyHitObject osuCurrent = (OsuDifficultyHitObject)current;
+            OsuDifficultyHitObject osuPrev = (OsuDifficultyHitObject)current.Previous(0);
+            OsuDifficultyHitObject osuPrev2 = (OsuDifficultyHitObject)current.Previous(1);
+            OsuDifficultyHitObject osuNext = (OsuDifficultyHitObject)current.Next(0);
+            OsuDifficultyHitObject osuNext2 = (OsuDifficultyHitObject)current.Next(1);
 
-            double deltaDifferenceEpsilon = ((OsuDifficultyHitObject)current).HitWindowGreat * 0.3;
+            double[] prev_fraction_x = { 1.0, 1.5, 2.0, 3.0, 4.0 };
+            double[] prev_fraction_y = { 0.5, 0.05, 1, 0.5, 0.0 };
 
-            var island = new Island(deltaDifferenceEpsilon);
-            var previousIsland = new Island(deltaDifferenceEpsilon);
+            double[] next_fraction_x = { 1.0, 7.0 / 6.0, 1.5, 1.75, 2.0, 3.0, 4.0 };
+            double[] next_fraction_y = { 0.05, 4, 1, 2, 0.5, 0.05, 0.0 };
 
-            // we can't use dictionary here because we need to compare island with a tolerance
-            // which is impossible to pass into the hash comparer
-            var islandCounts = new List<(Island Island, int Count)>();
+            double[] prev2_fraction_x = { 1.0, 1.5, 2.0, 3.0, 4.0 };
+            double[] prev2_fraction_y = { 0.25, 2.5, 0.75, 0.05, 1.5 };
 
-            double startRatio = 0; // store the ratio of the current start of an island to buff for tighter rhythms
+            double[] next2_fraction_x = { 1.0, 7.0 / 6.0, 1.5, 1.75, 2.0, 3.0, 4.0 };
+            double[] next2_fraction_y = { 1.0, 0.05, 0.05, 0.05, 0.5, 2, 0.5 };
 
-            bool firstDeltaSwitch = false;
+            note_history.Clear();
+            note_history_virtual.Clear();
 
-            int historicalNoteCount = Math.Min(current.Index, history_objects_max);
+            double strainTime = osuCurrent.AdjustedDeltaTime / 1000;
+            double virtualStrainTime = calculateVirtualStrainTime(osuCurrent);
+            double prevStrainTime = osuPrev != null ? osuPrev.AdjustedDeltaTime / 1000 : 0;
+            double prev2StrainTime = osuPrev2 != null ? osuPrev2.AdjustedDeltaTime / 1000 : 0;
+            double prevVirtualStrainTime = osuPrev != null ? calculateVirtualStrainTime(osuPrev) : 0;
+            double prev2VirtualStrainTime = osuPrev2 != null ? calculateVirtualStrainTime(osuPrev2) : 0;
+            identicalStrainTolerance = osuCurrent.HitWindowGreat / 2000;
 
-            int rhythmStart = 0;
+            int index = -1; // Start from current
 
-            while (rhythmStart < historicalNoteCount - 2 && current.StartTime - current.Previous(rhythmStart).StartTime < history_time_max)
-                rhythmStart++;
+            double timeElapsed = 0; // Time elapsed in seconds
 
-            OsuDifficultyHitObject prevObj = (OsuDifficultyHitObject)current.Previous(rhythmStart);
-            OsuDifficultyHitObject lastObj = (OsuDifficultyHitObject)current.Previous(rhythmStart + 1);
-
-            // we go from the furthest object back to the current one
-            for (int i = rhythmStart; i > 0; i--)
+            while (true)
             {
-                OsuDifficultyHitObject currObj = (OsuDifficultyHitObject)current.Previous(i - 1);
+                DifficultyHitObject previousObj = current.Previous(index++);
+                if (previousObj == null)
+                    break;
 
-                // scales note 0 to 1 from history to now
-                double timeDecay = (history_time_max - (current.StartTime - currObj.StartTime)) / history_time_max;
-                double noteDecay = (double)(historicalNoteCount - i) / historicalNoteCount;
+                if (previousObj is not OsuDifficultyHitObject currObj)
+                    continue;
 
-                double currHistoricalDecay = Math.Min(noteDecay, timeDecay); // either we're limited by time or limited by object count.
+                double strainT = currObj.AdjustedDeltaTime / 1000;
+                double virtualStrainT = calculateVirtualStrainTime(currObj);
 
-                // Use custom cap value to ensure that that at this point delta time is actually zero
-                double currDelta = Math.Max(currObj.DeltaTime, 1e-7);
-                double prevDelta = Math.Max(prevObj.DeltaTime, 1e-7);
-                double lastDelta = Math.Max(lastObj.DeltaTime, 1e-7);
+                note_history.Add(strainT);
+                note_history_virtual.Add(virtualStrainT);
+                timeElapsed += strainT;
 
-                // calculate how much current delta difference deserves a rhythm bonus
-                // this function is meant to reduce rhythm bonus for deltas that are multiples of each other (i.e 100 and 200)
-                double deltaDifference = Math.Max(prevDelta, currDelta) / Math.Min(prevDelta, currDelta);
+                if (timeElapsed > 2 || note_history.Count > 16)
+                    break;
 
-                // Take only the fractional part of the value since we're only interested in punishing multiples
-                double deltaDifferenceFraction = deltaDifference - Math.Truncate(deltaDifference);
-
-                double currRatio = 1.0 + rhythm_ratio_multiplier * Math.Min(0.5, DifficultyCalculationUtils.SmoothstepBellCurve(deltaDifferenceFraction));
-
-                // reduce ratio bonus if delta difference is too big
-                double differenceMultiplier = Math.Clamp(2.0 - deltaDifference / 8.0, 0.0, 1.0);
-
-                double windowPenalty = Math.Min(1, Math.Max(0, Math.Abs(prevDelta - currDelta) - deltaDifferenceEpsilon) / deltaDifferenceEpsilon);
-
-                double effectiveRatio = windowPenalty * currRatio * differenceMultiplier;
-
-                if (firstDeltaSwitch)
-                {
-                    if (Math.Abs(prevDelta - currDelta) < deltaDifferenceEpsilon)
-                    {
-                        // island is still progressing
-                        island.AddDelta((int)currDelta);
-                    }
-                    else
-                    {
-                        // bpm change is into slider, this is easy acc window
-                        if (currObj.BaseObject is Slider)
-                            effectiveRatio *= 0.125;
-
-                        // bpm change was from a slider, this is easier typically than circle -> circle
-                        // unintentional side effect is that bursts with kicksliders at the ends might have lower difficulty than bursts without sliders
-                        if (prevObj.BaseObject is Slider)
-                            effectiveRatio *= 0.3;
-
-                        // repeated island polarity (2 -> 4, 3 -> 5)
-                        if (island.IsSimilarPolarity(previousIsland))
-                            effectiveRatio *= 0.5;
-
-                        // previous increase happened a note ago, 1/1->1/2-1/4, dont want to buff this.
-                        if (lastDelta > prevDelta + deltaDifferenceEpsilon && prevDelta > currDelta + deltaDifferenceEpsilon)
-                            effectiveRatio *= 0.125;
-
-                        // repeated island size (ex: triplet -> triplet)
-                        // TODO: remove this nerf since its staying here only for balancing purposes because of the flawed ratio calculation
-                        if (previousIsland.DeltaCount == island.DeltaCount)
-                            effectiveRatio *= 0.5;
-
-                        var islandCount = islandCounts.FirstOrDefault(x => x.Island.Equals(island));
-
-                        if (islandCount != default)
-                        {
-                            int countIndex = islandCounts.IndexOf(islandCount);
-
-                            // only add island to island counts if they're going one after another
-                            if (previousIsland.Equals(island))
-                                islandCount.Count++;
-
-                            // repeated island (ex: triplet -> triplet)
-                            double power = DifficultyCalculationUtils.Logistic(island.Delta, maxValue: 2.75, multiplier: 0.24, midpointOffset: 58.33);
-                            effectiveRatio *= Math.Min(3.0 / islandCount.Count, Math.Pow(1.0 / islandCount.Count, power));
-
-                            islandCounts[countIndex] = (islandCount.Island, islandCount.Count);
-                        }
-                        else
-                        {
-                            islandCounts.Add((island, 1));
-                        }
-
-                        // scale down the difficulty if the object is doubletappable
-                        double doubletapness = prevObj.GetDoubletapness(currObj);
-                        effectiveRatio *= 1 - doubletapness * 0.75;
-
-                        rhythmComplexitySum += Math.Sqrt(effectiveRatio * startRatio) * currHistoricalDecay;
-
-                        startRatio = effectiveRatio;
-
-                        previousIsland = island;
-
-                        if (prevDelta + deltaDifferenceEpsilon < currDelta) // we're slowing down, stop counting
-                            firstDeltaSwitch = false; // if we're speeding up, this stays true and we keep counting island size.
-
-                        island = new Island((int)currDelta, deltaDifferenceEpsilon);
-                    }
-                }
-                else if (prevDelta > currDelta + deltaDifferenceEpsilon) // we're speeding up
-                {
-                    // Begin counting island until we change speed again.
-                    firstDeltaSwitch = true;
-
-                    // bpm change is into slider, this is easy acc window
-                    if (currObj.BaseObject is Slider)
-                        effectiveRatio *= 0.6;
-
-                    // bpm change was from a slider, this is easier typically than circle -> circle
-                    // unintentional side effect is that bursts with kicksliders at the ends might have lower difficulty than bursts without sliders
-                    if (prevObj.BaseObject is Slider)
-                        effectiveRatio *= 0.6;
-
-                    startRatio = effectiveRatio;
-
-                    island = new Island((int)currDelta, deltaDifferenceEpsilon);
-                }
-
-                lastObj = prevObj;
-                prevObj = currObj;
+                if (note_history.Count < note_history_virtual.Count)
+                    break;
             }
 
-            return Math.Sqrt(4 + rhythmComplexitySum * rhythm_overall_multiplier) / 2.0; // produces multiplier that can be applied to strain. range [1, infinity) (not really though);
+            note_history.Reverse();
+            note_history_virtual.Reverse();
+
+            double repetitionVal = 0;
+            double downtimeScale = 1;
+            double appearanceScale = 1;
+            double uniqueScale = 1;
+
+            var prevTable = createPreviousRatioTable(tuning);
+            var nextTable = createNextRatioTable(tuning);
+            var prev2Table = createPrevious2RatioTable(tuning);
+            var next2Table = createNext2RatioTable(tuning);
+
+            if (note_history.Count > 2)
+            {
+                double repetition = 1.0 - calculateExpectancy(note_history, prevTable);
+
+                double virtualRepetition = 1.25 - calculateExpectancy(note_history_virtual, prevTable);
+                double repetitionExponent = Math.Min(2.0, 66.25 * Math.Min(strainTime, virtualStrainTime) - 1.65625);
+                repetitionVal = Math.Pow(Math.Min(repetition, virtualRepetition), repetitionExponent);
+
+                // When there is major downtime / not much actually happening
+                downtimeScale = Math.Min(calculateDowntime(strainTime, note_history), calculateDowntime(virtualStrainTime, note_history_virtual));
+
+                // When there's a huge stream before a pack of doubles / triples
+                appearanceScale = Math.Min(strainAppearance(strainTime, note_history), strainAppearance(virtualStrainTime, note_history_virtual));
+
+                // When there's a ton of unique strains that means that it's a wild BPM area
+                (double uniqueVal, _) = checkAnomaly(note_history);
+                (double virtualUniqueVal, _) = checkAnomaly(note_history_virtual);
+                uniqueScale = 1.0 + Math.Pow((Math.Min(uniqueVal, virtualUniqueVal) - 1.0) / tuning.Uniqueness_Divisor, tuning.Uniqueness_Exponent);
+            }
+
+
+            double currMultiplier = Math.Min(
+                Math.Min(compareStrains(strainTime, prevStrainTime, prevTable),
+                    compareStrains(strainTime, prevVirtualStrainTime, prevTable)),
+                Math.Min(compareStrains(virtualStrainTime, prevStrainTime, prevTable),
+                    compareStrains(virtualStrainTime, prevVirtualStrainTime, prevTable))
+            );
+
+            double prevMultiplier = Math.Min(
+                Math.Min(compareStrains(prevStrainTime, prev2StrainTime, prev2Table), compareStrains(prevStrainTime, prev2VirtualStrainTime, prev2Table)),
+                Math.Min(compareStrains(prevVirtualStrainTime, prev2StrainTime, prev2Table), compareStrains(prevVirtualStrainTime, prev2VirtualStrainTime, prev2Table))
+            );
+
+            if (current.BaseObject is Slider)
+            {
+                currMultiplier /= 2;
+            }
+
+            double strain = repetitionVal * currMultiplier * prevMultiplier * downtimeScale * appearanceScale * uniqueScale / strainTime;
+
+            if (osuNext == null || osuNext2 == null) return strain;
+
+            double nextTime = osuNext.AdjustedDeltaTime / 1000.0;
+            double next2Time = osuNext2.AdjustedDeltaTime / 1000.0;
+            double nextVirtualStrainTime = calculateVirtualStrainTime(osuNext);
+            double next2VirtualStrainTime = calculateVirtualStrainTime(osuNext2);
+
+            double nextMultiplier = Math.Min(
+                Math.Min(compareStrains(strainTime, nextTime, nextTable), compareStrains(strainTime, nextVirtualStrainTime, nextTable)),
+                Math.Min(compareStrains(virtualStrainTime, nextTime, nextTable), compareStrains(virtualStrainTime, nextVirtualStrainTime, nextTable))
+            );
+
+            double next2Multiplier = Math.Min(
+                Math.Min(compareStrains(nextTime, next2Time, next2Table), compareStrains(nextTime, next2VirtualStrainTime, next2Table)),
+                Math.Min(compareStrains(nextVirtualStrainTime, next2Time, next2Table), compareStrains(nextVirtualStrainTime, next2VirtualStrainTime, next2Table))
+            );
+
+            if (osuNext.BaseObject is Slider)
+                nextMultiplier /= 2;
+
+            strain *= nextMultiplier * next2Multiplier;
+
+
+            strain *= 1 - osuCurrent.GetDoubletapness((OsuDifficultyHitObject)current.Next(0));
+
+            return strain;
         }
 
-        private class Island : IEquatable<Island>
+        private static double calculateDowntime(double strainTime, List<double> refNoteHistory)
         {
-            private readonly double deltaDifferenceEpsilon;
+            int longNoteCount = refNoteHistory.Count(t => t > strainTime * 2 - identicalStrainTolerance);
 
-            public Island(double epsilon)
+            double longNoteFraction = Math.Max(0.5, longNoteCount / (double)refNoteHistory.Count);
+
+            double result = 1.0 - DifficultyCalculationUtils.Smoothstep(longNoteFraction, 0.5, 1.0);
+            return result;
+        }
+
+        private static double strainAppearance(double strainTime, List<double> refNoteHistory)
+        {
+            int strainAppearance = refNoteHistory.Count(t => Math.Abs(t - strainTime) < identicalStrainTolerance);
+
+            if (strainAppearance == refNoteHistory.Count)
+                return 0;
+
+            double strainAppearanceFraction = Math.Max(0.5, strainAppearance / (double)refNoteHistory.Count);
+
+            double result = 1.0 - DifficultyCalculationUtils.Smoothstep(strainAppearanceFraction, 0.5, 1.0);
+            return result;
+        }
+
+        private static double calculateVirtualStrainTime(OsuDifficultyHitObject current)
+        {
+            if (current.LastObject is Slider prevSlider)
+
+                return Math.Max((current.StartTime - prevSlider.EndTime) / 1000, 0.025);
+
+            return current.AdjustedDeltaTime / 1000;
+        }
+
+        private static double calculateExpectancy(List<double> refNoteHistory, (double ratio, double multiplier)[] prevTable)
+        {
+            (double anomalyVal, bool exists) = checkAnomaly(refNoteHistory);
+
+            int n = refNoteHistory.Count;
+            List<double> history = new List<double>(n);
+            for (int i = n - 1; i >= 0; i--)
+                history.Add(refNoteHistory[i]);
+
+            double strainTime = history[0];
+
+            List<double>? pattern = null;
+
+            for (int i = 1; i < history.Count; i++)
             {
-                deltaDifferenceEpsilon = epsilon;
+                if (Math.Abs(history[i] - strainTime) > identicalStrainTolerance)
+                {
+                    pattern = history.GetRange(0, i + 1);
+                    break;
+                }
             }
 
-            public Island(int delta, double epsilon)
+            if (pattern == null)
+                return 1;
+
+            if (pattern.Count > history.Count / 2)
+                return (double)pattern.Count / history.Count;
+
+            int maxSize = pattern.Count;
+            double maxRepetition = 0;
+
+            for (int k = pattern.Count; k < history.Count / 2; k++)
             {
-                deltaDifferenceEpsilon = epsilon;
-                Delta = Math.Max(delta, OsuDifficultyHitObject.MIN_DELTA_TIME);
-                DeltaCount++;
+                var candidate = history.GetRange(0, k);
+
+                int patternInstance = 0;
+                int reversePatternInstance = 0;
+
+                for (int i = k; i <= history.Count - k; i++)
+                {
+                    bool same = true, reverseSame = true;
+
+                    for (int j = 0; j < k; j++)
+                    {
+                        double a = candidate[j];
+                        double b = history[i + j];
+                        double rb = history[i + k - 1 - j];
+
+                        if (Math.Abs(a - b) > identicalStrainTolerance)
+                            same = false;
+
+                        if (Math.Abs(a - rb) > identicalStrainTolerance)
+                            reverseSame = false;
+
+                        if (!same && !reverseSame)
+                            break;
+                    }
+
+                    if (same) patternInstance++;
+                    else if (reverseSame) reversePatternInstance++;
+                }
+
+                int possibleInstances = Math.Max(1, (int)Math.Ceiling((history.Count - 2 * k + 1) / 2.0));
+                double ratio = Math.Min(1, (double)Math.Max(patternInstance, reversePatternInstance) / possibleInstances);
+
+                if (ratio > maxRepetition)
+                {
+                    maxRepetition = ratio;
+                    maxSize = k;
+                }
+
+                if (maxRepetition == 1)
+                    break;
             }
 
-            public int Delta { get; private set; } = int.MaxValue;
-            public int DeltaCount { get; private set; }
+            double patternLength = DifficultyCalculationUtils.Smoothstep(maxSize, 2, 8);
+            double fractionMultiplier = compareStrains(strainTime, history[1], prevTable);
 
-            public void AddDelta(int delta)
+            double repetitionVal = Math.Min(1.0, Math.Sqrt(maxRepetition) + patternLength);
+
+            if (exists) return repetitionVal;
+
+            double uniqueScale = Math.Pow(Math.Pow(-Math.Min(7.0, anomalyVal - 1.0) / 7.0, 5.0) + 1.0, 2.0);
+            repetitionVal = Math.Max(Math.Min(1, repetitionVal + uniqueScale - fractionMultiplier), 0.0);
+
+            return repetitionVal;
+        }
+
+        private static (double, bool) checkAnomaly(List<double> refNoteHistory)
+        {
+            List<double> uniqueStrains = new List<double>();
+
+            // Get all unique straintimes, ignore current object
+            for (int i = 0; i < refNoteHistory.Count - 1; i++)
             {
-                if (Delta == int.MaxValue)
-                    Delta = Math.Max(delta, OsuDifficultyHitObject.MIN_DELTA_TIME);
+                bool exists = uniqueStrains.Any(t => Math.Abs(t - refNoteHistory[i]) < identicalStrainTolerance);
 
-                DeltaCount++;
+                if (!exists)
+                    uniqueStrains.Add(refNoteHistory[i]);
             }
 
-            public bool IsSimilarPolarity(Island other)
+            // Check if current strain exists previously, and find the ratio closest to 1
+            bool unique = true;
+            double strainTime = refNoteHistory[^1];
+            double strainRatio = 0;
+
+            for (int j = 0; j < uniqueStrains.Count; j++)
             {
-                // TODO: consider islands to be of similar polarity only if they're having the same average delta (we don't want to consider 3 singletaps similar to a triple)
-                //       naively adding delta check here breaks _a lot_ of maps because of the flawed ratio calculation
-                return DeltaCount % 2 == other.DeltaCount % 2;
+                if (
+                    Math.Abs(strainTime - uniqueStrains[j]) < identicalStrainTolerance ||
+                    Math.Abs(strainTime * 2 - uniqueStrains[j]) < identicalStrainTolerance ||
+                    Math.Abs(strainTime / 2 - uniqueStrains[j]) < identicalStrainTolerance
+                )
+                {
+                    unique = false;
+                    break;
+                }
+
+                double strainRatioTest = Math.Max(strainTime, uniqueStrains[j]) / Math.Min(strainTime, uniqueStrains[j]);
+
+                if (strainRatioTest - 1 < strainRatio - 1)
+                {
+                    strainRatio = strainRatioTest;
+                }
             }
 
-            public bool Equals(Island? other)
-            {
-                if (other == null)
-                    return false;
+            return (uniqueStrains.Count, !unique);
+        }
 
-                return Math.Abs(Delta - other.Delta) < deltaDifferenceEpsilon &&
-                       DeltaCount == other.DeltaCount;
+        private static double compareStrains(
+            double strain1,
+            double strain2,
+            (double ratio, double multiplier)[] ratioMultipliers)
+        {
+            if (strain1 == 0 || strain2 == 0)
+                return 1;
+
+            double fraction = Math.Max(strain1 / strain2, strain2 / strain1);
+
+            double result = LerpFromArrays(ratioMultipliers, fraction);
+
+            return Math.Max(0.0, result);
+        }
+
+        public static double LerpFromArrays((double ratio, double multiplier)[] ratioMultipliers, double t)
+        {
+            if (t <= ratioMultipliers[0].ratio)
+                return ratioMultipliers[0].multiplier;
+
+            if (t >= ratioMultipliers[^1].ratio)
+                return ratioMultipliers[^1].multiplier;
+
+            for (int i = 0; i < ratioMultipliers.Length - 1; i++)
+            {
+                if (t >= ratioMultipliers[i].ratio && t <= ratioMultipliers[i + 1].ratio)
+                {
+                    double distance = (t - ratioMultipliers[i].ratio) / (ratioMultipliers[i + 1].ratio - ratioMultipliers[i].ratio);
+                    return Interpolation.Lerp(ratioMultipliers[i].multiplier, ratioMultipliers[i + 1].multiplier, distance);
+                }
             }
 
-            public override string ToString()
-            {
-                return $"{Delta}x{DeltaCount}";
-            }
+            return 0;
         }
     }
 }

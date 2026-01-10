@@ -40,6 +40,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public double SpeedNoteCount { get; set; }
 
         /// <summary>
+        /// Describes how much of <see cref="SpeedDifficulty"/> is contributed to by the stamina strains.
+        /// </summary>
+        [JsonProperty("stamina_factor")]
+        public double StaminaFactor { get; set; }
+
+        /// <summary>
         /// The difficulty corresponding to the flashlight skill.
         /// </summary>
         [JsonProperty("flashlight_difficulty")]
