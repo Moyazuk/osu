@@ -60,9 +60,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double baseBpm = baseBPMConstant / (1 + (angleBonus) * currDistanceMultiplier * prevDistanceMultiplier);
 
-            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, agilityExponent) - 1);
+            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 3) - 1);
 
-            return agilityBonus * angleRepetitionNerf * 0.0255;
+            return agilityBonus * angleRepetitionNerf * 0.0115;
         }
     }
 }
