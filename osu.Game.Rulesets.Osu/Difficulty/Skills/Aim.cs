@@ -7,6 +7,7 @@ using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
@@ -17,7 +18,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to correctly aim at every object in the map with a uniform CircleSize and normalized distances.
     /// </summary>
-    public class Aim : OsuStrainSkill
+    public class Aim : OsuFcTimeSkill
     {
         public readonly bool IncludeSliders;
 
@@ -30,7 +31,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double currentAimStrain;
         private double currentSpeedStrain;
 
-        private double skillMultiplierAim => 26.0;
+        private double skillMultiplierAim => 140.0;
         private double skillMultiplierSpeed => 1.3;
         private double skillMultiplierTotal => 1.02;
         private double meanExponent => 1.2;
@@ -40,11 +41,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double strainDecayAim(double ms) => Math.Pow(0.15, ms / 1000);
         private double strainDecaySpeed(double ms) => Math.Pow(0.3, ms / 1000);
 
-        protected override double CalculateInitialStrain(double time, DifficultyHitObject current) =>
-            DifficultyCalculationUtils.Norm(meanExponent,
-                currentAimStrain * strainDecayAim(time - current.Previous(0).StartTime),
-                currentSpeedStrain * strainDecaySpeed(time - current.Previous(0).StartTime));
+        protected override double HitProbability(double skill, double difficulty)
+        {
+            if (difficulty <= 0) return 1;
+            if (skill <= 0) return 0;
 
+            return DifficultyCalculationUtils.Erf(skill / (Math.Sqrt(2) * difficulty));
+        }
         protected override double StrainValueAt(DifficultyHitObject current)
         {
             double decayAim = strainDecayAim(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
