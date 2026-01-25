@@ -10,6 +10,7 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Difficulty.Aggregation;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Skills;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
@@ -64,8 +65,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double speedNotes = speed.RelevantNoteCount();
 
-            double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders(aimNoSlidersDifficultyValue);
+            double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders();
             double aimNoSlidersDifficultStrainCount = aimWithoutSliders.CountTopWeightedStrains(aimNoSlidersDifficultyValue);
+            Polynomial aimMissPenaltyCurve = ((OsuFcTimeSkill)skills[0]).GetMissPenaltyCurve();
 
             double aimTopWeightedSliderFactor = aimNoSlidersTopWeightedSliderCount / Math.Max(1, aimNoSlidersDifficultStrainCount - aimNoSlidersTopWeightedSliderCount);
 
@@ -122,7 +124,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 SpeedNoteCount = speedNotes,
                 FlashlightDifficulty = flashlightRating,
                 SliderFactor = sliderFactor,
-                AimDifficultStrainCount = aimDifficultStrainCount,
+                AimMissPenaltyCurve = aimMissPenaltyCurve,
                 SpeedDifficultStrainCount = speedDifficultStrainCount,
                 AimTopWeightedSliderFactor = aimTopWeightedSliderFactor,
                 SpeedTopWeightedSliderFactor = speedTopWeightedSliderFactor,
@@ -193,4 +195,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             new OsuModHidden(),
         };
     }
+
+    public class OsuTimeSkill { }
 }
