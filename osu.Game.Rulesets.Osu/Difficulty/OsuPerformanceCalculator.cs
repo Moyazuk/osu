@@ -273,27 +273,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (score.Mods.Any(h => h is OsuModRelax))
                 return 0.0;
 
-            // This percentage only considers HitCircles of any value - in this part of the calculation we focus on hitting the timing hit window.
-            double betterAccuracyPercentage;
-            int amountHitObjectsWithAccuracy = attributes.HitCircleCount;
-            if (!usingClassicSliderAccuracy || usingScoreV2)
-                amountHitObjectsWithAccuracy += attributes.SliderCount;
+            double accuracyValue = OsuStrainSkill.DifficultyToPerformance(attributes.AccDifficulty);
 
-            if (amountHitObjectsWithAccuracy > 0)
-                betterAccuracyPercentage = ((countGreat - Math.Max(totalHits - amountHitObjectsWithAccuracy, 0)) * 6 + countOk * 2 + countMeh) / (double)(amountHitObjectsWithAccuracy * 6);
-            else
-                betterAccuracyPercentage = 0;
+            double? overallSigma = calculateDeviation(countGreat, countOk, countMeh);
 
-            // It is possible to reach a negative accuracy with this formula. Cap it at zero - zero points.
-            if (betterAccuracyPercentage < 0)
-                betterAccuracyPercentage = 0;
+            double successful = totalSuccessfulHits;
+            double? baselineSigma = successful > 0 ? calculateDeviation(successful, 0, 0) : null;
 
-            // Lots of arbitrary values from testing.
-            // Considering to use derivation from perfect accuracy in a probabilistic manner - assume normal distribution.
-            double accuracyValue = Math.Pow(1.52163, overallDifficulty) * Math.Pow(betterAccuracyPercentage, 24) * 2.83;
-
-            // Bonus for many hitcircles - it's harder to keep good accuracy up for longer.
-            accuracyValue *= Math.Min(1.15, Math.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.3));
+            double mistimes = normalizedMistimesFromDeviation(overallSigma, baselineSigma, successful) + countMiss;
 
             // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
             if (score.Mods.Any(m => m is OsuModBlinds))
@@ -306,6 +293,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             if (score.Mods.Any(m => m is OsuModFlashlight))
                 accuracyValue *= 1.02;
+            if (mistimes > 0)
+                accuracyValue *= calculateCurveFittedMissPenalty(mistimes, attributes.AccPenaltyCurve);
 
             return accuracyValue;
         }
@@ -531,7 +520,38 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         // so we use the amount of relatively difficult sections to adjust miss penalty
         // to make it more punishing on maps with lower amount of hard sections.
         private double calculateMissPenalty(double missCount, double difficultStrainCount) => 0.96 / ((missCount / (4 * Math.Pow(Math.Log(difficultStrainCount), 0.94))) + 1);
+
+        // With the curve fitted miss penalty, we use a pre-computed curve of skill levels for each miss count, raised to the power of 1.5 as
+        // the multiple of the exponents on star rating and PP. This power should be changed if either SR or PP begin to use a different exponent.
+        // As a result, this exponent is not subject to balance.
+        private double calculateCurveFittedMissPenalty(double missCount, Polynomial curve) => Math.Pow(1 - curve.GetPenaltyAt(Math.Log(missCount + 1)), 1.5);
         private double getComboScalingFactor(OsuDifficultyAttributes attributes) => attributes.MaxCombo <= 0 ? 1.0 : Math.Min(Math.Pow(scoreMaxCombo, 0.8) / Math.Pow(attributes.MaxCombo, 0.8), 1.0);
+
+        // OD-invariant reference great window (in milliseconds).
+        private const double REFERENCE_GREAT_WINDOW_MS = 18.0;
+
+        // Convert a sigma (ms) to the implied non-300 probability at the fixed window.
+        private static double non300ProbabilityFromSigma(double sigmaMs)
+        {
+            if (sigmaMs <= 0) return 0;
+            double arg = REFERENCE_GREAT_WINDOW_MS / (Math.Sqrt(2) * sigmaMs);
+            double pGreat = DifficultyCalculationUtils.Erf(arg);
+            return Math.Max(0.0, 1.0 - pGreat);
+        }
+
+        // Produces normalized mistimes from (sigma) but subtracts a baseline (sigma0)
+        // so that perfect scores (which still get a small sigma0) map to 0.
+        // hitCount is how many objects to apply to.
+        private static double normalizedMistimesFromDeviation(double? sigmaMs, double? sigmaBaselineMs, double hitCount)
+        {
+            if (hitCount <= 0 || sigmaMs is null || sigmaMs <= 0) return 0;
+
+            double p = non300ProbabilityFromSigma(sigmaMs.Value);
+            double p0 = (sigmaBaselineMs is null || sigmaBaselineMs <= 0) ? 0.0 : non300ProbabilityFromSigma(sigmaBaselineMs.Value);
+
+            double effective = Math.Max(0.0, p - p0); // remove estimator bias
+            return hitCount * effective;
+        }
 
         private int totalHits => countGreat + countOk + countMeh + countMiss;
         private int totalSuccessfulHits => countGreat + countOk + countMeh;
