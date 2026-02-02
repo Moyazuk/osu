@@ -8,6 +8,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Skills;
@@ -61,6 +62,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimDifficultyValue = aim.DifficultyValue();
             double aimNoSlidersDifficultyValue = aimWithoutSliders.DifficultyValue();
             double speedDifficultyValue = speed.DifficultyValue();
+            double accDifficultyValue = acc.DifficultyValue();
             double readingDifficultyValue = reading.DifficultyValue();
 
             double aimDifficultStrainCount = aim.CountTopWeightedStrains(aimDifficultyValue);
@@ -91,14 +93,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double sliderFactor = aimDifficultyValue > 0
                 ? OsuRatingCalculator.CalculateDifficultyRating(aimNoSlidersDifficultyValue) / OsuRatingCalculator.CalculateDifficultyRating(aimDifficultyValue)
                 : 1;
-            double drainRate = beatmap.Difficulty.DrainRate;
 
-            double aimDifficultyValue = aim.DifficultyValue();
-            double aimNoSlidersDifficultyValue = aimWithoutSliders.DifficultyValue();
-            double speedDifficultyValue = speed.DifficultyValue();
-            double accDifficultyValue = acc.DifficultyValue();
 
-            Polynomial accPenaltyCurve = ((OsuTimeSkill)skills[2]).GetMissPenaltyCurve();
+
+            Polynomial accPenaltyCurve = ((ProbabilitySkill)skills[2]).GetMissPenaltyCurve();
 
             var osuRatingCalculator = new OsuRatingCalculator(mods, totalHits, overallDifficulty);
 
@@ -149,7 +147,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 SpeedTopWeightedSliderFactor = speedTopWeightedSliderFactor,
                 AccDifficulty = accRating,
                 AccPenaltyCurve = accPenaltyCurve,
-                DrainRate = drainRate,
                 MaxCombo = beatmap.GetMaxCombo(),
                 HitCircleCount = hitCircleCount,
                 SliderCount = sliderCount,
@@ -196,9 +193,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             {
                 new Aim(mods, true),
                 new Aim(mods, false),
+                new Accuracy(mods),
                 new Speed(mods),
                 new Reading(beatmap, mods, clockRate),
-                new Accuracy(mods),
             };
 
             if (mods.Any(h => h is OsuModFlashlight))

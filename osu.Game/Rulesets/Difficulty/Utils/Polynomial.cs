@@ -1,4 +1,4 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -12,9 +12,17 @@ namespace osu.Game.Rulesets.Difficulty.Utils
     /// </summary>
     public struct Polynomial
     {
+        /// <summary>
+        /// The proportions of skill that this polynomial will fit a curve to the miss counts of.
+        /// If you want to change these, you need to recompute the <see cref="matrix"/> as it is precomputed to fit these specific values.
+        /// </summary>
+        public static readonly double[] SKILL_PROPORTIONS = [1, 0.95, 0.9, 0.8, 0.6, 0.3, 0];
+
+        // Stores the coefficients [a, b, c, d] of our polynomial ax^4 + bx^3 + cx^2 + dx
         private double[]? coefficients;
 
-        // The matrix that minimizes the square error at X values [0.0, 0.30, 0.60, 0.80, 0.90, 0.95, 1.0].
+        // Pre-calculated matrix used for curve fitting.
+        // It's derived using least-squares regression to find the best-fit polynomial through our data points.
         private static readonly double[][] matrix =
         {
             new[] { 0.0, -25.8899, -32.6909, -11.9147, 48.8588, -26.8943, 0.0 },
@@ -23,14 +31,18 @@ namespace osu.Game.Rulesets.Difficulty.Utils
         };
 
         /// <summary>
-        /// Computes the coefficients of a quartic polynomial, starting at 0 and ending at the highest miss count in the array.
+        /// Creates a polynomial curve that maps miss counts to miss penalties.
+        /// Used to smoothly interpolate between miss counts, with 0 misses fixed to 0% penalty, and all misses fixed to 100% penalty.
         /// </summary>
-        /// <param name="missCounts">A list of miss counts, with X values [1, 0.95, 0.9, 0.8, 0.6, 0.3, 0] corresponding to their skill levels.</param>
-        public void Fit(double[] missCounts)
+        /// <param name="missCounts">
+        /// A dictionary of miss counts, with keys representing skill proportions and values representing the miss count a player would achieve at that skill proportion.
+        /// See comment on <see cref="SKILL_PROPORTIONS"/> if you want to use custom skill proportions.
+        /// </param>
+        public void Fit(Dictionary<double, double> missCounts)
         {
-            double endPoint = missCounts.Max();
+            double endPoint = missCounts.Values.Max();
 
-            double[] penalties = { 1, 0.95, 0.9, 0.8, 0.6, 0.3, 0 };
+            double[] sortedSkillProportions = missCounts.Keys.OrderByDescending(k => k).ToArray();
 
             coefficients = new double[4];
 
@@ -41,13 +53,21 @@ namespace osu.Game.Rulesets.Difficulty.Utils
             {
                 for (int column = 0; column < matrix[row].Length; column++)
                 {
-                    coefficients[row] += matrix[row][column] * (missCounts[column] - endPoint * (1 - penalties[column]));
+                    double skillProportion = sortedSkillProportions[column];
+                    double missCountAtSkill = missCounts[skillProportion];
+
+                    coefficients[row] += matrix[row][column] * (missCountAtSkill - endPoint * (1 - skillProportion));
                 }
 
                 coefficients[3] -= coefficients[row];
             }
         }
 
+        /// <summary>
+        /// Calculates what percentage penalty the player should receive.
+        /// </summary>
+        /// <param name="missCount">The number of misses the player got</param>
+        /// <returns>A value between 0 and 1 representing the penalty percentage (0 = no penalty, 1 = full penalty)</returns>
         public double GetPenaltyAt(double missCount)
         {
             if (coefficients is null)
