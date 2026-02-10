@@ -218,7 +218,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 // Apply high circle size bonus
                 sliderBonus *= osuCurrObj.SmallCircleBonus;
 
-                return sliderBonus * 0;
+                return sliderBonus * 0.25;
             }
 
             return 0;
