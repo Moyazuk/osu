@@ -121,6 +121,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         /// </summary>
         public double? Angle { get; private set; }
 
+        public double? AngleSigned { get; private set; }
+
+        public double? VectorAngle { get; private set; }
+
         /// <summary>
         /// Retrieves the full hit window for a Great <see cref="HitResult"/>.
         /// </summary>
@@ -276,9 +280,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
 
                 Vector2 lastLastCursorPosition = getEndCursorPosition(lastLastDifficultyObject);
 
-                double angle = calculateAngle(BaseObject.StackedPosition, lastCursorPosition, lastLastCursorPosition);
-                double sliderAngle = calculateSliderAngle(lastDifficultyObject!, lastLastCursorPosition);
+                Vector2 v1 = lastLastCursorPosition - LastObject.StackedPosition;
+                Vector2 v2 = BaseObject.StackedPosition - lastCursorPosition;
 
+                VectorAngle = Math.Atan2(Math.Abs(v2.Y), Math.Abs(v2.X));
+
+                float dot = Vector2.Dot(v1, v2);
+                float det = v1.X * v2.Y - v1.Y * v2.X;
+
+                double angle = Math.Abs(calculateAngle(BaseObject.StackedPosition, lastCursorPosition, lastLastCursorPosition));
+                double sliderAngle = Math.Abs(calculateSliderAngle(lastDifficultyObject!, lastLastCursorPosition));
+
+                AngleSigned = Math.Atan2(det, dot);
                 Angle = Math.Min(angle, sliderAngle);
             }
         }

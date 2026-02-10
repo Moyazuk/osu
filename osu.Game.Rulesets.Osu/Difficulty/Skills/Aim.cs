@@ -11,7 +11,6 @@ using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
-using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Osu.Objects;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
@@ -29,15 +28,22 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             IncludeSliders = includeSliders;
         }
 
-        private double currentAimStrain;
-        private double currentSpeedStrain;
+        private double currentStrain;
 
-        private double skillMultiplierAim => 130.0;
-        private double skillMultiplierSpeed => 6.5;
-        private double skillMultiplierTotal => 0.98;
-        private double meanExponent => 1.2;
+        private double currentAgilityStrain;
+
+        private double skillMultiplier => 525;
+        private double strainDecayBase => 0.15;
+
+        private double agilityStrainDecayBase => 0.15;
+
+        private bool? previousWasFlow = null;
 
         private readonly List<double> sliderStrains = new List<double>();
+
+        private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
+
+        private double agilityStrainDecay(double ms) => Math.Pow(agilityStrainDecayBase, ms / 1000);
 
         protected override double HitProbability(double skill, double difficulty)
         {
@@ -47,35 +53,50 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return DifficultyCalculationUtils.Erf(skill / (Math.Sqrt(2) * difficulty));
         }
 
-        private double strainDecayAim(double ms) => Math.Pow(0.15, ms / 1000);
-        private double strainDecaySpeed(double ms) => Math.Pow(0.3, ms / 1000);
-
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            double decayAim = strainDecayAim(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
-            double decaySpeed = strainDecaySpeed(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
+            double decay = strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
+            double auxiliaryStrainValue = 0;
+            double transitionBonus = 0;
+            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * (1 - decay) * skillMultiplier;
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * (1 - decay) * skillMultiplier;
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * (1 - decay) * skillMultiplier;
 
-            double aimDifficulty = AimEvaluator.EvaluateDifficultyOf(current, IncludeSliders);
-            double speedDifficulty = SpeedAimEvaluator.EvaluateDifficultyOf(current);
+            double snapTransitionBonus = previousWasFlow.HasValue && previousWasFlow.Value ? 1.2 : 1.0;
+            double flowTransitionBonus = previousWasFlow.HasValue && !previousWasFlow.Value ? 1.05 : 1.0;
 
-            if (Mods.Any(m => m is OsuModTouchDevice))
+            bool isFlow = (flowDifficulty) < (snapDifficulty + currentAgilityStrain + agilityDifficulty);
+
+            currentStrain *= decay;
+            currentAgilityStrain *= decay;
+
+            if (isFlow)
+
+                //for flow aim, we want the strain contribution to be solely from the FlowStrainEvaluator, and we only want to update the value of
+                // currentFlowStrain when the current note is flow-aimed
             {
-                aimDifficulty = Math.Pow(aimDifficulty, 0.8);
-                speedDifficulty = Math.Pow(speedDifficulty, 0.95);
+                currentStrain += flowDifficulty;
+                auxiliaryStrainValue = 0;
+                transitionBonus = flowTransitionBonus;
+
+            }
+                //for snap aim, the notes difficulty itself contributes to strain and we update the value of agilityStrain only when the note is snapped
+            else
+            {
+                currentStrain += snapDifficulty;
+                currentAgilityStrain += agilityDifficulty;
+                auxiliaryStrainValue = currentAgilityStrain;
+                transitionBonus = snapTransitionBonus;
             }
 
-            currentAimStrain *= decayAim;
-            currentAimStrain += aimDifficulty * (1 - decayAim) * skillMultiplierAim;
-
-            currentSpeedStrain *= decaySpeed;
-            currentSpeedStrain += speedDifficulty * (1 - decaySpeed) * skillMultiplierSpeed;
-
-            double totalStrain = DifficultyCalculationUtils.Norm(meanExponent, currentAimStrain, currentSpeedStrain);
+            previousWasFlow = isFlow;
 
             if (current.BaseObject is Slider)
-                sliderStrains.Add(totalStrain);
+            {
+                sliderStrains.Add(currentStrain);
+            }
 
-            return totalStrain * skillMultiplierTotal;
+            return (currentStrain + auxiliaryStrainValue) * transitionBonus;
         }
 
         public double GetDifficultSliders()
