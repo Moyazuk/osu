@@ -40,12 +40,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public double SpeedDifficulty { get; set; }
 
         /// <summary>
-        /// The difficulty corresponding to the speed skill.
-        /// </summary>
-        [JsonProperty("acc_difficulty")]
-        public double AccDifficulty { get; set; }
-
-        /// <summary>
         /// The number of clickable objects weighted by difficulty.
         /// Related to <see cref="SpeedDifficulty"/>
         /// </summary>
