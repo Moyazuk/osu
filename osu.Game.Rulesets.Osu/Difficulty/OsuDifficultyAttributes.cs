@@ -7,6 +7,7 @@ using JetBrains.Annotations;
 using Newtonsoft.Json;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Objects;
 
@@ -37,6 +38,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         /// </summary>
         [JsonProperty("speed_difficulty")]
         public double SpeedDifficulty { get; set; }
+
+        /// <summary>
+        /// The difficulty corresponding to the speed skill.
+        /// </summary>
+        [JsonProperty("acc_difficulty")]
+        public double AccDifficulty { get; set; }
 
         /// <summary>
         /// The number of clickable objects weighted by difficulty.
@@ -72,6 +79,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         /// </summary>
         [JsonProperty("aim_top_weighted_slider_factor")]
         public double AimTopWeightedSliderFactor { get; set; }
+
+        [JsonProperty("acc_miss_penalty_curve")]
+        public Polynomial AccPenaltyCurve { get; set; }
 
         /// <summary>
         /// Describes how much of <see cref="SpeedDifficultStrainCount"/> is contributed to by hitcircles or sliders
