@@ -199,23 +199,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double aimValue = OsuStrainSkill.DifficultyToPerformance(aimDifficulty);
 
+            double lengthBonus = 0.95 + 0.3 * Math.Min(1.0, totalHits / 2000.0) +
+                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
+            aimValue *= lengthBonus;
+
             if (effectiveMissCount > 0)
             {
                 aimEstimatedSliderBreaks = calculateEstimatedSliderBreaks(attributes.AimTopWeightedSliderFactor, attributes);
 
                 double relevantMissCount = Math.Min(effectiveMissCount + aimEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
 
-                double[] coefficients =
-                [
-                    attributes.AimMissPenaltyCoefficientA,
-                    attributes.AimMissPenaltyCoefficientB,
-                    attributes.AimMissPenaltyCoefficientC,
-                    // We can derive the 4th coefficient from the first third, since at x = 1 our polynomial is equal to the sum of the coefficients,
-                    // and the relevant miss count there is log(totalHits - 1) since our polynomial uses log miss counts.
-                    Math.Log(totalHits + 1) - attributes.AimMissPenaltyCoefficientA - attributes.AimMissPenaltyCoefficientB - attributes.AimMissPenaltyCoefficientC
-                ];
-
-                aimValue *= calculatePolynomialMissPenalty(relevantMissCount, coefficients);
+                aimValue *= calculateStrainCountMissPenalty(relevantMissCount, attributes.AimDifficultStrainCount);
             }
 
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
@@ -276,44 +270,31 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private double computeAccuracyValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            if (score.Mods.Any(h => h is OsuModRelax))
-                return 0.0;
+            double accDifficulty = attributes.AccDifficulty;
 
-            // This percentage only considers HitCircles of any value - in this part of the calculation we focus on hitting the timing hit window.
-            double betterAccuracyPercentage;
-            int amountHitObjectsWithAccuracy = attributes.HitCircleCount;
-            if (!usingClassicSliderAccuracy || usingScoreV2)
-                amountHitObjectsWithAccuracy += attributes.SliderCount;
+            double accValue = OsuStrainSkill.DifficultyToPerformance(accDifficulty);
 
-            if (amountHitObjectsWithAccuracy > 0)
-                betterAccuracyPercentage = ((countGreat - Math.Max(totalHits - amountHitObjectsWithAccuracy, 0)) * 6 + countOk * 2 + countMeh) / (double)(amountHitObjectsWithAccuracy * 6);
-            else
-                betterAccuracyPercentage = 0;
-
-            // It is possible to reach a negative accuracy with this formula. Cap it at zero - zero points.
-            if (betterAccuracyPercentage < 0)
-                betterAccuracyPercentage = 0;
-
-            // Lots of arbitrary values from testing.
-            // Considering to use derivation from perfect accuracy in a probabilistic manner - assume normal distribution.
-            double accuracyValue = Math.Pow(1.52163, overallDifficulty) * Math.Pow(betterAccuracyPercentage, 24) * 2.83;
-
-            // Bonus for many hitcircles - it's harder to keep good accuracy up for longer.
-            accuracyValue *= Math.Min(1.15, Math.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.3));
-
-            // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
-            if (score.Mods.Any(m => m is OsuModBlinds))
-                accuracyValue *= 1.14;
-            else if (score.Mods.Any(m => m is OsuModTraceable))
+            if (effectiveMissCount > 0)
             {
-                // Decrease bonus for AR > 10
-                accuracyValue *= 1 + 0.08 * DifficultyCalculationUtils.ReverseLerp(approachRate, 11.5, 10);
+                aimEstimatedSliderBreaks = calculateEstimatedSliderBreaks(attributes.AimTopWeightedSliderFactor, attributes);
+
+                double relevantMissCount = Math.Min(effectiveMissCount + aimEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
+
+                double[] coefficients =
+                [
+                    attributes.AccMissPenaltyCoefficientA,
+                    attributes.AccMissPenaltyCoefficientB,
+                    attributes.AccMissPenaltyCoefficientC,
+                    // We can derive the 4th coefficient from the first third, since at x = 1 our polynomial is equal to the sum of the coefficients,
+                    // and the relevant miss count there is log(totalHits - 1) since our polynomial uses log miss counts.
+                    Math.Log(totalHits + 1) - attributes.AccMissPenaltyCoefficientA - attributes.AccMissPenaltyCoefficientB - attributes.AccMissPenaltyCoefficientC
+                ];
+
+                accValue *= calculatePolynomialMissPenalty(relevantMissCount, coefficients);
             }
 
-            if (score.Mods.Any(m => m is OsuModFlashlight))
-                accuracyValue *= 1.02;
 
-            return accuracyValue;
+            return accValue;
         }
 
         private double computeFlashlightValue(ScoreInfo score, OsuDifficultyAttributes attributes)

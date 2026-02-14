@@ -55,13 +55,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             var speed = skills.OfType<Speed>().Single();
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
             var reading = skills.OfType<Reading>().Single();
+            var acc = skills.OfType<Accuracy>().Single();
 
             double aimDifficultyValue = aim.DifficultyValue();
             double aimNoSlidersDifficultyValue = aimWithoutSliders.DifficultyValue();
             double speedDifficultyValue = speed.DifficultyValue();
             double readingDifficultyValue = reading.DifficultyValue();
+            double accDifficultyValue = acc.DifficultyValue();
 
-            double[] aimMissPenaltyCoefficients = aim.GetMissPenaltyCoefficients();
+            double[] accMissPenaltyCoefficients = acc.GetMissPenaltyCoefficients();
+            double aimDifficultStrainCount = aim.CountTopWeightedStrains(aimDifficultyValue);
             double speedDifficultStrainCount = speed.CountTopWeightedObjectDifficulties(speedDifficultyValue);
             double readingDifficultNoteCount = reading.CountTopWeightedObjectDifficulties(readingDifficultyValue);
 
@@ -94,6 +97,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimRating = osuRatingCalculator.ComputeAimRating(aimDifficultyValue);
             double speedRating = osuRatingCalculator.ComputeSpeedRating(speedDifficultyValue);
             double readingRating = osuRatingCalculator.ComputeReadingRating(readingDifficultyValue);
+            double accRating = osuRatingCalculator.ComputeSpeedRating(accDifficultyValue);
 
             double flashlightRating = 0.0;
 
@@ -111,8 +115,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double baseReadingPerformance = HarmonicSkill.DifficultyToPerformance(readingRating);
             double baseFlashlightPerformance = Flashlight.DifficultyToPerformance(flashlightRating);
             double baseCognitionPerformance = SumCognitionDifficulty(baseReadingPerformance, baseFlashlightPerformance);
+            double baseAccuracyPerformance = OsuStrainSkill.DifficultyToPerformance(accRating);
 
-            double basePerformance = DifficultyCalculationUtils.Norm(OsuPerformanceCalculator.PERFORMANCE_NORM_EXPONENT, baseAimPerformance, baseSpeedPerformance, baseCognitionPerformance);
+            double basePerformance = DifficultyCalculationUtils.Norm(OsuPerformanceCalculator.PERFORMANCE_NORM_EXPONENT, baseAimPerformance, baseSpeedPerformance, baseCognitionPerformance, baseAccuracyPerformance);
 
             double starRating = calculateStarRating(basePerformance);
 
@@ -126,10 +131,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 SpeedNoteCount = speedNotes,
                 FlashlightDifficulty = flashlightRating,
                 ReadingDifficulty = readingRating,
+                AccDifficulty = accRating,
                 SliderFactor = sliderFactor,
-                AimMissPenaltyCoefficientA = aimMissPenaltyCoefficients.ElementAtOrDefault(0),
-                AimMissPenaltyCoefficientB = aimMissPenaltyCoefficients.ElementAtOrDefault(1),
-                AimMissPenaltyCoefficientC = aimMissPenaltyCoefficients.ElementAtOrDefault(2),
+                AccMissPenaltyCoefficientA = accMissPenaltyCoefficients.ElementAtOrDefault(0),
+                AccMissPenaltyCoefficientB = accMissPenaltyCoefficients.ElementAtOrDefault(1),
+                AccMissPenaltyCoefficientC = accMissPenaltyCoefficients.ElementAtOrDefault(2),
+                AimDifficultStrainCount = aimDifficultStrainCount,
                 SpeedDifficultStrainCount = speedDifficultStrainCount,
                 ReadingDifficultNoteCount = readingDifficultNoteCount,
                 AimTopWeightedSliderFactor = aimTopWeightedSliderFactor,
@@ -178,7 +185,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 new Aim(mods, true),
                 new Aim(mods, false),
                 new Speed(mods),
-                new Reading(beatmap, mods, clockRate)
+                new Reading(beatmap, mods, clockRate),
+                new Accuracy(mods),
             };
 
             if (mods.Any(h => h is OsuModFlashlight))

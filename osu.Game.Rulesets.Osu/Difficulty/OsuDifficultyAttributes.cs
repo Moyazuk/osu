@@ -20,6 +20,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("aim_difficulty")]
         public double AimDifficulty { get; set; }
 
+        [JsonProperty("acc_difficulty")]
+        public double AccDifficulty { get; set; }
+
+        [JsonProperty("aim_difficult_strain_count")]
+        public double AimDifficultStrainCount { get; set; }
+
         /// <summary>
         /// The number of <see cref="Slider"/>s weighted by difficulty.
         /// </summary>
@@ -75,14 +81,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("speed_top_weighted_slider_factor")]
         public double SpeedTopWeightedSliderFactor { get; set; }
 
-        [JsonProperty("aim_penalty_coefficient_a")]
-        public double AimMissPenaltyCoefficientA { get; set; }
+        [JsonProperty("acc_penalty_coefficient_a")]
+        public double AccMissPenaltyCoefficientA { get; set; }
 
-        [JsonProperty("aim_penalty_coefficient_b")]
-        public double AimMissPenaltyCoefficientB { get; set; }
+        [JsonProperty("acc_penalty_coefficient_b")]
+        public double AccMissPenaltyCoefficientB { get; set; }
 
-        [JsonProperty("aim_penalty_coefficient_c")]
-        public double AimMissPenaltyCoefficientC { get; set; }
+        [JsonProperty("acc_penalty_coefficient_c")]
+        public double AccMissPenaltyCoefficientC { get; set; }
 
         [JsonProperty("speed_difficult_strain_count")]
         public double SpeedDifficultStrainCount { get; set; }
