@@ -2,10 +2,11 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Osu.Objects;
 using static osu.Game.Rulesets.Difficulty.Utils.DifficultyCalculationUtils;
-using static osu.Game.Rulesets.Osu.Difficulty.Preprocessing.OsuDifficultyHitObject;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
@@ -19,44 +20,78 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         public static double angleBonusMultiplier = 0.35;
         public static double distanceBonusMultiplier = 0.00000000175;
 
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withCheesability)
+        public static double EvaluateDifficultyOfMovement(DifficultyHitObject current, Movement currentMovement)
         {
-            if (!IsValid(current, 3))
+            if (current.BaseObject is Spinner || current.Index < 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
 
-            const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
-
             var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLastLastObj = (OsuDifficultyHitObject)current.Previous(1);
 
-            double nukeMultiplier = 8;
+            if (osuLastLastObj != null && osuLastLastObj.BaseObject is Spinner)
+                osuLastLastObj = null;
 
-            double currStrainTime = osuCurrObj.AdjustedDeltaTime;
-            double lastStrainTime = osuPrevObj.AdjustedDeltaTime;
+            int indexOfMovement = osuCurrObj.Movements.IndexOf(currentMovement);
 
-            double currVelocity = osuCurrObj.LazyJumpDistance / currStrainTime;
-            double prevVelocity = osuPrevObj.LazyJumpDistance / lastStrainTime;
+            var previousMovement = indexOfMovement > 0
+                ? osuCurrObj.Movements[indexOfMovement - 1]
+                : osuLastObj.Movements.Last();
 
-            double currDistanceMultiplier = Smootherstep(osuCurrObj.LazyJumpDistance / radius, 1, 2);
-            double prevDistanceMultiplier = Smootherstep(osuPrevObj.LazyJumpDistance / radius, 1, 2);
+            var prevPrevMovement = indexOfMovement > 1
+                ? osuCurrObj.Movements[indexOfMovement - 2]
+                : osuLastObj.Movements.Count > 1
+                    ? osuLastObj.Movements[^2]
+                    : osuLastLastObj?.Movements.LastOrDefault();
 
-            double currTime = currStrainTime + lastStrainTime * (1 - prevDistanceMultiplier);
-            double prevTime = lastStrainTime;
+            return calcMovementStrain(current, currentMovement, previousMovement, prevPrevMovement, indexOfMovement > 0);
+        }
 
-            double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
-            double prevAngle = osuPrevObj.Angle!.Value * 180 / Math.PI;
+        private static double calcMovementStrain(DifficultyHitObject current, Movement currentMovement, Movement previousMovement, Movement? prevPrevMovement, bool isNested)
+        {
 
-            double angleBonus = 0.15 * Smootherstep(currentAngle, 40, 120);
-            double baseFactor = 1 - 0.3 * SnapAimEvaluator.AngleDifference(currentAngle, prevAngle);
-            double angleRepetitionNerf = Math.Pow(baseFactor + (1 - baseFactor) * 0.95 * SnapAimEvaluator.AngleVectorRepetition(osuCurrObj), 2);
+            double agilityBonus = 0;
 
-            double velocityChangeBonus = Math.Abs(prevVelocity - currVelocity) * agilityVelocityChangeMultiplier;
+            if (prevPrevMovement != null)
+            {
+                const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
 
-            double baseBpm = baseBPMConstant / (1 + (angleBonus) * currDistanceMultiplier * prevDistanceMultiplier);
+                var osuCurrObj = (OsuDifficultyHitObject)current;
+                var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
 
-            double agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 3) - 1);
+                double currStrainTime = currentMovement.Time;
+                double lastStrainTime = previousMovement.Time;
 
-            return agilityBonus * 0.0235;
+                double currVelocity = currentMovement.Distance / currStrainTime;
+                double prevVelocity = previousMovement.Distance / lastStrainTime;
+
+                double currDistanceMultiplier = Smootherstep(currentMovement.Distance / radius, 1, 2);
+                double prevDistanceMultiplier = Smootherstep(previousMovement.Distance / radius, 1, 2);
+
+                double currTime = currStrainTime + lastStrainTime * (1 - prevDistanceMultiplier);
+                double prevTime = lastStrainTime;
+
+                double currAngle = currentMovement.Angle(previousMovement);
+
+                double angleBonus = 0.35 * Smootherstep(currAngle, 40, 120);
+
+                double velocityChangeBonus = Math.Abs(prevVelocity - currVelocity) * agilityVelocityChangeMultiplier;
+
+                double baseBpm = baseBPMConstant / (1 + (angleBonus) * currDistanceMultiplier * prevDistanceMultiplier);
+
+                agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 3) - 1);
+            }
+
+            if (isNested)
+            {
+                if (!previousMovement.IsNested && current.BaseObject is SliderEndCircle)
+                    agilityBonus *= 8;
+                else
+                    agilityBonus *= 0;
+            }
+
+
+            return agilityBonus * 0.195;
         }
     }
 }

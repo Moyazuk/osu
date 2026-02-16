@@ -10,7 +10,7 @@ using osu.Game.Rulesets.Osu.Objects;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
-    public static class AimEvaluator
+    public static class SnapAimEvaluator
     {
         private const double wide_angle_multiplier = 1.5;
         private const double acute_angle_multiplier = 2.3;
@@ -97,7 +97,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 wideAngleBonus *= 1 - Math.Min(wideAngleBonus, Math.Pow(calcWideAngleBonus(lastAngle), 3));
 
                 // Apply full wide angle bonus for distance more than SINGLE_SPACING_THRESHOLD
-                wideAngleBonus *= angleBonus * Math.Pow(DifficultyCalculationUtils.Smoothstep(currentMovement.Distance, 0, SpeedAimEvaluator.SINGLE_SPACING_THRESHOLD), 3.0);
+                wideAngleBonus *= angleBonus * Math.Pow(DifficultyCalculationUtils.Smoothstep(currentMovement.Distance, 0, diameter * 1.25), 3.0);
 
                 // Apply wiggle bonus for jumps that are [radius, 3*diameter] in distance, with < 110 angle
                 // https://www.desmos.com/calculator/dp0v0nvowc
@@ -144,20 +144,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             if (isNested)
             {
-                aimStrain *= 8.0;
+                aimStrain *= 2.25;
             }
 
-            aimStrain += wiggleBonus * wiggle_multiplier;
+            aimStrain += wiggleBonus * 0;
             aimStrain += velocityChangeBonus * velocity_change_multiplier;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier);
+            aimStrain += wideAngleBonus * 0.22 * highBpmBonus(currentMovement.Time, currentMovement.Distance);
 
             if (!isNested)
             {
                 // Apply high circle size and high bpm bonuses only to the main movements
                 aimStrain *= osuCurrObj.SmallCircleBonus;
-                aimStrain *= highBpmBonus(currentMovement.Time, currentMovement.Distance);
             }
 
             return aimStrain;

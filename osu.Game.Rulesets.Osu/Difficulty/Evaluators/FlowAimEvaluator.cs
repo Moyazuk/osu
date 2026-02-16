@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
@@ -19,7 +20,36 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         public static double velocityChangeMultiplier = 4;
         public static double angularVelocityMultiplier = 0.05;
 
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
+
+        public static double EvaluateDifficultyOfMovement(DifficultyHitObject current, Movement currentMovement)
+        {
+            if (current.BaseObject is Spinner || current.Index < 1 || current.Previous(0).BaseObject is Spinner)
+                return 0;
+
+            var osuCurrObj = (OsuDifficultyHitObject)current;
+            var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLastLastObj = (OsuDifficultyHitObject)current.Previous(1);
+
+            if (osuLastLastObj != null && osuLastLastObj.BaseObject is Spinner)
+                osuLastLastObj = null;
+
+            int indexOfMovement = osuCurrObj.Movements.IndexOf(currentMovement);
+
+            var previousMovement = indexOfMovement > 0
+                ? osuCurrObj.Movements[indexOfMovement - 1]
+                : osuLastObj.Movements.Last();
+
+            var prevPrevMovement = indexOfMovement > 1
+                ? osuCurrObj.Movements[indexOfMovement - 2]
+                : osuLastObj.Movements.Count > 1
+                    ? osuLastObj.Movements[^2]
+                    : osuLastLastObj?.Movements.LastOrDefault();
+
+            return calcMovementStrain(current, currentMovement, previousMovement, prevPrevMovement, indexOfMovement > 0);
+        }
+
+
+        private static double calcMovementStrain(DifficultyHitObject current, Movement currentMovement, Movement previousMovement, Movement? prevPrevMovement, bool isNested)
         {
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
@@ -38,33 +68,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double wiggleBonus = 0;
 
-            double currLazyJumpDistance = AdjustFlowDistance(osuCurrObj);
+            double currDistance = AdjustFlowDistance(current, currentMovement, previousMovement, prevPrevMovement);
 
             // Base snap difficulty is velocity.
-            double difficulty = Math.Pow(currLazyJumpDistance, adjustedDistanceScale) / osuCurrObj.AdjustedDeltaTime;
+            double difficulty = currDistance / osuCurrObj.AdjustedDeltaTime;
 
-            // But if the last object is a slider, then we extend the travel velocity through the slider into the current object.
-            if (osuPrevObj.BaseObject is Slider && withSliderTravelDistance)
-            {
-                double travelVelocity = osuPrevObj.TravelDistance / osuPrevObj.TravelTime; // calculate the slider velocity from slider head to slider end.
-                double movementVelocity = osuCurrObj.MinimumJumpDistance / osuCurrObj.MinimumJumpTime; // calculate the movement velocity from slider end to current object
+            difficulty *= 1 + CalculateJerk(current) * 0.3;
 
-                difficulty = Math.Max(difficulty, movementVelocity + travelVelocity); // take the larger total combined velocity.
-            }
-
-            difficulty += CalculateJerk(current) * 0.15;
-
-            difficulty *= 1 + CalculateAngularVelocity(current) * 25;
-
-            if (osuPrevObj.BaseObject is Slider)
-            {
-                // Reward sliders based on velocity.
-                sliderBonus = osuPrevObj.TravelDistance / osuPrevObj.TravelTime;
-            }
+            difficulty += CalculateAngularVelocity(current, currentMovement, previousMovement, prevPrevMovement) * 15;
 
             wiggleBonus *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 1);
-
-            difficulty += wiggleBonus * 0;
 
             // Flow aim is harder on High BPM
             const double base_speedflow_multiplier = 0.175; // Base multiplier for speedflow bonus
@@ -87,11 +100,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             difficulty += 0;
 
-            // Add in additional slider velocity bonus.
-            if (withSliderTravelDistance)
-                difficulty += sliderBonus * 0.1;
+            if (isNested)
+            {
+                if (!previousMovement.IsNested && current.BaseObject is SliderEndCircle)
+                    difficulty *= 8;
+                else
+                    difficulty *= 0.0025;
+            }
 
-            return difficulty * 1.125 * osuCurrObj.SmallCircleBonus;
+            if (!isNested)
+            {
+                // Apply high circle size and high bpm bonuses only to the main movements
+                difficulty *= osuCurrObj.SmallCircleBonus;
+            }
+
+            return difficulty * 1.55;
         }
 
         /// <summary>
@@ -100,43 +123,39 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         /// <param name="current"></param>
         /// <returns></returns>
 
-        public static double AdjustFlowDistance(DifficultyHitObject current)
+        public static double AdjustFlowDistance(DifficultyHitObject current, Movement currentMovement, Movement previousMovement, Movement? prevPrevMovement)
         {
             var osuCurr = (OsuDifficultyHitObject)current;
             var osuPrev = (OsuDifficultyHitObject)current.Previous(0);
 
-            // If angle is missing, it's just distance
-            if (!osuCurr.Angle.HasValue)
-                return osuCurr.LazyJumpDistance;
-
             const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
 
-            double angle = osuCurr.Angle.Value;
-            double distanceTravelled = osuCurr.LazyJumpDistance;
+            double currAngle = currentMovement.Angle(previousMovement);
+            double distanceTravelled = currentMovement.Distance;
 
             double maxBonusAngle = double.DegreesToRadians(170);
 
-            if (angle >= maxBonusAngle)
+            if (currAngle >= maxBonusAngle)
                 return distanceTravelled;
 
             //extra distance is a function of previous velocity, your arc will be less tight if you're coming in hot
-            double previousVelocity = osuPrev.LazyJumpDistance / osuPrev.AdjustedDeltaTime;
+            double previousVelocity = previousMovement.Distance / previousMovement.Time;
 
             //the sharper the angle, the more inefficient the real path will be
-            double angleScale = 1.0 - DifficultyCalculationUtils.Smootherstep(angle, 0, maxBonusAngle);
+            double angleScale = 1.0 - DifficultyCalculationUtils.Smootherstep(currAngle, 0, maxBonusAngle);
 
             //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
-            angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius, radius * 2);
+            angleScale *= DifficultyCalculationUtils.Smootherstep(currentMovement.Distance, radius, radius * 2);
 
             angleScale *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 0.05);
 
 
-            double velocityBonus = 1 + Math.Pow(previousVelocity, 1) * angleScale * 0.45;
+            double velocityBonus = 1 + Math.Pow(previousVelocity, 1) * angleScale * 0.65;
 
             return Math.Pow(distanceTravelled, velocityBonus);
         }
 
-        private static double SignedAngleDiff(double a, double b)
+        private static double signedAngleDiff(double a, double b)
         {
             double d = a - b;
 
@@ -148,21 +167,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             return d;
         }
 
-        public static double CalculateAngularVelocity(DifficultyHitObject current)
+        public static double CalculateAngularVelocity(DifficultyHitObject current, Movement currentMovement, Movement previousMovement, Movement? prevPrevMovement)
         {
+
             var curr = (OsuDifficultyHitObject)current;
-            var prev = (OsuDifficultyHitObject)current.Previous(0);
 
-            if (prev == null)
+            if (prevPrevMovement == null)
                 return 0;
 
-            if (!curr.AngleSigned.HasValue || !prev.AngleSigned.HasValue)
-                return 0;
+            double currAngleSigned = currentMovement.Angle(previousMovement, true);
+            double lastAngleSigned = previousMovement.Angle(prevPrevMovement, true);
+
+
 
             double dTheta =
-                Math.Abs(SignedAngleDiff(
-                    curr.AngleSigned.Value,
-                    prev.AngleSigned.Value
+                Math.Abs(signedAngleDiff(
+                    currAngleSigned,
+                    lastAngleSigned
                 ));
 
             return (dTheta / curr.DeltaTime);

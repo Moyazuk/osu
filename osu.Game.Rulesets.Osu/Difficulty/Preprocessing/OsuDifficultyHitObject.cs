@@ -8,7 +8,6 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Osu.Objects;
-using osu.Game.Rulesets.Osu.UI;
 using osu.Game.Rulesets.Scoring;
 using osuTK;
 
@@ -92,7 +91,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
             AdjustedDeltaTime = Math.Max(DeltaTime, MIN_DELTA_TIME);
             LastObjectEndDeltaTime = lastDifficultyObject != null ? Math.Max(StartTime - lastDifficultyObject.EndTime, MIN_DELTA_TIME) : AdjustedDeltaTime;
 
-            SmallCircleBonus = Math.Max(1.0, 1.0 + (30 - BaseObject.Radius) / 40);
+            SmallCircleBonus = 1;
 
             Preempt = BaseObject.TimePreempt / clockRate;
 
@@ -407,6 +406,26 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                 double sliderLength = slider.Path.Distance * scalingFactor;
                 lastDifficultyObject.PathLengthToMovementLengthRatio = Math.Pow(Math.Clamp(movementDistance / sliderLength, 0, 1), sliderLength * 0.001);
             }
+        }
+
+        public static bool IsValid(DifficultyHitObject current, int notesBackward, int notesForward = 0)
+        {
+            if (current.Index < notesBackward || current.IndexFromEnd < notesForward || current.BaseObject is Spinner)
+                return false;
+
+            for (int i = 0; i < notesBackward; i++)
+            {
+                if (current.Previous(i).BaseObject is Spinner)
+                    return false;
+            }
+
+            for (int i = 0; i < notesForward; i++)
+            {
+                if (current.Next(i).BaseObject is Spinner)
+                    return false;
+            }
+
+            return true;
         }
     }
 }
