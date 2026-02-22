@@ -2,7 +2,6 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
@@ -31,34 +30,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (current.BaseObject is Spinner || current.Index < 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
 
-            var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
-            var osuLastLastObj = (OsuDifficultyHitObject)current.Previous(1);
-
-            if (osuLastLastObj != null && osuLastLastObj.BaseObject is Spinner)
-                osuLastLastObj = null;
-
-            int indexOfMovement = osuCurrObj.Movements.IndexOf(currentMovement);
-
-            var previousMovement = indexOfMovement > 0
-                ? osuCurrObj.Movements[indexOfMovement - 1]
-                : osuLastObj.Movements.Last();
-
-            var prevPrevMovement = indexOfMovement > 1
-                ? osuCurrObj.Movements[indexOfMovement - 2]
-                : osuLastObj.Movements.Count > 1
-                    ? osuLastObj.Movements[^2]
-                    : osuLastLastObj?.Movements.LastOrDefault();
-
-            return calcMovementStrain(current, currentMovement, previousMovement, prevPrevMovement, indexOfMovement > 0);
-        }
-
-        private static double calcMovementStrain(DifficultyHitObject current, Movement currentMovement, Movement previousMovement, Movement? prevPrevMovement, bool isNested)
-        {
             const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
             const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
+
+            var previousMovement = currentMovement.PreviousMovement!;
+            var prevPrevMovement = previousMovement.PreviousMovement;
 
             double currVelocity = currentMovement.Distance / (currentMovement.IsNested ? Math.Pow(currentMovement.Time, 1) : currentMovement.Time);
             double prevVelocity = previousMovement.Distance / (previousMovement.IsNested ? Math.Pow(previousMovement.Time, 1) : previousMovement.Time);
@@ -142,7 +120,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 velocityChangeBonus *= Math.Pow(Math.Min(currentMovement.Time, previousMovement.Time) / Math.Max(currentMovement.Time, previousMovement.Time), 2);
             }
 
-            if (isNested)
+            if (currentMovement.IsNested)
             {
                 aimStrain *= 2.25;
             }
@@ -153,7 +131,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
             aimStrain += wideAngleBonus * 0.22 * highBpmBonus(currentMovement.Time, currentMovement.Distance);
 
-            if (!isNested)
+            if (!currentMovement.IsNested)
             {
                 // Apply high circle size and high bpm bonuses only to the main movements
                 aimStrain *= osuCurrObj.SmallCircleBonus;

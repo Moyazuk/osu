@@ -2,7 +2,6 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
@@ -20,42 +19,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         public static double velocityChangeMultiplier = 4;
         public static double angularVelocityMultiplier = 0.05;
 
-
         public static double EvaluateDifficultyOfMovement(DifficultyHitObject current, Movement currentMovement)
-        {
-            if (current.BaseObject is Spinner || current.Index < 1 || current.Previous(0).BaseObject is Spinner)
-                return 0;
-
-            var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
-            var osuLastLastObj = (OsuDifficultyHitObject)current.Previous(1);
-
-            if (osuLastLastObj != null && osuLastLastObj.BaseObject is Spinner)
-                osuLastLastObj = null;
-
-            int indexOfMovement = osuCurrObj.Movements.IndexOf(currentMovement);
-
-            var previousMovement = indexOfMovement > 0
-                ? osuCurrObj.Movements[indexOfMovement - 1]
-                : osuLastObj.Movements.Last();
-
-            var prevPrevMovement = indexOfMovement > 1
-                ? osuCurrObj.Movements[indexOfMovement - 2]
-                : osuLastObj.Movements.Count > 1
-                    ? osuLastObj.Movements[^2]
-                    : osuLastLastObj?.Movements.LastOrDefault();
-
-            return calcMovementStrain(current, currentMovement, previousMovement, prevPrevMovement, indexOfMovement > 0);
-        }
-
-
-        private static double calcMovementStrain(DifficultyHitObject current, Movement currentMovement, Movement previousMovement, Movement? prevPrevMovement, bool isNested)
         {
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
+
+            var previousMovement = currentMovement.PreviousMovement!;
+            var prevPrevMovement = previousMovement.PreviousMovement;
 
             double currVelocity = osuCurrObj.LazyJumpDistance / osuCurrObj.AdjustedDeltaTime;
             double prevVelocity = osuPrevObj.LazyJumpDistance / osuPrevObj.AdjustedDeltaTime;
@@ -100,7 +73,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             difficulty += 0;
 
-            if (isNested)
+            if (currentMovement.IsNested)
             {
                 if (!previousMovement.IsNested && current.BaseObject is SliderEndCircle)
                     difficulty *= 8;
@@ -108,7 +81,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                     difficulty *= 0.0025;
             }
 
-            if (!isNested)
+            if (!currentMovement.IsNested)
             {
                 // Apply high circle size and high bpm bonuses only to the main movements
                 difficulty *= osuCurrObj.SmallCircleBonus;

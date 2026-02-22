@@ -4,6 +4,7 @@
 using System;
 using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
 using static osu.Game.Rulesets.Difficulty.Utils.DifficultyCalculationUtils;
@@ -25,32 +26,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (current.BaseObject is Spinner || current.Index < 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
 
-            var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
-            var osuLastLastObj = (OsuDifficultyHitObject)current.Previous(1);
-
-            if (osuLastLastObj != null && osuLastLastObj.BaseObject is Spinner)
-                osuLastLastObj = null;
-
-            int indexOfMovement = osuCurrObj.Movements.IndexOf(currentMovement);
-
-            var previousMovement = indexOfMovement > 0
-                ? osuCurrObj.Movements[indexOfMovement - 1]
-                : osuLastObj.Movements.Last();
-
-            var prevPrevMovement = indexOfMovement > 1
-                ? osuCurrObj.Movements[indexOfMovement - 2]
-                : osuLastObj.Movements.Count > 1
-                    ? osuLastObj.Movements[^2]
-                    : osuLastLastObj?.Movements.LastOrDefault();
-
-            return calcMovementStrain(current, currentMovement, previousMovement, prevPrevMovement, indexOfMovement > 0);
-        }
-
-        private static double calcMovementStrain(DifficultyHitObject current, Movement currentMovement, Movement previousMovement, Movement? prevPrevMovement, bool isNested)
-        {
-
             double agilityBonus = 0;
+
+            var previousMovement = currentMovement.PreviousMovement!;
+            var prevPrevMovement = previousMovement.PreviousMovement;
 
             if (prevPrevMovement != null)
             {
@@ -73,16 +52,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 double currAngle = currentMovement.Angle(previousMovement);
 
-                double angleBonus = 0.35 * Smootherstep(currAngle, 40, 120);
+
+
+                double angleBonus = 0.25 * Smootherstep(double.RadiansToDegrees(currAngle), 40, 120);
 
                 double velocityChangeBonus = Math.Abs(prevVelocity - currVelocity) * agilityVelocityChangeMultiplier;
 
-                double baseBpm = baseBPMConstant / (1 + (angleBonus) * currDistanceMultiplier * prevDistanceMultiplier);
+                double baseBpm = baseBPMConstant / (1 + angleBonus * currDistanceMultiplier * prevDistanceMultiplier);
 
                 agilityBonus = Math.Max(0, Math.Pow(MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 3) - 1);
             }
 
-            if (isNested)
+            if (currentMovement.IsNested)
             {
                 if (!previousMovement.IsNested && current.BaseObject is SliderEndCircle)
                     agilityBonus *= 8;
