@@ -36,15 +36,22 @@ namespace osu.Game.Rulesets.Difficulty.Skills
         /// <summary>
         /// Returns the strain value at <see cref="DifficultyHitObject"/>. This value is calculated with or without respect to previous objects.
         /// </summary>
-        protected abstract double StrainValueAt(DifficultyHitObject current);
+        protected abstract IEnumerable<ObjectStrain> StrainValuesAt(DifficultyHitObject current);
 
-        protected override double ProcessInternal(DifficultyHitObject current)
+        private readonly List<ObjectStrain[]> strainBreakdowns = new List<ObjectStrain[]>();
+
+        protected override double[] ProcessInternal(DifficultyHitObject current)
         {
-            times.Add(current.Index == 0
-                ? retry_cooldown_time + Math.Min(current.DeltaTime, max_delta_time)
-                : times.Last() + Math.Min(current.DeltaTime, max_delta_time));
+            var strains = StrainValuesAt(current).ToArray();
 
-            return StrainValueAt(current);
+            double time = current.Index == 0
+                ? retry_cooldown_time + Math.Min(current.DeltaTime, max_delta_time)
+                : times.Last() + Math.Min(current.DeltaTime, max_delta_time);
+
+            foreach (var _ in strains)
+                times.Add(time);
+
+            return strains.Select(x => x.Value).ToArray();
         }
 
         protected abstract double HitProbability(double skill, double difficulty);

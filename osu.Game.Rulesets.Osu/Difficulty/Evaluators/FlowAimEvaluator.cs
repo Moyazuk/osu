@@ -51,9 +51,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Base snap difficulty is velocity.
             double difficulty = currDistance / osuCurrObj.AdjustedDeltaTime;
 
-            difficulty *= 1 + CalculateJerk(current) * 0.25;
+            difficulty *= 1 + CalculateJerk(current) * 1.5;
 
-            difficulty += CalculateAngularVelocity(current, currentMovement, previousMovement, prevPrevMovement) * 45;
+            difficulty += CalculateAngularVelocity(current, currentMovement, previousMovement, prevPrevMovement) * 15;
 
             wiggleBonus *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 1);
 
@@ -90,7 +90,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 difficulty *= osuCurrObj.SmallCircleBonus;
             }
 
-            return difficulty * 1.55;
+            return difficulty * 0.85;
         }
 
         /// <summary>
@@ -126,7 +126,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             angleScale *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 0.05);
 
 
-            double velocityBonus = 1 + Math.Pow(previousVelocity, 1) * angleScale * 0.25;
+            double velocityBonus = 1.1 + Math.Pow(previousVelocity, 2) * angleScale * 0.25;
 
             return Math.Pow(distanceTravelled, velocityBonus);
         }
