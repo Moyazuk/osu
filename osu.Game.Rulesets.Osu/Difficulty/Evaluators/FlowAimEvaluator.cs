@@ -43,12 +43,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double currDistance = AdjustFlowDistance(current, currentMovement, previousMovement, prevPrevMovement);
 
+            if (currentMovement.IsNested)
+            {
+                currDistance = Math.Sqrt(currDistance);
+            }
+
             // Base snap difficulty is velocity.
             double difficulty = currDistance / osuCurrObj.AdjustedDeltaTime;
 
-            difficulty *= 1 + CalculateJerk(current) * 0.5;
+            difficulty *= 1 + CalculateJerk(current) * 0.25;
 
-            difficulty += CalculateAngularVelocity(current, currentMovement, previousMovement, prevPrevMovement) * 15;
+            difficulty += CalculateAngularVelocity(current, currentMovement, previousMovement, prevPrevMovement) * 45;
 
             wiggleBonus *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 1);
 
@@ -75,10 +80,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             if (currentMovement.IsNested)
             {
-                if (!previousMovement.IsNested && current.BaseObject is SliderEndCircle)
-                    difficulty *= 8;
-                else
-                    difficulty *= 0.0025;
+                // Apply high circle size and high bpm bonuses only to the main movements
+                difficulty *= 3;
             }
 
             if (!currentMovement.IsNested)

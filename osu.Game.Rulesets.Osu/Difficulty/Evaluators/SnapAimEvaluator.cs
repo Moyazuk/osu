@@ -122,7 +122,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             if (currentMovement.IsNested)
             {
-                aimStrain *= 2.25;
+                aimStrain *= 2.5;
             }
 
             aimStrain += wiggleBonus * 0;
