@@ -60,6 +60,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 if (!(currentObj.BaseObject is Spinner))
                 {
+                    var currentObjectFirstMovement = currentObj.Movements[0];
+                    var osuCurrentFirstMovement = osuCurrent.Movements[0];
+
                     double jumpDistance = (osuHitObject.StackedPosition - currentHitObject.StackedEndPosition).Length;
 
                     // We want to nerf objects that can be easily seen within the Flashlight circle radius.
@@ -67,17 +70,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                         smallDistNerf = Math.Min(1.0, jumpDistance / 75.0);
 
                     // We also want to nerf stacks so that only the first object of the stack is accounted for.
-                    double stackNerf = Math.Min(1.0, (currentObj.Movements[0].Distance / scalingFactor) / 25.0);
+                    double stackNerf = Math.Min(1.0, (currentObjectFirstMovement.Distance / scalingFactor) / 25.0);
 
                     // Bonus based on how visible the object is.
                     double opacityBonus = 1.0 + max_opacity_bonus * (1.0 - osuCurrent.OpacityAt(currentHitObject.StartTime, mods.OfType<OsuModHidden>().Any(m => !m.OnlyFadeApproachCircles.Value)));
 
                     result += stackNerf * opacityBonus * scalingFactor * jumpDistance / cumulativeStrainTime;
 
-                    if (currentObj.PreviousMovement != null && osuCurrent.PreviousMovement != null)
+                    if (currentObjectFirstMovement.PreviousMovement != null && osuCurrentFirstMovement.PreviousMovement != null)
                     {
-                        double currentMovementAngle = currentObj.Movements[0].Angle(currentObj.PreviousMovement);
-                        double osuCurrentMovementAngle = osuCurrent.Movements[0].Angle(osuCurrent.PreviousMovement);
+                        double currentMovementAngle = currentObjectFirstMovement.Angle(currentObjectFirstMovement.PreviousMovement);
+                        double osuCurrentMovementAngle = osuCurrentFirstMovement.Angle(osuCurrentFirstMovement.PreviousMovement);
 
                         // Objects further back in time should count less for the nerf.
                         if (Math.Abs(currentMovementAngle - osuCurrentMovementAngle) < 0.02)

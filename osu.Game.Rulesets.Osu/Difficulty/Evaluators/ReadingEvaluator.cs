@@ -29,6 +29,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             if (current.BaseObject is Spinner || current.Index == 0)
                 return 0;
 
+            var prevObj = (OsuDifficultyHitObject)current.Previous(0);
             var currObj = (OsuDifficultyHitObject)current;
             var nextObj = (OsuDifficultyHitObject)current.Next(0);
 
@@ -49,11 +50,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double sliderDifficulty = 0;
 
-            if (current.BaseObject is Slider && currObj.Movements.Count > 1)
+            if (current.BaseObject is Slider slider && currObj.Movements.Count > 1)
             {
                 double sliderVelocity = currObj.Movements.Skip(1).Sum(x => x.Distance) / currObj.Movements.Skip(1).Sum(x => x.Time);
                 double ratioMultiplier = Math.Pow(Math.Pow(1.5 - (1.5 * currObj.PathLengthToMovementLengthRatio), 5), Math.Max(1, sliderVelocity));
                 sliderDifficulty = ratioMultiplier;
+
+                double repeatedSliderBonus = 1 + slider.RepeatCount;
+                sliderDifficulty += repeatedSliderBonus;
+            }
+
+            if (prevObj.BaseObject is Slider prevSlider)
+            {
+                double previousRepeatedSliderBonus = 1 + prevSlider.RepeatCount;
+                sliderDifficulty += velocity * previousRepeatedSliderBonus * 0.6;
             }
 
             double difficulty = DifficultyCalculationUtils.Norm(1.5, preemptDifficulty, hiddenDifficulty, noteDensityDifficulty, sliderDifficulty);
@@ -218,6 +228,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             int index = 0;
             double currentTimeGap = 0;
 
+            var currentFirstMovement = current.Movements.First();
+
             while (currentTimeGap < minimum_angle_relevancy_time)
             {
                 var loopObj = (OsuDifficultyHitObject)current.Previous(index);
@@ -225,12 +237,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 if (loopObj.IsNull())
                     break;
 
+                var loopFirstMovement = loopObj.Movements.First();
+
                 // Account less for objects that are close to the time limit.
                 double longIntervalFactor = 1 - DifficultyCalculationUtils.ReverseLerp(loopObj.AdjustedDeltaTime, maximum_angle_relevancy_time, minimum_angle_relevancy_time);
 
-                if (loopObj.Angle.IsNotNull() && current.Angle.IsNotNull())
+                if (loopFirstMovement.PreviousMovement.IsNotNull() && currentFirstMovement.PreviousMovement.IsNotNull())
                 {
-                    double angleDifference = Math.Abs(current.Angle.Value - loopObj.Angle.Value);
+                    double angleDifference = Math.Abs(currentFirstMovement.Angle(currentFirstMovement.PreviousMovement) - loopFirstMovement.Angle(loopFirstMovement.PreviousMovement));
                     double stackFactor = DifficultyCalculationUtils.Smootherstep(loopObj.LazyJumpDistance, 0, OsuDifficultyHitObject.NORMALISED_RADIUS);
 
                     constantAngleCount += Math.Cos(3 * Math.Min(double.DegreesToRadians(30), angleDifference * stackFactor)) * longIntervalFactor;

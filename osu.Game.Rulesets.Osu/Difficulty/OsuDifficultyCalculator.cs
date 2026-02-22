@@ -172,6 +172,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 objects.Add(new OsuDifficultyHitObject(beatmap.HitObjects[i], beatmap.HitObjects[i - 1], clockRate, objects, objects.Count));
             }
 
+            var movements = objects.SelectMany(x => ((OsuDifficultyHitObject)x).Movements).ToList();
+
+            for (int i = 0; i < movements.Count; i++)
+            {
+                if (i > 0)
+                    movements[i].PreviousMovement = movements[i - 1];
+
+                if (i < movements.Count - 1)
+                    movements[i].NextMovement = movements[i + 1];
+            }
+
             return objects;
         }
 

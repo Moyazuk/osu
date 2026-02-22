@@ -16,6 +16,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         public double EndRadius { get; set; }
         public bool IsNested { get; set; }
 
+        public Movement? PreviousMovement { get; set; }
+        public Movement? NextMovement { get; set; }
+
         public double Time => Math.Max(EndTime - StartTime, OsuDifficultyHitObject.MIN_DELTA_TIME);
         public double Distance => (End * (OsuDifficultyHitObject.NORMALISED_RADIUS / (float)Math.Max(StartRadius, EndRadius)) - Start * (OsuDifficultyHitObject.NORMALISED_RADIUS / (float)Math.Max(EndRadius, StartRadius))).Length;
 
