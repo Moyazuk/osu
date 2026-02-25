@@ -16,6 +16,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         private const double slider_multiplier = 1.5;
         private const double velocity_change_multiplier = 0.9;
         private const double wiggle_multiplier = 1.02; // WARNING: Increasing this multiplier beyond 1.02 reduces difficulty as distance increases. Refer to the desmos link above the wiggle bonus calculation
+        public const double SINGLE_SPACING_THRESHOLD = OsuDifficultyHitObject.NORMALISED_DIAMETER * 1.25; // 1.25 circles distance between centers
 
         /// <summary>
         /// Evaluates the difficulty of aiming the current object, based on:
@@ -99,7 +100,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 wideAngleBonus *= 1 - Math.Min(wideAngleBonus, Math.Pow(calcWideAngleBonus(lastAngle), 3));
 
                 // Apply full wide angle bonus for distance more than SINGLE_SPACING_THRESHOLD
-                wideAngleBonus *= angleBonus * Math.Pow(DifficultyCalculationUtils.Smoothstep(currDistance, 0, SpeedAimEvaluator.SINGLE_SPACING_THRESHOLD), 3.0);
+                wideAngleBonus *= angleBonus * Math.Pow(DifficultyCalculationUtils.Smoothstep(currDistance, 0, SINGLE_SPACING_THRESHOLD), 3.0);
 
                 // Apply wiggle bonus for jumps that are [radius, 3*diameter] in distance, with < 110 angle
                 // https://www.desmos.com/calculator/dp0v0nvowc
@@ -158,7 +159,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             aimStrain += velocityChangeBonus * velocity_change_multiplier;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier);
+            aimStrain += wideAngleBonus * wide_angle_multiplier;
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
@@ -167,7 +168,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // Apply high circle size bonus
             aimStrain *= osuCurrObj.SmallCircleBonus;
 
-            aimStrain *= highBpmBonus(osuCurrObj.AdjustedDeltaTime, osuCurrObj.LazyJumpDistance);
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current);
+
+            aimStrain = Math.Max(aimStrain + agilityDifficulty, aimStrain * highBpmBonus(osuCurrObj.AdjustedDeltaTime, osuCurrObj.LazyJumpDistance));
 
             return aimStrain;
         }
