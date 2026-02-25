@@ -1,4 +1,4 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -12,61 +12,80 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 {
     public static class FlowAimEvaluator
     {
-
-        public static double angleScaleMultiplier = 0.4;
-        public static double flowOverallMultiplier = 0.725;
-        public static double velocityChangeMultiplier = 4;
-        public static double angularVelocityMultiplier = 0.05;
+        private const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
+        private const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
 
         public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
         {
+            // The reason why this exist in evaluator instead of FlowAim skill - it's because it's very important to keep flowaim in the same scaling as snapaim on evaluator level
+            const double flow_multiplier = 6.05;
+
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
 
             var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLast0Obj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
 
-            double currVelocity = osuCurrObj.LazyJumpDistance / osuCurrObj.AdjustedDeltaTime;
-            double prevVelocity = osuPrevObj.LazyJumpDistance / osuPrevObj.AdjustedDeltaTime;
+            // Rescale the distance
+            // We use the power on normalized distance so we don't have to rebalance everything when changing the exponent
+            double distance = withSliderTravelDistance ? osuCurrObj.LazyJumpDistance : osuCurrObj.JumpDistance;
+            distance = Math.Pow(distance / diameter, 1.5) * Math.Pow(diameter, 2);
 
-            const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
-            const int diameter = OsuDifficultyHitObject.NORMALISED_DIAMETER;
+            // Calculate the base difficulty by using rescaled distance and time
+            double flowDifficulty = distance / Math.Pow(osuCurrObj.AdjustedDeltaTime, 2);
 
-            double adjustedDistanceScale = 1.0;
-            double sliderBonus = 0;
+            double angleBonus = 0;
 
-            double wiggleBonus = 0;
-
-            double currLazyJumpDistance = AdjustFlowDistance(osuCurrObj);
-
-            double difficulty = currLazyJumpDistance / osuCurrObj.AdjustedDeltaTime;
-
-            // But if the last object is a slider, then we extend the travel velocity through the slider into the current object.
-            if (osuPrevObj.BaseObject is Slider && withSliderTravelDistance)
+            if (osuCurrObj.AngleSigned != null && osuLast0Obj.AngleSigned != null && osuLast1Obj.AngleSigned != null)
             {
-                double travelVelocity = osuPrevObj.TravelDistance / osuPrevObj.TravelTime; // calculate the slider velocity from slider head to slider end.
-                double movementVelocity = osuCurrObj.MinimumJumpDistance / osuCurrObj.MinimumJumpTime; // calculate the movement velocity from slider end to current object
+                double acuteAngleBonus = CalculateFlowAcuteAngleBonus(current);
+                double angleChangeBonus = CalculateFlowAngleChangeBonus(current);
 
-                difficulty = Math.Max(difficulty, movementVelocity + travelVelocity); // take the larger total combined velocity.
+                // If all three notes are overlapping - don't reward angle bonuses as you don't have to do additional movement
+                double overlappedNotesWeight = 1;
+
+                if (current.Index > 2)
+                {
+                    double o1 = getOverlapness(osuCurrObj, osuLast0Obj);
+                    double o2 = getOverlapness(osuCurrObj, osuLast1Obj);
+                    double o3 = getOverlapness(osuLast0Obj, osuLast1Obj);
+
+                    overlappedNotesWeight = 1 - o1 * o2 * o3;
+                }
+
+                angleBonus = Math.Max(acuteAngleBonus, angleChangeBonus) * overlappedNotesWeight;
             }
 
-            difficulty += CalculateJerk(current) * 0.15;
+            // Add all bonuses
+            flowDifficulty += angleBonus;
+            flowDifficulty *= 6.45 * Math.Sqrt(osuCurrObj.SmallCircleBonus);
 
-            difficulty *= 1 + CalculateAngularVelocity(current) * 15;
+            // Add in additional slider velocity bonus
+            // In order for compensate for lack of slider velocity in base difficulty - increase this bonus
+            if (withSliderTravelDistance)
+                flowDifficulty += AimEvaluator.CalculateSliderBonus(osuCurrObj) * 1.8;
 
-            if (osuPrevObj.BaseObject is Slider)
-            {
-                // Reward sliders based on velocity.
-                sliderBonus = osuPrevObj.TravelDistance / osuPrevObj.TravelTime;
-            }
+            return flowDifficulty;
+        }
 
-            wiggleBonus *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 1);
+        private static double getOverlapness(OsuDifficultyHitObject odho1, OsuDifficultyHitObject odho2)
+        {
+            OsuHitObject o1 = (OsuHitObject)odho1.BaseObject, o2 = (OsuHitObject)odho2.BaseObject;
 
-            difficulty += wiggleBonus * 0;
+            double distance = Vector2.Distance(o1.StackedPosition, o2.StackedPosition);
+            double radius = o1.Radius;
 
-            // Flow aim is harder on High BPM
-            const double base_speedflow_multiplier = 0.175; // Base multiplier for speedflow bonus
-            const double bpm_factor = 12; // How steep the bonus is, higher values means more bonus for high BPM
+            return Math.Clamp(1 - Math.Pow(Math.Max(distance - radius, 0) / radius, 2), 0, 1);
+        }
+
+        // Not used for now
+        public static double CalculateSpeedflowBonus(DifficultyHitObject current)
+        {
+            const double base_speedflow_multiplier = 0.00; // Base multiplier for speedflow bonus
+            const double bpm_factor = 18; // How steep the bonus is, higher values means more bonus for high BPM
+
+            var osuCurrObj = (OsuDifficultyHitObject)current;
 
             // Autobalance, it's expected for bonus multiplier to be 1 for the bpm base
             double bpmBase = DifficultyCalculationUtils.BPMToMilliseconds(220, 4);
@@ -74,125 +93,77 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             double multiplier = base_speedflow_multiplier / bpmFactorMultiplierAtBase;
 
             // Start from base of the bonus
-            double speeflowBonus = multiplier * diameter / osuCurrObj.AdjustedDeltaTime;
+            double speedflowBonus = multiplier * diameter / osuCurrObj.AdjustedDeltaTime;
 
-            // Spacing factor, reward up to 1 radius. The reason why we're doing this is because we want to be close live speedflow
-            // If we won't do this - it will be similar to multiplicative speed and distance bonuses, not additive
-            speeflowBonus *= DifficultyCalculationUtils.Smoothstep(osuCurrObj.LazyJumpDistance, -radius, radius);
+            // Spacing factor, reward up to 1 radius. The reason why we want to buff primarily low spacing speedflow.
+            // Explanation about formula: it goes fast from 0 and then slow downs, capping out on 1 radius.
+            // To achieve this we use negative radius as an argument and then cut down the range to reward starting from zero distance.
+            speedflowBonus *= 2 * (DifficultyCalculationUtils.Smoothstep(osuCurrObj.JumpDistance, -radius, radius) - 0.5);
 
             // Bpm factor
-            speeflowBonus *= (osuCurrObj.AdjustedDeltaTime / (osuCurrObj.AdjustedDeltaTime - bpm_factor) - 1);
+            speedflowBonus *= (osuCurrObj.AdjustedDeltaTime / (osuCurrObj.AdjustedDeltaTime - bpm_factor) - 1);
 
-            difficulty += 0;
-
-            // Add in additional slider velocity bonus.
-            if (withSliderTravelDistance)
-                difficulty += sliderBonus * 0.1;
-
-            return difficulty * 8 * osuCurrObj.SmallCircleBonus;
+            return speedflowBonus;
         }
 
-        /// <summary>
-        /// Approximate the amount of unnecessary distance the cursor will travel in an arc attempting to flow between notes
-        /// </summary>
-        /// <param name="current"></param>
-        /// <returns></returns>
-
-        public static double AdjustFlowDistance(DifficultyHitObject current)
+        // This bonus accounts for the fact that flow is circular movement, therefore flowing on sharp angles is harder.
+        public static double CalculateFlowAcuteAngleBonus(DifficultyHitObject current)
         {
-            var osuCurr = (OsuDifficultyHitObject)current;
-            var osuPrev = (OsuDifficultyHitObject)current.Previous(0);
+            const double acute_angle_bonus_multiplier = 1.05;
 
-            // If angle is missing, it's just distance
-            if (!osuCurr.Angle.HasValue)
-                return osuCurr.LazyJumpDistance;
-
-            const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
-
-            double angle = osuCurr.Angle.Value;
-            double distanceTravelled = osuCurr.LazyJumpDistance;
-
-            double maxBonusAngle = double.DegreesToRadians(170);
-
-            if (angle >= maxBonusAngle)
-                return distanceTravelled;
-
-            //extra distance is a function of previous velocity, your arc will be less tight if you're coming in hot
-            double previousVelocity = osuPrev.LazyJumpDistance / osuPrev.AdjustedDeltaTime;
-
-            //the sharper the angle, the more inefficient the real path will be
-            double angleScale = 1.0 - DifficultyCalculationUtils.Smootherstep(angle, 0, maxBonusAngle);
-
-            //nerf cheesable distances where the angle isn't indicative of the path the cursor takes between notes
-            angleScale *= DifficultyCalculationUtils.Smootherstep(osuCurr.LazyJumpDistance, radius, radius * 2);
-
-            angleScale *= 1 - DifficultyCalculationUtils.Smootherstep(GetOverlapness(current), 0, 0.05);
-
-
-            double velocityBonus = 1 + Math.Pow(previousVelocity, 1) * angleScale * 0.15;
-
-            return Math.Pow(distanceTravelled, velocityBonus);
-        }
-
-        private static double SignedAngleDiff(double a, double b)
-        {
-            double d = a - b;
-
-            if (d > Math.PI)
-                d -= 2 * Math.PI;
-            else if (d < -Math.PI)
-                d += 2 * Math.PI;
-
-            return d;
-        }
-
-        public static double CalculateAngularVelocity(DifficultyHitObject current)
-        {
-            var curr = (OsuDifficultyHitObject)current;
-            var prev = (OsuDifficultyHitObject)current.Previous(0);
-
-            if (prev == null)
-                return 0;
-
-            if (!curr.AngleSigned.HasValue || !prev.AngleSigned.HasValue)
-                return 0;
-
-            double dTheta =
-                Math.Abs(SignedAngleDiff(
-                    curr.AngleSigned.Value,
-                    prev.AngleSigned.Value
-                ));
-
-            return (dTheta / curr.DeltaTime);
-        }
-
-        public static double CalculateJerk(DifficultyHitObject current)
-        {
-            var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
-            var osuPrev2Obj = (OsuDifficultyHitObject)current.Previous(1);
-            var osuPrev3Obj = (OsuDifficultyHitObject)current.Previous(2);
-
-            if (osuPrevObj == null || osuPrev2Obj == null || osuPrev3Obj == null)
-                return 0;
-
-            double currDistanceDifference = Math.Abs(osuCurrObj.LazyJumpDistance - osuPrevObj.LazyJumpDistance);
-            double prevDistanceDifference = Math.Abs(osuPrevObj.LazyJumpDistance - osuPrev2Obj.LazyJumpDistance);
-
-            return Math.Sqrt(Math.Max(0, Math.Abs(currDistanceDifference - prevDistanceDifference) - 5) / 5);
-        }
-
-        public static double GetOverlapness(DifficultyHitObject current)
-        {
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
-                return 1;
+                return 0;
 
-            OsuHitObject o1 = (OsuHitObject)current.BaseObject, o2 = (OsuHitObject)current.Previous(0).BaseObject;
+            var osuCurrObj = (OsuDifficultyHitObject)current;
 
-            double distance = Vector2.Distance(o1.StackedPosition, o2.StackedPosition);
-            double radius = o1.Radius;
+            if (osuCurrObj.Angle == null)
+                return 0;
 
-            return Math.Clamp(1 - Math.Pow(Math.Max(distance - radius, 0) / radius, 2), 0, 1);
+            double currAngle = (double)osuCurrObj.Angle;
+
+            // Use d/t^2 velocity as a base
+            double bonusBase = osuCurrObj.JumpDistance * diameter / Math.Pow(osuCurrObj.AdjustedDeltaTime, 2);
+
+            double acuteAngleBonus = bonusBase * AimEvaluator.CalcAcuteAngleBonus(currAngle);
+
+            // If spacing is too low - decrease reward
+            acuteAngleBonus *= DifficultyCalculationUtils.ReverseLerp(osuCurrObj.JumpDistance, radius, diameter);
+
+            return acuteAngleBonus * acute_angle_bonus_multiplier;
+        }
+
+        // This bonus accounts for flow aim being harder when angle is changing.
+        public static double CalculateFlowAngleChangeBonus(DifficultyHitObject current)
+        {
+            const double angle_change_bonus_multiplier = 1.0;
+
+            if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
+                return 0;
+
+            var osuCurrObj = (OsuDifficultyHitObject)current;
+            var osuLast0Obj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLast1Obj = (OsuDifficultyHitObject)current.Previous(1);
+
+            if (osuCurrObj.AngleSigned == null || osuLast0Obj.AngleSigned == null)
+                return 0;
+
+            double currAngle = osuCurrObj.AngleSigned.Value;
+            double lastAngle = osuLast0Obj.AngleSigned.Value;
+
+            // Take min velocity to avoid abuse with very small spacing
+            double currVelocity = osuCurrObj.JumpDistance / osuCurrObj.AdjustedDeltaTime;
+            double prevVelocity = osuLast0Obj.JumpDistance / osuLast0Obj.AdjustedDeltaTime;
+            double minVelocity = Math.Min(currVelocity, prevVelocity);
+
+            // Adjust to d/t^2 to match evaluator scaling
+            double bonusBase = minVelocity * diameter / osuCurrObj.AdjustedDeltaTime;
+
+            double angleChangeBonus = Math.Pow(Math.Sin((currAngle - lastAngle) / 2), 2) * bonusBase;
+
+            // Take the largest of last 3 distances and if it's too small - decrease flow angle change bonus, because it's cheesable
+            angleChangeBonus *= DifficultyCalculationUtils.ReverseLerp(Math.Max(osuCurrObj.JumpDistance, osuLast1Obj.JumpDistance), 0, diameter);
+
+            return angleChangeBonus * angle_change_bonus_multiplier;
         }
     }
 }
