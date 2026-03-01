@@ -34,7 +34,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             distance = Math.Pow(distance / diameter, distance_exponent) * Math.Pow(diameter, 2);
 
             // Calculate the base difficulty by using rescaled distance and time
-            double flowDifficulty = distance / Math.Pow(osuCurrObj.AdjustedDeltaTime, 2);
+            double flowDifficulty = distance / Math.Pow(osuCurrObj.AdjustedDeltaTime, 1.75);
 
             double angleBonus = 0;
 
@@ -60,7 +60,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             // Add all bonuses
             flowDifficulty += angleBonus;
-            flowDifficulty *= flow_multiplier * Math.Sqrt(osuCurrObj.SmallCircleBonus);
+            flowDifficulty *= 0.435 * Math.Sqrt(osuCurrObj.SmallCircleBonus);
 
             // Add in additional slider velocity bonus
             // In order for compensate for lack of slider velocity in base difficulty - increase this bonus
