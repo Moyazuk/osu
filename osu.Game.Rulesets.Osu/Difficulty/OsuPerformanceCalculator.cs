@@ -273,29 +273,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (score.Mods.Any(h => h is OsuModRelax))
                 return 0.0;
 
-            // This percentage only considers HitCircles of any value - in this part of the calculation we focus on hitting the timing hit window.
-            double betterAccuracyPercentage;
-            int amountHitObjectsWithAccuracy = attributes.HitCircleCount;
-            if (!usingClassicSliderAccuracy || usingScoreV2)
-                amountHitObjectsWithAccuracy += attributes.SliderCount;
+            double accuracyValue = attributes.AccuracyDifficulty;
 
-            if (amountHitObjectsWithAccuracy > 0)
-                betterAccuracyPercentage = ((countGreat - Math.Max(totalHits - amountHitObjectsWithAccuracy, 0)) * 6 + countOk * 2 + countMeh) / (double)(amountHitObjectsWithAccuracy * 6);
-            else
-                betterAccuracyPercentage = 0;
-
-            // It is possible to reach a negative accuracy with this formula. Cap it at zero - zero points.
-            if (betterAccuracyPercentage < 0)
-                betterAccuracyPercentage = 0;
-
-            // Lots of arbitrary values from testing.
-            // Considering to use derivation from perfect accuracy in a probabilistic manner - assume normal distribution.
-            double accuracyValue = Math.Pow(1.52163, overallDifficulty) * Math.Pow(betterAccuracyPercentage, 24) * 2.83;
-
-            // Bonus for many hitcircles - it's harder to keep good accuracy up for longer.
-            accuracyValue *= amountHitObjectsWithAccuracy < 1000
-                ? Math.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.3)
-                : Math.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.1);
 
             // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
             if (score.Mods.Any(m => m is OsuModBlinds))
@@ -308,6 +287,24 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             if (score.Mods.Any(m => m is OsuModFlashlight))
                 accuracyValue *= 1.02;
+
+            double mistimes = countMeh + countOk;
+
+            if (mistimes > 0)
+            {
+
+                double[] coefficients =
+                [
+                    attributes.AccPenaltyCoefficientA,
+                    attributes.AccPenaltyCoefficientB,
+                    attributes.AccPenaltyCoefficientC,
+                    // We can derive the 4th coefficient from the first third, since at x = 1 our polynomial is equal to the sum of the coefficients,
+                    // and the relevant miss count there is log(totalHits - 1) since our polynomial uses log miss counts.
+                    Math.Log(300 * totalHits + 1) - attributes.AccPenaltyCoefficientA - attributes.AccPenaltyCoefficientB - attributes.AccPenaltyCoefficientC
+                ];
+
+                accuracyValue *= 1 - (PolynomialPenaltyUtils.GetPenaltyAt(coefficients, Math.Log(300 * totalHits * (1 - accuracy) + 1)));
+            }
 
             return accuracyValue;
         }

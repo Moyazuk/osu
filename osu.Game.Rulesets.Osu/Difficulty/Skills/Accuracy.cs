@@ -7,6 +7,7 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Osu.Objects;
@@ -26,7 +27,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-            return 1;
+            double difficulty = AccuracyEvaluator.EvaluateDifficultyOf(current);
+
+            return difficulty;
         }
 
         protected override IJudgementProbabilities JudgementProbabilities(double skill, double difficulty, DifficultyHitObject hitObject)
@@ -61,6 +64,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             );
         }
 
-        public double UnstableRateAtSkill(double skill) => Math.Max(1000 - skill, 0);
+        public double UnstableRateAtSkill(double skill) => Math.Max(0, -40 * Math.Log(skill / 970));
     }
 }

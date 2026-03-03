@@ -40,6 +40,29 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public double SpeedNoteCount { get; set; }
 
         /// <summary>
+        /// The difficulty corresponding to the accuracy skill.
+        /// </summary>
+        [JsonProperty("acc_difficulty")]
+        public double AccuracyDifficulty { get; set; }
+
+        /// <summary>
+        /// The number of clickable objects weighted by difficulty.
+        /// Related to <see cref="SpeedDifficulty"/>
+        /// </summary>
+        [JsonProperty("estimated_ur_for_ss")]
+        public double EstimatedUrForSS { get; set; }
+
+
+        [JsonProperty("acc_penalty_coefficient_a")]
+        public double AccPenaltyCoefficientA { get; set; }
+
+        [JsonProperty("acc_penalty_coefficient_b")]
+        public double AccPenaltyCoefficientB { get; set; }
+
+        [JsonProperty("acc_penalty_coefficient_c")]
+        public double AccPenaltyCoefficientC { get; set; }
+
+        /// <summary>
         /// The difficulty corresponding to the flashlight skill.
         /// </summary>
         [JsonProperty("flashlight_difficulty")]

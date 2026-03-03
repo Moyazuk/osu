@@ -68,6 +68,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return speedRating;
         }
 
+        public double ComputeAccuracyRating(double accuracyDifficultyValue)
+        {
+            if (mods.Any(m => m is OsuModRelax))
+                return 0;
+
+            double accRating = CalculateDifficultyRating(accuracyDifficultyValue);
+
+            return accRating;
+        }
+
         public double ComputeReadingRating(double readingDifficultyValue)
         {
             double readingRating = CalculateDifficultyRating(readingDifficultyValue);

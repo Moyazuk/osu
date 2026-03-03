@@ -71,6 +71,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double speedNotes = speed.RelevantNoteCount();
 
+            double[] accPenaltyCoefficients = accuracy.GetScoreLossCoefficients();
+
             double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders(aimNoSlidersDifficultyValue);
             double aimNoSlidersDifficultStrainCount = aimWithoutSliders.CountTopWeightedStrains(aimNoSlidersDifficultyValue);
 
@@ -128,6 +130,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 AimDifficultSliderCount = difficultSliders,
                 SpeedDifficulty = speedRating,
                 SpeedNoteCount = speedNotes,
+                AccuracyDifficulty = accDifficultyValue,
+                EstimatedUrForSS = estimatedUrForSS,
+                AccPenaltyCoefficientA = accPenaltyCoefficients.ElementAtOrDefault(0),
+                AccPenaltyCoefficientB = accPenaltyCoefficients.ElementAtOrDefault(1),
+                AccPenaltyCoefficientC = accPenaltyCoefficients.ElementAtOrDefault(2),
                 FlashlightDifficulty = flashlightRating,
                 ReadingDifficulty = readingRating,
                 SliderFactor = sliderFactor,

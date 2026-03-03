@@ -97,7 +97,8 @@ namespace osu.Game.Rulesets.Difficulty.Skills
             if (maxDiff == 0)
                 return 0;
             if (skill <= 0)
-                return ObjectDifficulties.Count;
+                // TODO: HACK shouldn't be multiplying by 300 like a constant
+                return ObjectDifficulties.Count * 300;
 
             IterativePoissonBinomial poiBin = new IterativePoissonBinomial();
 
