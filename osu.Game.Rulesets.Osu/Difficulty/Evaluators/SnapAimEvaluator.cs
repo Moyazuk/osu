@@ -78,15 +78,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
                 if (Math.Max(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime) < 1.25 * Math.Min(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime)) // If rhythms are the same.
                 {
-                    acuteAngleBonus = CalcAcuteAngleBonus(currAngle);
+
+                    double stackAdjustedDeltaTime = osuCurrObj.AdjustedDeltaTime + osuLastObj.AdjustedDeltaTime * DifficultyCalculationUtils.Smootherstep(prevDistance, diameter, radius);
+
+                    acuteAngleBonus = 1;
 
                     // Penalize angle repetition.
-                    acuteAngleBonus *= 0.08 + 0.92 * (1 - Math.Min(acuteAngleBonus, Math.Pow(CalcAcuteAngleBonus(lastAngle), 3)));
+                    acuteAngleBonus *= 0.15 + 0.85 * (1 - Math.Min(acuteAngleBonus, Math.Pow(CalcAcuteAngleBonus(lastAngle), 3)));
 
                     // Apply acute angle bonus for BPM above 300 1/2 and distance more than one diameter
-                    acuteAngleBonus *= angleBonus *
-                                       DifficultyCalculationUtils.Smootherstep(DifficultyCalculationUtils.MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime, 2), 300, 400) *
-                                       DifficultyCalculationUtils.Smootherstep(currDistance, 0, diameter * 2);
+                    acuteAngleBonus *= 1 *
+                                       DifficultyCalculationUtils.Smootherstep(DifficultyCalculationUtils.MillisecondsToBPM(stackAdjustedDeltaTime, 2), 300, 400) *
+                                       DifficultyCalculationUtils.Smootherstep(currDistance, 0, diameter * 1);
                 }
 
                 wideAngleBonus = calcWideAngleBonus(currAngle);
@@ -149,11 +152,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 sliderBonus = osuCurrObj.TravelDistance / osuCurrObj.TravelTime;
             }
 
-            aimStrain += wiggleBonus * wiggle_multiplier;
+
+            aimStrain += wideAngleBonus * wide_angle_multiplier;
             aimStrain += velocityChangeBonus * velocity_change_multiplier;
 
-            // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier);
+            // Add in acute angle bonus or wiggle angle bonus, whichever is larger.
+            aimStrain += Math.Max(acuteAngleBonus * 7, wiggleBonus * wiggle_multiplier);
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
