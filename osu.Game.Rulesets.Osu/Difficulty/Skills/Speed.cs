@@ -20,9 +20,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public class Speed : HarmonicSkill
     {
         private double totalMultiplier => 0.82;
-        private double burstMultiplier => 2.5;
-        private double streamMultiplier => 0.2;
-        private double staminaMultiplier => 0.05;
+        private double burstMultiplier => 2.4;
+        private double streamMultiplier => 0.05;
+        private double staminaMultiplier => 0.065;
         private double meanExponent => 1.25;
 
         private double currentBurstStrain;
@@ -42,13 +42,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         protected override double HarmonicScale => 15;
         protected override double DecayExponent => 0.9;
 
-        private double strainDecayBurst(double ms) => Math.Pow(0.1, ms / 1000);
+        private double strainDecayBurst(double ms) => Math.Pow(0.075, ms / 1000);
         private double strainDecayStream(double ms) => Math.Pow(0.01, Math.Pow(ms / 1000, 1.6));
 
         private double strainDecayStamina(double ms, double staminaValue)
         {
             double changeFactor = currentStaminaStrain > 0 ? 1 + Math.Pow(currentStaminaStrain / (staminaValue + currentStaminaStrain), 25.0) : 1.0;
-            return Math.Pow(0.05, Math.Pow(ms * changeFactor / 1000, 3.5));
+            return Math.Pow(0.035, Math.Pow(ms * changeFactor / 1000, 3.5));
         }
 
         protected override double ObjectDifficultyOf(DifficultyHitObject current)
@@ -77,7 +77,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             double totalValue = DifficultyCalculationUtils.Norm(meanExponent,
                 totalBurstStrain,
-                //currentStreamStrain,
+                currentStreamStrain,
                 currentStaminaStrain);
 
             if (current.BaseObject is Slider)
