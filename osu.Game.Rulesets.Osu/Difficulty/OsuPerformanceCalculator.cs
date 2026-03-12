@@ -151,13 +151,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double readingValue = computeReadingValue(osuAttributes);
             double flashlightValue = computeFlashlightValue(score, osuAttributes);
             double cognitionValue = OsuDifficultyCalculator.SumCognitionDifficulty(readingValue, flashlightValue);
+            double fingerControlValue = computeFingerControlValue(score, osuAttributes);
 
-            double totalValue = DifficultyCalculationUtils.Norm(PERFORMANCE_NORM_EXPONENT, aimValue, speedValue, accuracyValue, cognitionValue) * multiplier;
+            double totalValue = DifficultyCalculationUtils.Norm(PERFORMANCE_NORM_EXPONENT, aimValue, speedValue, accuracyValue, cognitionValue, fingerControlValue) * multiplier;
 
             return new OsuPerformanceAttributes
             {
                 Aim = aimValue,
                 Speed = speedValue,
+                FingerControl = fingerControlValue,
                 Accuracy = accuracyValue,
                 Flashlight = flashlightValue,
                 Reading = readingValue,
@@ -312,6 +314,38 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 accuracyValue *= 1.02;
 
             return accuracyValue;
+        }
+
+        private double computeFingerControlValue(ScoreInfo score, OsuDifficultyAttributes attributes)
+        {
+            if (score.Mods.Any(h => h is OsuModRelax) || speedDeviation == null)
+                return 0.0;
+
+            double fingerControlValue = HarmonicSkill.DifficultyToPerformance(attributes.FingerControlDifficulty);
+
+            if (effectiveMissCount > 0)
+            {
+                fingerControlValue *= calculateMissPenalty(effectiveMissCount + speedEstimatedSliderBreaks, attributes.SpeedDifficultStrainCount);
+            }
+
+            // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
+            if (score.Mods.Any(m => m is OsuModBlinds))
+            {
+                // Increasing the speed value by object count for Blinds isn't ideal, so the minimum buff is given.
+                fingerControlValue *= 1.12;
+            }
+            else if (score.Mods.Any(m => m is OsuModTraceable))
+            {
+                fingerControlValue *= 1.0 + calculateTraceableBonus();
+            }
+
+            //fingerControlValue *= 0.95 + Math.Pow(100.0 / 9, 2) / 750; // OD 11 SS stays the same.
+            //fingerControlValue *= 1 / (1 + Math.Pow(fingerControlDeviation / 20, 4)); // Scale the speed value with speed deviation.
+
+            // Scale speed value by normalized accuracy.
+            fingerControlValue *= Math.Pow(accuracy, 3);
+
+            return fingerControlValue;
         }
 
         private double computeFlashlightValue(ScoreInfo score, OsuDifficultyAttributes attributes)

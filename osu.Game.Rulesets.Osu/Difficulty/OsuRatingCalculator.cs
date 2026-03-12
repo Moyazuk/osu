@@ -68,6 +68,26 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return speedRating;
         }
 
+        public double ComputeFingerControlRating(double fingerControlDifficultyValue)
+        {
+            if (mods.Any(m => m is OsuModRelax))
+                return 0;
+
+            double fingerControlRating = CalculateDifficultyRating(fingerControlDifficultyValue);
+
+            if (mods.Any(m => m is OsuModAutopilot))
+                fingerControlRating *= 0.5;
+
+            if (mods.Any(m => m is OsuModMagnetised))
+            {
+                // reduce speed rating because of the speed distance scaling, with maximum reduction being 0.7x
+                float magnetisedStrength = mods.OfType<OsuModMagnetised>().First().AttractionStrength.Value;
+                fingerControlRating *= 1.0 - magnetisedStrength * 0.3;
+            }
+
+            return fingerControlRating;
+        }
+
         public double ComputeReadingRating(double readingDifficultyValue)
         {
             double readingRating = CalculateDifficultyRating(readingDifficultyValue);

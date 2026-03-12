@@ -122,12 +122,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
                 rawKn += energies[i] * Math.Pow(gamma, i);
             }
 
-            // Normalize kn (Max pseudo-entropy for 6 bins is ~2.941 units) to [1.0, 2.0]
-            // The inflection point is chosen to reflect the fact that effort is only perceived beyond some non-trivial rhythmic complexity
-            double sigmoidAtZeroKn = 1.0 / (1.0 + Math.Exp(sigmoid_k_kn * sigmoid_x0_kn));
-            double sigmoidRawKn = 1.0 / (1.0 + Math.Exp(-sigmoid_k_kn * (rawKn - sigmoid_x0_kn)));
-            double knMultiplier = 1.0 + (sigmoidRawKn - sigmoidAtZeroKn) / (1.0 - sigmoidAtZeroKn);
-
             // Cognitive component - proxy for rhythm reading
             // Straightforward Shannon entropy across scales derived from information theory
             // This is ignored because log summation gives me hilarious values if applied to tap/speed
@@ -140,17 +134,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
                 if (p > 1e-4) rawH -= p * Math.Log(p, 2); // Shannon entropy log summation
             }
 
-            // Normalize h (Max entropy for 6 bins is ~2.58 bits) to [1.0, 2.0]
-            // In practice, with these constants the sigmoid only reaches mults ranging from [1.002, 1.988]
-            // The inflection point is chosen to reflect the fact that effort is only perceived beyond some non-trivial rhythmic complexity
-            double sigmoidAtZeroH = 1.0 / (1.0 + Math.Exp(sigmoid_k_h * sigmoid_x0_h));
-            double sigmoidRawH = 1.0 / (1.0 + Math.Exp(-sigmoid_k_h * (rawH - sigmoid_x0_h)));
-            double hMultiplier = 1.0 + (sigmoidRawH - sigmoidAtZeroH) / (1.0 - sigmoidAtZeroH);
-
             // Final difficulty multiplier will simply be kn since this is being applied only to tap/speed currently
             // Ideally kn and h need to be separately handled
             // Returns a value [1.0, 2.0]
-            return knMultiplier;
+            return Math.Pow(rawKn, 3);
         }
 
         private static double getEffectiveRatio(double ratio)
