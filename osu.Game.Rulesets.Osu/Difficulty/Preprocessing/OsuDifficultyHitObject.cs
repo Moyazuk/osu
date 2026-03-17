@@ -272,9 +272,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
 
                 Angle = Math.Min(angle, sliderAngle);
 
-                if (lastLastDifficultyObject.Angle != null)
+                if (lastDifficultyObject.Angle != null)
                 {
-                    double angleDifference = Math.Abs(Angle.Value - lastLastDifficultyObject.Angle.Value);
+                    double angleDifference = Math.Abs(Angle.Value - lastDifficultyObject.Angle.Value);
                     double angleDifferenceAdjusted = Math.Sin(angleDifference / 2) * 180.0;
                     AngularVelocity = angleDifferenceAdjusted / (AdjustedDeltaTime * 0.1);
                 }

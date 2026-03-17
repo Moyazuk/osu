@@ -19,106 +19,123 @@ namespace osu.Game.Rulesets.Difficulty.Skills
 
         private const double ms_to_minutes = 1.0 / 60000.0;
 
-        // FC time specific constants
         private const double time_threshold_minutes = 24;
         private const double max_delta_time = 5000;
         private const double retry_cooldown_time = 60000;
 
-        // Bin specific constants
-        private const double bin_threshold_note_count = difficulty_bin_count * time_bin_count;
-        private const int difficulty_bin_count = 8;
-        private const int time_bin_count = 16;
-
         private const double epsilon = 1e-4;
 
         private readonly List<double> times = new List<double>();
+        private readonly List<DifficultyHitObject> hitObjects = new List<DifficultyHitObject>();
+        protected IReadOnlyList<double>? CachedStrainSequence => cachedStrainSequence;
+        protected readonly List<double> SnapDifficulties = new List<double>();
+        protected readonly List<double> FlowDifficulties = new List<double>();
 
-        /// <summary>
-        /// Returns the strain value at <see cref="DifficultyHitObject"/>. This value is calculated with or without respect to previous objects.
-        /// </summary>
-        protected abstract double StrainValueAt(DifficultyHitObject current);
+
+
+        private List<double>? cachedStrainSequence;
+
+        protected abstract void StrainValueAt(DifficultyHitObject current);
 
         protected override double ProcessInternal(DifficultyHitObject current)
         {
             times.Add(current.Index == 0
                 ? retry_cooldown_time + Math.Min(current.DeltaTime, max_delta_time)
                 : times.Last() + Math.Min(current.DeltaTime, max_delta_time));
+            hitObjects.Add(current);
 
-            return StrainValueAt(current);
+            StrainValueAt(current);
+            return 0;
         }
 
         protected abstract double HitProbability(double skill, double difficulty);
+        protected virtual double HitProbabilitySnap(double skill, double difficulty) => HitProbability(skill, difficulty);
+        protected virtual double HitProbabilityFlow(double skill, double difficulty) => HitProbability(skill, difficulty);
+
+        protected virtual double PFlow(double snapDifficulty, double flowDifficulty) => 0;
+
+        protected virtual double StrainDecay(DifficultyHitObject current) => 1.0;
 
         public override double DifficultyValue()
         {
-            if (ObjectDifficulties.Count == 0 || ObjectDifficulties.Max() <= epsilon)
+            if (SnapDifficulties.Count == 0)
                 return 0;
 
-            // We only initialize bins if we have enough notes to use them.
-            List<Bin>? binList = null;
+            double maxDiff = SnapDifficulties.Zip(FlowDifficulties, Math.Max).Max();
 
-            if (ObjectDifficulties.Count > bin_threshold_note_count)
-            {
-                binList = Bin.CreateBins(ObjectDifficulties, times, difficulty_bin_count, time_bin_count);
-            }
+            if (maxDiff <= epsilon)
+                return 0;
 
-            // Lower bound and upper bound are generally unimportant
-            return RootFinding.FindRootExpand(skill => timeSpentRetryingAtSkill(skill, binList) - time_threshold_minutes, 0, 10);
+            double fcSkill = RootFinding.FindRootExpand(skill => timeSpentRetryingAtSkill(skill) - time_threshold_minutes, 0, 10);
+
+            cachedStrainSequence = computeStrainSequence(fcSkill);
+
+            return fcSkill;
         }
 
-        private double timeSpentRetryingAtSkill(double skill, List<Bin>? binList = null)
+        private double timeSpentRetryingAtSkill(double skill)
         {
             if (skill <= 0) return double.PositiveInfinity;
 
             double timeSpentRetrying = 0;
             double hitProbabilityProduct = 1;
+            double currentStrain = 0;
 
-            // We use bins, falling back to exact difficulty calculation if not available.
-            if (binList is not null)
+            for (int n = 0; n < SnapDifficulties.Count; n++)
             {
-                for (int n = binList.Count - 1; n >= 0; n--)
-                {
-                    double deltaTime = n > 0 ? binList[n].Time - binList[n - 1].Time : binList[n].Time;
+                double decay = StrainDecay(hitObjects[n]);
+                double decayedStrain = currentStrain * decay;
 
-                    hitProbabilityProduct *= Math.Pow(HitProbability(skill, binList[n].Difficulty), binList[n].NoteCount);
-                    timeSpentRetrying += hitProbabilityProduct > 0 ? deltaTime / hitProbabilityProduct - deltaTime : double.PositiveInfinity;
-                }
-            }
-            else
-            {
-                for (int n = ObjectDifficulties.Count - 1; n >= 0; n--)
-                {
-                    double deltaTime = n > 0 ? times[n] - times[n - 1] : times[n];
+                double snapStrain = decayedStrain + SnapDifficulties[n];
+                double flowStrain = decayedStrain + FlowDifficulties[n];
 
-                    hitProbabilityProduct *= HitProbability(skill, ObjectDifficulties[n]);
-                    timeSpentRetrying += hitProbabilityProduct > 0 ? deltaTime / hitProbabilityProduct - deltaTime : double.PositiveInfinity;
-                }
+                double pFlow = PFlow(snapStrain, flowStrain);
+                double pSnap = 1 - pFlow;
+
+                double pHit = HitProbabilitySnap(skill, snapStrain) * pSnap + HitProbabilityFlow(skill, flowStrain) * pFlow;
+
+                currentStrain = snapStrain * pSnap + flowStrain * pFlow;
+
+                double deltaTime = n > 0 ? times[n] - times[n - 1] : times[n];
+
+                hitProbabilityProduct *= pHit;
+                timeSpentRetrying += hitProbabilityProduct > 0 ? deltaTime / hitProbabilityProduct - deltaTime : double.PositiveInfinity;
             }
 
             return timeSpentRetrying * ms_to_minutes;
         }
 
-        /// <summary>
-        /// The coefficients of a quartic fitted to the miss counts at each skill level.
-        /// </summary>
-        /// <returns>The coefficients for our penalty polynomial.</returns>
+        private List<double> computeStrainSequence(double skill)
+        {
+            var strains = new List<double>(SnapDifficulties.Count);
+            double currentStrain = 0;
+
+            for (int n = 0; n < SnapDifficulties.Count; n++)
+            {
+                double decay = StrainDecay(hitObjects[n]);
+                double decayedStrain = currentStrain * decay;
+
+                double snapStrain = decayedStrain + SnapDifficulties[n];
+                double flowStrain = decayedStrain + FlowDifficulties[n];
+
+                double pFlow = PFlow(snapStrain, flowStrain);
+                double pSnap = 1 - pFlow;
+
+                currentStrain = snapStrain * pSnap + flowStrain * pFlow;
+                strains.Add(currentStrain);
+            }
+
+            return strains;
+        }
+
         public double[] GetMissPenaltyCoefficients()
         {
             Dictionary<double, double> missCounts = new Dictionary<double, double>();
 
-            // If there are no notes, we just return a zero-polynomial.
-            if (ObjectDifficulties.Count == 0 || ObjectDifficulties.Max() == 0)
+            if (SnapDifficulties.Count == 0)
                 return Array.Empty<double>();
 
             double fcSkill = DifficultyValue();
-
-            // We only initialize bins if we have enough notes to use them.
-            List<Bin>? binList = null;
-
-            if (ObjectDifficulties.Count > bin_threshold_note_count)
-            {
-                binList = Bin.CreateBins(ObjectDifficulties, times, difficulty_bin_count, time_bin_count);
-            }
 
             foreach (double skillProportion in PolynomialPenaltyUtils.SKILL_PROPORTIONS)
             {
@@ -129,25 +146,18 @@ namespace osu.Game.Rulesets.Difficulty.Skills
                 }
 
                 double penalizedSkill = fcSkill * skillProportion;
-
-                // We take the log to squash miss counts, which have large absolute value differences, but low relative differences, into a straighter line for the polynomial.
-                missCounts[skillProportion] = Math.Log(getMissCountAtSkill(penalizedSkill, binList) + 1);
+                missCounts[skillProportion] = Math.Log(getMissCountAtSkill(penalizedSkill) + 1);
             }
 
             return PolynomialPenaltyUtils.GetPenaltyCoefficients(missCounts);
         }
 
-        /// <summary>
-        /// Find the lowest misscount that a player with the provided <paramref name="skill"/> would likely achieve within 12 minutes of retrying.
-        /// </summary>
-        private double getMissCountAtSkill(double skill, List<Bin>? binList = null)
+        private double getMissCountAtSkill(double skill)
         {
-            double maxDiff = ObjectDifficulties.Max();
-
-            if (maxDiff == 0)
+            if (SnapDifficulties.Count == 0)
                 return 0;
             if (skill <= 0)
-                return ObjectDifficulties.Count;
+                return SnapDifficulties.Count;
 
             IterativePoissonBinomial poiBin = new IterativePoissonBinomial();
 
@@ -157,61 +167,47 @@ namespace osu.Game.Rulesets.Difficulty.Skills
             {
                 poiBin.Reset();
                 double timeSpentRetrying = 0;
+                double currentStrain = 0;
 
-                if (binList is not null)
+                for (int n = 0; n < SnapDifficulties.Count; n++)
                 {
-                    for (int n = binList.Count - 1; n >= 0; n--)
-                    {
-                        double deltaTime = n > 0 ? binList[n].Time - binList[n - 1].Time : binList[n].Time;
-                        double missProbability = 1 - HitProbability(skill, binList[n].Difficulty);
+                    double decay = StrainDecay(hitObjects[n]);
+                    double decayedStrain = currentStrain * decay;
 
-                        // Add this bin's probabilities to track cumulative miss distribution from here to end
-                        poiBin.AddBinnedProbabilities(missProbability, binList[n].NoteCount);
+                    double snapStrain = decayedStrain + SnapDifficulties[n];
+                    double flowStrain = decayedStrain + FlowDifficulties[n];
 
-                        // Probability of achieving less than this missCount from this point until map end
-                        double missCountProb = poiBin.Cdf(missCount);
+                    double pFlow = PFlow(snapStrain, flowStrain);
+                    double pSnap = 1 - pFlow;
 
-                        // deltaTime divided by missCountProb = expected total plays of this segment
-                        // Subtract deltaTime to get only the retry time (which excludes the success run)
-                        timeSpentRetrying += missCountProb > 0 ? deltaTime / missCountProb - deltaTime : double.PositiveInfinity;
-                    }
-                }
-                else
-                {
-                    // Same calculation but for individual notes.
-                    for (int n = ObjectDifficulties.Count - 1; n >= 0; n--)
-                    {
-                        double deltaTime = n > 0 ? times[n] - times[n - 1] : times[n];
-                        double missProbability = 1 - HitProbability(skill, ObjectDifficulties[n]);
-                        poiBin.AddProbability(missProbability);
+                    double pHit = HitProbabilitySnap(skill, snapStrain) * pSnap + HitProbabilityFlow(skill, flowStrain) * pFlow;
+                    double missProbability = 1 - pHit;
 
-                        double missCountProb = poiBin.Cdf(missCount);
-                        timeSpentRetrying += missCountProb > 0 ? deltaTime / missCountProb - deltaTime : double.PositiveInfinity;
-                    }
+                    currentStrain = snapStrain * pSnap + flowStrain * pFlow;
+
+                    double deltaTime = n > 0 ? times[n] - times[n - 1] : times[n];
+
+                    poiBin.AddProbability(missProbability);
+
+                    double missCountProb = poiBin.Cdf(missCount);
+                    timeSpentRetrying += missCountProb > 0 ? deltaTime / missCountProb - deltaTime : double.PositiveInfinity;
                 }
 
                 return timeSpentRetrying * ms_to_minutes;
             }
         }
 
-        /// <summary>
-        /// Calculates the number of strains weighted against the top strain.
-        /// The result is scaled by clock rate as it affects the total number of strains.
-        /// </summary>
         public virtual double CountTopWeightedStrains(double difficultyValue)
         {
-            if (ObjectDifficulties.Count == 0)
+            if (cachedStrainSequence is null || cachedStrainSequence.Count == 0)
                 return 0.0;
 
-            // What would the top strain be if all strain values were identical.
-            // We don't have decay weight in FC time, so we just use the old live one of 0.95.
             double consistentTopStrain = difficultyValue * (1 - 0.95);
 
             if (consistentTopStrain == 0)
-                return ObjectDifficulties.Count;
+                return cachedStrainSequence.Count;
 
-            // Use a weighted sum of all strains. Constants are arbitrary and give nice values
-            return ObjectDifficulties.Sum(s => 1.1 / (1 + Math.Exp(-10 * (s / consistentTopStrain - 0.88))));
+            return cachedStrainSequence.Sum(s => 1.1 / (1 + Math.Exp(-10 * (s / consistentTopStrain - 0.88))));
         }
 
         public static double DifficultyToPerformance(double difficulty) => 4.0 * Math.Pow(difficulty, 3.0);

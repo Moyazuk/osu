@@ -201,10 +201,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double aimValue = DifficultyToPerformance(aimDifficulty);
 
-            double lengthBonus = 0.95 + 0.35 * Math.Min(1.0, totalHits / 2000.0) +
-                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-            aimValue *= lengthBonus;
-
             if (effectiveMissCount > 0)
             {
                 aimEstimatedSliderBreaks = calculateEstimatedSliderBreaks(attributes.AimTopWeightedSliderFactor, attributes);
@@ -348,7 +344,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double readingValue = HarmonicSkill.DifficultyToPerformance(attributes.ReadingDifficulty);
 
             if (effectiveMissCount > 0)
-                readingValue *= calculateMissPenalty(effectiveMissCount + aimEstimatedSliderBreaks, attributes.ReadingDifficultNoteCount);
+                readingValue *= calculateStrainCountMissPenalty(effectiveMissCount + aimEstimatedSliderBreaks, attributes.ReadingDifficultNoteCount);
 
             // Scale the reading value with accuracy _harshly_.
             readingValue *= Math.Pow(accuracy, 3);

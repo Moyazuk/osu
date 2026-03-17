@@ -18,24 +18,41 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
         /// </summary>
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
-            if (current.BaseObject is Spinner)
+            if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
 
+            const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
+
             var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj = current.Index > 0 ? (OsuDifficultyHitObject)current.Previous(0) : null;
+            var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuPrev1Obj = (OsuDifficultyHitObject)current.Previous(1);
 
-            double travelDistance = osuPrevObj?.LazyTravelDistance ?? 0;
-            double distance = travelDistance + osuCurrObj.LazyJumpDistance;
+            double agilityBonus = 0;
 
-            double distanceScaled = Math.Min(distance, distance_cap) / distance_cap;
+            if (osuCurrObj.Angle != null && osuPrevObj.Angle != null && osuPrev1Obj.Angle != null)
+            {
 
-            double strain = distanceScaled * 1000 / osuCurrObj.AdjustedDeltaTime;
+                double currStrainTime = osuCurrObj.AdjustedDeltaTime;
+                double lastStrainTime = osuPrevObj.AdjustedDeltaTime;
 
-            strain *= highBpmBonus(osuCurrObj.AdjustedDeltaTime);
+                double currDistanceMultiplier = DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance / radius, 1, 2);
+                double prevDistanceMultiplier = DifficultyCalculationUtils.Smootherstep(osuPrevObj.LazyJumpDistance / radius, 1, 2);
 
-            return strain * DifficultyCalculationUtils.Smootherstep(distance, 0, OsuDifficultyHitObject.NORMALISED_RADIUS);
+                double currTime = currStrainTime + lastStrainTime * (1 - prevDistanceMultiplier);
+                double prevTime = lastStrainTime;
+
+                double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
+
+                double angleBonus = 0.45 * DifficultyCalculationUtils.Smootherstep(currentAngle, 40, 140);
+
+                double velocityBonus = Math.Pow(osuCurrObj.LazyJumpDistance / currStrainTime, 2) * 0.0015;
+
+                double baseBpm = 260 / (1 + (angleBonus + velocityBonus) * currDistanceMultiplier * prevDistanceMultiplier);
+
+                agilityBonus = Math.Max(0, Math.Pow(DifficultyCalculationUtils.MillisecondsToBPM(Math.Max(currTime, prevTime), 2) / baseBpm, 3) - 1);
+            }
+
+            return agilityBonus * 1;
         }
-
-        private static double highBpmBonus(double ms) => 1 / (1 - Math.Pow(0.3, Math.Pow(ms / 1000, 0.9)));
     }
 }
