@@ -172,7 +172,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 objects.Add(new OsuDifficultyHitObject(beatmap.HitObjects[i], beatmap.HitObjects[i - 1], clockRate, objects, objects.Count));
             }
 
-            var movements = objects.SelectMany(x => ((OsuDifficultyHitObject)x).Movements).ToList();
+            var movements = new List<Movement>();
+            var movementHitObjects = new List<DifficultyHitObject>();
+
+            foreach (var obj in objects)
+            {
+                var osuObj = (OsuDifficultyHitObject)obj;
+                foreach (var movement in osuObj.Movements)
+                {
+                    movements.Add(movement);
+                    movementHitObjects.Add(obj);
+                }
+            }
 
             for (int i = 0; i < movements.Count; i++)
             {
@@ -182,6 +193,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 if (i < movements.Count - 1)
                     movements[i].NextMovement = movements[i + 1];
             }
+
+            Movement.AnnotateFlowChunks(movements, movementHitObjects);
 
             return objects;
         }
