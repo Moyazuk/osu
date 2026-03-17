@@ -12,13 +12,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 {
     public static class SnapAimEvaluator
     {
-        private const double wide_angle_multiplier = 1.05;
+        private const double wide_angle_multiplier = 120;
         private const double acute_angle_multiplier = 2.41;
         private const double slider_multiplier = 1.5;
         private const double velocity_change_multiplier = 0.9;
         private const double wiggle_multiplier = 1.02; // WARNING: Increasing this multiplier beyond 1.02 reduces difficulty as distance increases. Refer to the desmos link above the wiggle bonus calculation
-        private const double maximum_repetition_nerf = 0.15;
-        private const double maximum_vector_influence = 0.5;
+        private const double maximum_repetition_nerf = 0.2;
+        private const double maximum_vector_influence = 0.625;
 
         /// <summary>
         /// Evaluates the difficulty of aiming the current object, based on:
@@ -71,6 +71,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 // Rewarding angles, take the smaller velocity as base.
                 double angleBonus = Math.Min(currVelocity, prevVelocity);
 
+                double currScaling = osuCurrObj.LazyJumpDistance / Math.Pow(osuCurrObj.AdjustedDeltaTime, 2);
+                double prevScaling = osuLastObj.LazyJumpDistance / Math.Pow(osuLastObj.AdjustedDeltaTime, 2);
+
+                double wideAngleBase = Math.Min(currScaling, prevScaling);
+
                 if (Math.Max(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime) < 1.25 * Math.Min(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime)) // If rhythms are the same.
                 {
                     acuteAngleBonus = CalcAcuteAngleBonus(currAngle);
@@ -89,7 +94,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 // Penalize angle repetition.
                 wideAngleBonus *= 0.25 + 0.75 * (1 - Math.Min(wideAngleBonus, Math.Pow(calcWideAngleBonus(lastAngle), 3)));
 
-                wideAngleBonus *= angleBonus;
+                wideAngleBonus *= wideAngleBase;
 
                 // Apply wiggle bonus for jumps that are [radius, 3*diameter] in distance, with < 110 angle
                 // https://www.desmos.com/calculator/dp0v0nvowc
