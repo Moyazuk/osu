@@ -22,6 +22,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
 
+            var osuNextObj = (OsuDifficultyHitObject?)current.Next(0);
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
             var osuLastLastObj = (OsuDifficultyHitObject)current.Previous(1);
@@ -50,14 +51,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             flowDifficulty *= 1 + Math.Min(0.25,
                 Math.Pow((Math.Max(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime) - Math.Min(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime)) / 50, 4));
 
-            if (osuCurrObj.Angle != null && osuLastObj.Angle != null)
+            if (osuCurrObj.Angle != null && osuNextObj?.Angle != null)
             {
-                double angleDifference = Math.Abs(osuCurrObj.Angle.Value - osuLastObj.Angle.Value);
+                double angleDifference = Math.Abs(osuCurrObj.Angle.Value - osuNextObj.Angle.Value);
                 double angleDifferenceAdjusted = Math.Sin(angleDifference / 2) * 180.0;
                 double angularVelocity = angleDifferenceAdjusted / (osuCurrObj.AdjustedDeltaTime * 0.1);
 
                 // Low angular velocity flow (angles are consistent) is easier to follow than erratic flow
-                flowDifficulty *= 0.8 + Math.Sqrt(angularVelocity / 270.0);
+                flowDifficulty *= 0.75 + Math.Sqrt(angularVelocity / 175.0);
             }
 
             // If all three notes are overlapping - don't reward bonuses as you don't have to do additional movement
@@ -72,12 +73,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 overlappedNotesWeight = 1 - o1 * o2 * o3;
             }
 
-            if (osuCurrObj.Angle != null)
+            // We use osuNextObj angle instead of osuCurrObj because in flow aim difficulty comes from the prev-curr-next angle
+            // when in snap aim we measure the difficulty at the end of the angle so prev2-prev-curr works better
+
+            if (osuNextObj?.Angle != null)
             {
                 // Acute angles are also hard to flow
                 // We square root velocity to make acute angle switches in streams aren't having difficulty higher than snap
                 flowDifficulty += Math.Sqrt(currVelocity) *
-                                  SnapAimEvaluator.CalcAcuteAngleBonus(osuCurrObj.Angle.Value) *
+                                  SnapAimEvaluator.CalcAcuteAngleBonus(osuNextObj.Angle.Value) *
                                   overlappedNotesWeight;
             }
 
@@ -108,7 +112,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             }
 
             // Final velocity is being raised to a power because flow difficulty scales harder with both high distance and time, and we want to account for that
-            return Math.Pow(flowDifficulty, 1.45);
+            return Math.Pow(flowDifficulty, 1.35);
         }
 
         private static double calculateOverlapFactor(OsuDifficultyHitObject first, OsuDifficultyHitObject second)
