@@ -71,8 +71,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 // Rewarding angles, take the smaller velocity as base.
                 double angleBonus = Math.Min(currVelocity, prevVelocity);
 
-                double currScaling = osuCurrObj.LazyJumpDistance / Math.Pow(osuCurrObj.AdjustedDeltaTime, 2);
-                double prevScaling = osuLastObj.LazyJumpDistance / Math.Pow(osuLastObj.AdjustedDeltaTime, 2);
+                double currScaling = osuCurrObj.LazyJumpDistance / Math.Pow(osuCurrObj.AdjustedDeltaTime, 2.5);
+                double prevScaling = osuLastObj.LazyJumpDistance / Math.Pow(osuLastObj.AdjustedDeltaTime, 2.5);
 
                 double wideAngleBase = Math.Min(currScaling, prevScaling);
 
@@ -92,7 +92,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 wideAngleBonus = calcWideAngleBonus(currAngle);
 
                 // Penalize angle repetition.
-                //wideAngleBonus *= 0.25 + 0.75 * (1 - Math.Min(wideAngleBonus, Math.Pow(calcWideAngleBonus(lastAngle), 3)));
+                //wideAngleBonus *= 0.3 + 0.7 * (1 - Math.Min(wideAngleBonus, Math.Pow(calcWideAngleBonus(lastAngle), 3)));
 
                 wideAngleBonus *= wideAngleBase;
 
@@ -155,7 +155,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             aimStrain += velocityChangeBonus * velocity_change_multiplier;
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier);
+            aimStrain += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * 700);
 
             // Add in additional slider velocity bonus.
             if (withSliderTravelDistance)
