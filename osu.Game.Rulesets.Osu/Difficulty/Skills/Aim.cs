@@ -31,11 +31,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
-        private double skillMultiplierSnap => 71.0;
-        private double skillMultiplierAgility => 2.0;
-        private double skillMultiplierFlow => 245.0;
+        private double skillMultiplierSnap => 83.0;
+        private double skillMultiplierAgility => 64.0;
+        private double skillMultiplierFlow => 200;
         private double skillMultiplierTotal => 1.1;
-        private double meanExponent => 1.2;
+        private double meanExponent => 1;
 
         /// <summary>
         /// The number of sections with the highest strains, which the peak strain reductions will apply to.
@@ -91,7 +91,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             // We compare flow to combined snap and agility because snap by itself doesn't have enough difficulty to be above flow on streams
             // Agility on the other hand is supposed to measure the rate of cursor velocity changes while snapping
             // So snapping every circle on a stream requires an enormous amount of agility at which point it's easier to flow
-            double combinedSnapDifficulty = DifficultyCalculationUtils.Norm(meanExponent, snapDifficulty, agilityDifficulty);
+            double combinedSnapDifficulty = snapDifficulty + agilityDifficulty;
 
             double pSnap = calculateSnapFlowProbability(flowDifficulty / combinedSnapDifficulty);
             double pFlow = 1 - pSnap;
