@@ -30,9 +30,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
-        private double skillMultiplierSnap => 355.0;
-        private double skillMultiplierAgility => 10.0;
-        private double skillMultiplierFlow => 1100;
+        private double skillMultiplierSnap => 725.0;
+        private double skillMultiplierAgility => 650.0;
+        private double skillMultiplierFlow => 1300;
         private double skillMultiplierTotal => 1.05;
         private double meanExponent => 1.2;
 
@@ -84,7 +84,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             // We compare flow to combined snap and agility because snap by itself doesn't have enough difficulty to be above flow on streams
             // Agility on the other hand is supposed to measure the rate of cursor velocity changes while snapping
             // So snapping every circle on a stream requires an enormous amount of agility at which point it's easier to flow
-            double combinedSnapDifficulty = DifficultyCalculationUtils.Norm(meanExponent, snapDifficulty, agilityDifficulty);
+            double combinedSnapDifficulty = DifficultyCalculationUtils.Norm(1, snapDifficulty, agilityDifficulty);
 
             double pSnap = calculateSnapFlowProbability(flowDifficulty / combinedSnapDifficulty);
             double pFlow = 1 - pSnap;

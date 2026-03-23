@@ -44,15 +44,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
                 double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
 
-                double angleBonus = 0.65 * DifficultyCalculationUtils.Smootherstep(currentAngle, 40, 140);
+                double angleBonus = 1 + 8 * DifficultyCalculationUtils.Smootherstep(currentAngle, 40, 140) * currDistanceMultiplier * prevDistanceMultiplier;
 
-                double velocityBonus = Math.Pow(osuCurrObj.LazyJumpDistance / currStrainTime, 2) * 0.0015;
+                double velocityBonus = Math.Pow(osuCurrObj.LazyJumpDistance / currStrainTime, 2) * 0.000;
 
-                double baseBpm = 260 / (1 + (angleBonus + velocityBonus) * currDistanceMultiplier * prevDistanceMultiplier);
+                double baseBpm = 240;
 
 
 
-                agilityBonus = Math.Max(0, Math.Pow(DifficultyCalculationUtils.MillisecondsToBPM(currTime, 2) / baseBpm, 4) - 1);
+                agilityBonus = Math.Max(0, Math.Pow(DifficultyCalculationUtils.MillisecondsToBPM(currTime, 2) / baseBpm, 3) - 1);
+
+                agilityBonus *= angleBonus;
 
                 // Penalize angle repetition.
                 agilityBonus *= vectorAngleRepetition(osuCurrObj, osuPrevObj);
