@@ -44,9 +44,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
                 double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
 
-                double angleBonus = 1 + 12 * DifficultyCalculationUtils.Smootherstep(currentAngle, 40, 140) * currDistanceMultiplier * prevDistanceMultiplier;
+                double angleBonus = 1 + 16 * DifficultyCalculationUtils.Smootherstep(currentAngle, 40, 140) * currDistanceMultiplier * prevDistanceMultiplier;
 
-                double velocityBonus = Math.Pow(osuCurrObj.LazyJumpDistance / currStrainTime, 3) * 0.001;
+                double velocityBonus = Math.Pow(osuCurrObj.LazyJumpDistance / currStrainTime, 3) * 0.00085;
 
                 double baseBpm = 240 / (1 + velocityBonus);
 
