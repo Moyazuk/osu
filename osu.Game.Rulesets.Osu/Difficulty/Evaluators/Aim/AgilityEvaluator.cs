@@ -46,7 +46,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
                 double angleBonus = 1 + 12 * DifficultyCalculationUtils.Smootherstep(currentAngle, 40, 140) * currDistanceMultiplier * prevDistanceMultiplier;
 
-                double velocityBonus = Math.Pow(osuCurrObj.LazyJumpDistance / currStrainTime, 3) * 0.00075;
+                double velocityBonus = Math.Pow(osuCurrObj.LazyJumpDistance / currStrainTime, 3) * 0.001;
 
                 double baseBpm = 240 / (1 + velocityBonus);
 
