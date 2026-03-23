@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using osu.Framework.Extensions.ObjectExtensions;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
@@ -18,26 +19,90 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
         /// </summary>
         public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
-            if (current.BaseObject is Spinner)
+            if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
 
+            const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
+
             var osuCurrObj = (OsuDifficultyHitObject)current;
-            var osuPrevObj = current.Index > 0 ? (OsuDifficultyHitObject)current.Previous(0) : null;
+            var osuPrevObj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuPrev1Obj = (OsuDifficultyHitObject)current.Previous(1);
 
-            double travelDistance = osuPrevObj?.LazyTravelDistance ?? 0;
-            double distance = travelDistance + osuCurrObj.LazyJumpDistance;
+            double agilityBonus = 0;
 
-            double distanceScaled = Math.Min(distance, distance_cap) / distance_cap;
+            if (osuCurrObj.Angle != null && osuPrevObj.Angle != null && osuPrev1Obj.Angle != null)
+            {
 
-            double strain = distanceScaled * 1000 / osuCurrObj.AdjustedDeltaTime;
+                double currStrainTime = osuCurrObj.AdjustedDeltaTime;
+                double lastStrainTime = osuPrevObj.AdjustedDeltaTime;
 
-            strain *= osuCurrObj.SmallCircleBonus;
+                double currDistanceMultiplier = DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance / radius, 1, 2);
+                double prevDistanceMultiplier = DifficultyCalculationUtils.Smootherstep(osuPrevObj.LazyJumpDistance / radius, 1, 2);
 
-            strain *= highBpmBonus(osuCurrObj.AdjustedDeltaTime);
+                double currTime = currStrainTime + lastStrainTime * (1 - prevDistanceMultiplier);
+                double prevTime = lastStrainTime;
 
-            return strain * DifficultyCalculationUtils.Smootherstep(distance, 0, OsuDifficultyHitObject.NORMALISED_RADIUS);
+                double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
+
+                double angleBonus = 0.65 * DifficultyCalculationUtils.Smootherstep(currentAngle, 40, 140);
+
+                double velocityBonus = Math.Pow(osuCurrObj.LazyJumpDistance / currStrainTime, 2) * 0.0015;
+
+                double baseBpm = 260 / (1 + (angleBonus + velocityBonus) * currDistanceMultiplier * prevDistanceMultiplier);
+
+
+
+                agilityBonus = Math.Max(0, Math.Pow(DifficultyCalculationUtils.MillisecondsToBPM(currTime, 2) / baseBpm, 4) - 1);
+
+                // Penalize angle repetition.
+                agilityBonus *= vectorAngleRepetition(osuCurrObj, osuPrevObj);
+            }
+
+            return agilityBonus;
         }
 
-        private static double highBpmBonus(double ms) => 1 / (1 - Math.Pow(0.3, Math.Pow(ms / 1000, 0.9)));
+
+        private static double vectorAngleRepetition(OsuDifficultyHitObject current, OsuDifficultyHitObject previous)
+        {
+            if (current.Angle == null || previous.Angle == null)
+                return 1;
+
+            const double note_limit = 6;
+
+            double constantAngleCount = 0;
+
+            for (int index = 0; index < note_limit; index++)
+            {
+                var loopObj = (OsuDifficultyHitObject)current.Previous(index);
+
+                if (loopObj.IsNull())
+                    break;
+
+                // Only consider vectors in the same jump section, stopping to change rhythm ruins momentum
+                if (Math.Max(current.AdjustedDeltaTime, loopObj.AdjustedDeltaTime) > 1.1 * Math.Min(current.AdjustedDeltaTime, loopObj.AdjustedDeltaTime))
+                    break;
+
+                if (loopObj.NormalisedVectorAngle.IsNotNull() && current.NormalisedVectorAngle.IsNotNull())
+                {
+                    double angleDifference = Math.Abs(current.NormalisedVectorAngle.Value - loopObj.NormalisedVectorAngle.Value);
+                    // Refer to this desmos for tuning, constants need to be precise so that values stay within the range of 0 and 1.
+                    // https://www.desmos.com/calculator/a8jesv5sv2
+                    constantAngleCount += Math.Cos(8 * Math.Min(double.DegreesToRadians(11.25), angleDifference));
+                }
+            }
+
+            double vectorRepetition = Math.Pow(Math.Min(0.5 / constantAngleCount, 1), 2);
+
+            double stackFactor = DifficultyCalculationUtils.Smootherstep(current.LazyJumpDistance, 0, OsuDifficultyHitObject.NORMALISED_DIAMETER);
+
+            double currAngle = current.Angle.Value;
+            double lastAngle = previous.Angle.Value;
+
+            double angleDifferenceAdjusted = Math.Cos(2 * Math.Min(double.DegreesToRadians(45), Math.Abs(currAngle - lastAngle) * stackFactor));
+
+            double baseNerf = 1 - 0.50 * SnapAimEvaluator.CalcAcuteAngleBonus(lastAngle) * angleDifferenceAdjusted;
+
+            return Math.Pow(baseNerf + (1 - baseNerf) * vectorRepetition * 0.35 * stackFactor, 2);
+        }
     }
 }

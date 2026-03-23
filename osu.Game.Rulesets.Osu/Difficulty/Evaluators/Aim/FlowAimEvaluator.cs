@@ -44,7 +44,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
             // Apply high circle size bonus to the base velocity.
             // We use reduced CS bonus here because the bonus was made for an evaluator with a different d/t scaling
-            flowDifficulty *= Math.Pow(osuCurrObj.SmallCircleBonus, 0.75);
+            flowDifficulty *= Math.Sqrt(osuCurrObj.SmallCircleBonus);
 
             // Rhythm changes are harder to flow
             flowDifficulty *= 1 + Math.Min(0.25,
@@ -57,7 +57,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 double angularVelocity = angleDifferenceAdjusted / (osuCurrObj.AdjustedDeltaTime * 0.1);
 
                 // Low angular velocity flow (angles are consistent) is easier to follow than erratic flow
-                flowDifficulty *= 0.8 + Math.Sqrt(angularVelocity / 270.0);
+                flowDifficulty *= 0.95 + Math.Sqrt(angularVelocity / 270.0);
             }
 
             // If all three notes are overlapping - don't reward bonuses as you don't have to do additional movement
@@ -78,7 +78,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 // We square root velocity to make acute angle switches in streams aren't having difficulty higher than snap
                 flowDifficulty += Math.Sqrt(currVelocity) *
                                   SnapAimEvaluator.CalcAcuteAngleBonus(osuCurrObj.Angle.Value) *
-                                  overlappedNotesWeight;
+                                  overlappedNotesWeight * 0.25;
             }
 
             if (Math.Max(prevVelocity, currVelocity) != 0)
@@ -98,7 +98,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 flowDifficulty += overlapVelocityBuff *
                                   distRatio *
                                   overlappedNotesWeight *
-                                  velocity_change_multiplier;
+                                  0.4;
             }
 
             if (osuCurrObj.BaseObject is Slider && withSliderTravelDistance)
