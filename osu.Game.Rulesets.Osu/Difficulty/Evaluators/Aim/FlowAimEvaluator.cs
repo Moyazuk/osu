@@ -98,7 +98,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 flowDifficulty += overlapVelocityBuff *
                                   distRatio *
                                   overlappedNotesWeight *
-                                  6.0;
+                                  3;
             }
 
             if (osuCurrObj.BaseObject is Slider && withSliderTravelDistance)
