@@ -25,7 +25,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
 
 
-            double strain = 1000 / Math.Pow(osuCurrObj.AdjustedDeltaTime, 3);
+            double strain = 1000 / Math.Pow(osuCurrObj.AdjustedDeltaTime, 3.5);
 
             strain *= Math.Pow(osuCurrObj.SmallCircleBonus, 1.5);
 
