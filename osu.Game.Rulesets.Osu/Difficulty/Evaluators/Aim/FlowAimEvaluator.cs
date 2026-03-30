@@ -81,7 +81,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 // We square root velocity to make acute angle switches in streams aren't having difficulty higher than snap
                 flowContinuationDifficulty += Math.Sqrt(currVelocity) *
                                   SnapAimEvaluator.CalcAcuteAngleBonus(osuCurrObj.Angle.Value) *
-                                  overlappedNotesWeight;
+                                  overlappedNotesWeight * 1.5;
             }
 
             if (Math.Max(prevVelocity, currVelocity) != 0)
