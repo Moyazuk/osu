@@ -29,10 +29,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         }
 
         private double currentStrain;
+        private double previousPFlow;
 
         private double skillMultiplierSnap => 725.0;
-        private double skillMultiplierAgility => 255.0;
-        private double skillMultiplierFlow => 1200;
+        private double skillMultiplierAgility => 345.0;
+        private double skillMultiplierFlow => 800;
         private double skillMultiplierTotal => 1.05;
         private double meanExponent => 1.2;
 
@@ -53,8 +54,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double decay = strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
 
             double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplierSnap;
-            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skillMultiplierAgility;
-            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplierFlow;
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplierAgility;
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, previousPFlow) * skillMultiplierFlow;
 
             if (Mods.Any(m => m is OsuModTouchDevice))
             {
@@ -88,6 +89,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             double pSnap = calculateSnapFlowProbability(flowDifficulty / combinedSnapDifficulty);
             double pFlow = 1 - pSnap;
+            previousPFlow = pFlow;
 
             double totalDifficulty = combinedSnapDifficulty * pSnap + flowDifficulty * pFlow;
 
