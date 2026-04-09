@@ -147,12 +147,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double aimValue = computeAimValue(score, osuAttributes);
             double speedValue = computeSpeedValue(score, osuAttributes);
             double accuracyValue = computeAccuracyValue(score, osuAttributes);
+            double precisionValue = computePrecisionValue(score, osuAttributes);
 
             double readingValue = computeReadingValue(osuAttributes);
             double flashlightValue = computeFlashlightValue(score, osuAttributes);
             double cognitionValue = OsuDifficultyCalculator.SumCognitionDifficulty(readingValue, flashlightValue);
 
-            double totalValue = DifficultyCalculationUtils.Norm(PERFORMANCE_NORM_EXPONENT, aimValue, speedValue, accuracyValue, cognitionValue) * multiplier;
+            double totalValue = DifficultyCalculationUtils.Norm(PERFORMANCE_NORM_EXPONENT, aimValue, speedValue, accuracyValue, precisionValue, cognitionValue) * multiplier;
 
             return new OsuPerformanceAttributes
             {
@@ -161,6 +162,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 Accuracy = accuracyValue,
                 Flashlight = flashlightValue,
                 Reading = readingValue,
+                Precision = precisionValue,
                 EffectiveMissCount = effectiveMissCount,
                 ComboBasedEstimatedMissCount = comboBasedEstimatedMissCount,
                 ScoreBasedEstimatedMissCount = scoreBasedEstimatedMissCount,
@@ -225,6 +227,58 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             aimValue *= accuracy;
 
             return aimValue;
+        }
+
+        private double computePrecisionValue(ScoreInfo score, OsuDifficultyAttributes attributes)
+        {
+            if (score.Mods.Any(h => h is OsuModAutopilot))
+                return 0.0;
+
+            double precisionDifficulty = attributes.PrecisionDifficulty;
+
+            if (attributes.SliderCount > 0 && attributes.AimDifficultSliderCount > 0)
+            {
+                double estimateImproperlyFollowedDifficultSliders;
+
+                if (usingClassicSliderAccuracy)
+                {
+                    // When the score is considered classic (regardless if it was made on old client or not) we consider all missing combo to be dropped difficult sliders
+                    int maximumPossibleDroppedSliders = totalImperfectHits;
+                    estimateImproperlyFollowedDifficultSliders = Math.Clamp(Math.Min(maximumPossibleDroppedSliders, attributes.MaxCombo - scoreMaxCombo), 0, attributes.AimDifficultSliderCount);
+                }
+                else
+                {
+                    // We add tick misses here since they too mean that the player didn't follow the slider properly
+                    // We however aren't adding misses here because missing slider heads has a harsh penalty by itself and doesn't mean that the rest of the slider wasn't followed properly
+                    estimateImproperlyFollowedDifficultSliders = Math.Clamp(countSliderEndsDropped + countSliderTickMiss, 0, attributes.AimDifficultSliderCount);
+                }
+
+                double sliderNerfFactor = (1 - attributes.SliderFactor) * Math.Pow(1 - estimateImproperlyFollowedDifficultSliders / attributes.AimDifficultSliderCount, 3) + attributes.SliderFactor;
+                precisionDifficulty *= sliderNerfFactor;
+            }
+
+            double precisionValue = DifficultyToPerformance(precisionDifficulty);
+
+            if (effectiveMissCount > 0)
+            {
+                aimEstimatedSliderBreaks = calculateEstimatedSliderBreaks(attributes.AimTopWeightedSliderFactor, attributes);
+
+                double relevantMissCount = Math.Min(effectiveMissCount + aimEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
+
+                precisionValue *= calculateMissPenalty(relevantMissCount, attributes.AimDifficultStrainCount);
+            }
+
+            // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
+            if (score.Mods.Any(m => m is OsuModBlinds))
+                precisionValue *= 1.3 + (totalHits * (0.0016 / (1 + 2 * effectiveMissCount)) * Math.Pow(accuracy, 16)) * (1 - 0.003 * drainRate * drainRate);
+            else if (score.Mods.Any(m => m is OsuModTraceable))
+            {
+                precisionValue *= 1.0 + calculateTraceableBonus(attributes.SliderFactor);
+            }
+
+            precisionValue *= accuracy;
+
+            return precisionValue;
         }
 
         private double computeSpeedValue(ScoreInfo score, OsuDifficultyAttributes attributes)

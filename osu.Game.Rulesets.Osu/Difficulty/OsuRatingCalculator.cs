@@ -48,6 +48,30 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return aimRating * Math.Cbrt(ratingMultiplier);
         }
 
+        public double ComputePrecisionRating(double precisionDifficultyValue)
+        {
+            if (mods.Any(m => m is OsuModAutopilot))
+                return 0;
+
+            double precisionRating = Math.Pow(precisionDifficultyValue, 0.5);
+
+            if (mods.Any(m => m is OsuModRelax))
+                precisionRating *= 0.9;
+
+            if (mods.Any(m => m is OsuModMagnetised))
+            {
+                float magnetisedStrength = mods.OfType<OsuModMagnetised>().First().AttractionStrength.Value;
+                precisionRating *= 1.0 - magnetisedStrength;
+            }
+
+            double ratingMultiplier = 1.0;
+
+            // It is important to consider accuracy difficulty when scaling with accuracy.
+            ratingMultiplier *= 0.98 + Math.Pow(Math.Max(0, overallDifficulty), 2) / 2500;
+
+            return precisionRating * Math.Cbrt(ratingMultiplier);
+        }
+
         public double ComputeSpeedRating(double speedDifficultyValue)
         {
             if (mods.Any(m => m is OsuModRelax))

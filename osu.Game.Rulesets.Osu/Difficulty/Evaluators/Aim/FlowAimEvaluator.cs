@@ -42,10 +42,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
             double flowDifficulty = currVelocity;
 
-            // Apply high circle size bonus to the base velocity.
-            // We use reduced CS bonus here because the bonus was made for an evaluator with a different d/t scaling
-            flowDifficulty *= Math.Sqrt(osuCurrObj.SmallCircleBonus);
-
             // Rhythm changes are harder to flow
             flowDifficulty *= 1 + Math.Min(0.25,
                 Math.Pow((Math.Max(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime) - Math.Min(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime)) / 50, 4));

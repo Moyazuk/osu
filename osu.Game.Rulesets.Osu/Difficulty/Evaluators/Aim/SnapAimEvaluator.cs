@@ -156,9 +156,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             if (withSliderTravelDistance)
                 aimStrain += (sliderBonus < 1 ? sliderBonus : Math.Pow(sliderBonus, 0.75)) * slider_multiplier;
 
-            // Apply high circle size bonus
-            aimStrain *= osuCurrObj.SmallCircleBonus;
-
             aimStrain *= highBpmBonus(osuCurrObj.AdjustedDeltaTime, osuCurrObj.LazyJumpDistance);
 
             return aimStrain;
