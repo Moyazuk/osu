@@ -7,10 +7,13 @@ using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Objects;
 using System.Linq;
+using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Osu.Mods;
+using static osu.Game.Rulesets.Difficulty.Utils.DifficultyCalculationUtils;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
@@ -19,20 +22,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Precision : HarmonicSkill
     {
-        private double skillMultiplier => 3.8;
+        private double skillMultiplier => 4.2;
 
         private readonly List<double> sliderStrains = new List<double>();
 
         private double currentDifficulty;
 
-        private double strainDecayBase => 0.3;
+        private double strainDecayBase => 0.10;
 
-        protected override double HarmonicScale => 5;
-        protected override double DecayExponent => 0.55;
+        protected override double HarmonicScale => 20;
+        protected override double DecayExponent => 0.7;
 
-        public Precision(Mod[] mods)
+        public readonly bool IncludeSliders;
+
+        public Precision(Mod[] mods, bool includeSliders)
             : base(mods)
         {
+            IncludeSliders = includeSliders;
         }
 
         private double strainDecay(double ms) => Math.Pow(strainDecayBase, ms / 1000);
@@ -41,11 +47,31 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
             double decay = strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
 
+            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * Aim.SkillMultiplierSnap;
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * Aim.SkillMultiplierAgility;
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * Aim.SkillMultiplierFlow;
+
+            double combinedSnapDifficulty = Norm(Aim.MeanExponent, snapDifficulty, agilityDifficulty);
+
+            double pSnap = Aim.CalculateSnapFlowProbability(flowDifficulty / combinedSnapDifficulty);
+
+            double flowNerf = Interpolation.Lerp(0.0, 1.0, Smootherstep(pSnap, 0, 0.5));
+
+            double precisionDifficulty = PrecisionEvaluator.EvaluateDifficultyOf(current) * (1 - decay) * skillMultiplier * flowNerf;
+
             currentDifficulty *= decay;
-            currentDifficulty += PrecisionEvaluator.EvaluateDifficultyOf(current) * (1 - decay) * skillMultiplier;
+            currentDifficulty += precisionDifficulty;
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentDifficulty);
+
+            if (Mods.Any(m => m is OsuModTouchDevice))
+            {
+                currentDifficulty *= 0.5;
+            }
+
+            currentDifficulty *= 1;
+
 
             return currentDifficulty;
         }

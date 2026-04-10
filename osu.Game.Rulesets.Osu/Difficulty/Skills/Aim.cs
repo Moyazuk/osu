@@ -31,11 +31,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
-        private double skillMultiplierSnap => 70.9;
-        private double skillMultiplierAgility => 2.35;
-        private double skillMultiplierFlow => 243.0;
+        public static double SkillMultiplierSnap => 70.9;
+        public static double SkillMultiplierAgility => 2.35;
+        public static double SkillMultiplierFlow => 243.0;
         private double skillMultiplierTotal => 1.12;
-        private double meanExponent => 1.2;
+        public static double MeanExponent => 1.2;
 
         /// <summary>
         /// The number of sections with the highest strains, which the peak strain reductions will apply to.
@@ -59,9 +59,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
             double decay = strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
 
-            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplierSnap;
-            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skillMultiplierAgility;
-            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplierFlow;
+            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * SkillMultiplierSnap;
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * SkillMultiplierAgility;
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * SkillMultiplierFlow;
 
             if (Mods.Any(m => m is OsuModTouchDevice))
             {
@@ -91,9 +91,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             // We compare flow to combined snap and agility because snap by itself doesn't have enough difficulty to be above flow on streams
             // Agility on the other hand is supposed to measure the rate of cursor velocity changes while snapping
             // So snapping every circle on a stream requires an enormous amount of agility at which point it's easier to flow
-            double combinedSnapDifficulty = DifficultyCalculationUtils.Norm(meanExponent, snapDifficulty, agilityDifficulty);
+            double combinedSnapDifficulty = DifficultyCalculationUtils.Norm(MeanExponent, snapDifficulty, agilityDifficulty);
 
-            double pSnap = calculateSnapFlowProbability(flowDifficulty / combinedSnapDifficulty);
+            double pSnap = CalculateSnapFlowProbability(flowDifficulty / combinedSnapDifficulty);
             double pFlow = 1 - pSnap;
 
             double totalDifficulty = combinedSnapDifficulty * pSnap + flowDifficulty * pFlow;
@@ -110,7 +110,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         // Therefore: f(x) + f(1/x) = 1
         // 0 <= f(x) <= 1 (cannot have negative or greater than 100% probability of snapping or flowing)
         // This logistic function is a solution, which fits nicely with the general idea of interpolation and provides a tuneable constant
-        private static double calculateSnapFlowProbability(double ratio)
+        public static double CalculateSnapFlowProbability(double ratio)
         {
             const double k = 7.27;
 
