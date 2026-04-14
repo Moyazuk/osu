@@ -138,7 +138,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             double currVelocity = currDistance / osuCurrObj.AdjustedDeltaTime;
             double prevVelocity = prevDistance / osuLastObj.AdjustedDeltaTime;
 
-            if (osuCurrObj.Angle == null)
+            if (osuCurrObj.AngleSigned == null)
                 return 0;
 
             double overlappedNotesWeight = 1;
@@ -152,15 +152,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 overlappedNotesWeight = 1 - o1 * o2 * o3;
             }
 
-            double angle = Math.PI - osuCurrObj.Angle.Value;
+            double angleSigned = osuCurrObj.AngleSigned.Value;
+            double prevAngleSigned = osuLastObj.AngleSigned ?? angleSigned;
 
-            double vNormal = Math.Sqrt(prevVelocity) * Math.Pow(Math.Sin(angle), 2);
-            double vTangential = Math.Abs(Math.Sqrt(currVelocity) - Math.Sqrt(prevVelocity)) * Math.Cos(angle);
+            double angularJerk = angleSigned - prevAngleSigned;
+
+            double vNormal = Math.Sqrt(prevVelocity) * Math.Pow(Math.Sin(angularJerk / 2), 2);
+            double vTangential = Math.Abs(Math.Sqrt(currVelocity) - Math.Sqrt(prevVelocity)) * Math.Cos(angularJerk / 2);
 
             double deltaV = Math.Sqrt(vNormal * vNormal + vTangential * vTangential);
             double flowImpulseDeltaV = deltaV;
 
-            double snapTransitionDeltaV = currVelocity;
+            double snapTransitionDeltaV = currVelocity * (Math.Abs(angularJerk) / (2 * Math.PI));
 
             double jerk = Interpolation.Lerp(snapTransitionDeltaV, flowImpulseDeltaV, previousPFlow);
 

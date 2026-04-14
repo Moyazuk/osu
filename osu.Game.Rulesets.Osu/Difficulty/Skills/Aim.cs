@@ -37,9 +37,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double skillMultiplierSnap => 84.9;
         private double skillMultiplierAgility => 52.35;
-        private double skillMultiplierFlow => 205.0;
+        private double skillMultiplierFlow => 235.0;
 
-        private double skillMultiplierJerkFlow => 120;
+        private double skillMultiplierJerkFlow => 400;
         private double skillMultiplierTotal => 1.12;
         private double combinedSnapNormExponent => 1.2;
 
