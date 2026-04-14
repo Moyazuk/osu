@@ -120,7 +120,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
 
             // Final velocity is being raised to a power because flow difficulty scales harder with both high distance and time, and we want to account for that
-            return Math.Pow(flowDifficulty, 1.75);
+            return Math.Pow(flowDifficulty, 1.5);
         }
 
         public static double EvaluateJerkDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance, double previousPFlow)
