@@ -31,9 +31,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
-        private double skillMultiplierSnap => 70.9;
-        private double skillMultiplierAgility => 2.35;
-        private double skillMultiplierFlow => 243.0;
+        private double currentJerkStrain;
+
+        private double previousPFlow;
+
+        private double skillMultiplierSnap => 84.9;
+        private double skillMultiplierAgility => 52.35;
+        private double skillMultiplierFlow => 205.0;
+
+        private double skillMultiplierJerkFlow => 120;
         private double skillMultiplierTotal => 1.12;
         private double combinedSnapNormExponent => 1.2;
 
@@ -52,6 +58,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecay(double ms) => Math.Pow(0.2, ms / 1000);
 
+        private double jerkStrainDecay(double ms) => Math.Pow(0.1, ms / 1000);
+
         protected override double CalculateInitialStrain(double time, DifficultyHitObject current) =>
             currentStrain * strainDecay(time - current.Previous(0).StartTime);
 
@@ -59,30 +67,38 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
             double decay = strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
 
+            double jerkDecay = jerkStrainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
+
             double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplierSnap;
             double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skillMultiplierAgility;
-            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplierFlow;
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, previousPFlow) * skillMultiplierFlow;
+            double flowJerkDifficulty = FlowAimEvaluator.EvaluateJerkDifficultyOf(current, IncludeSliders, previousPFlow) * skillMultiplierJerkFlow;
 
-            double totalDifficulty = calculateTotalValue(snapDifficulty, agilityDifficulty, flowDifficulty);
+            var (totalDifficulty, totalJerk) = calculateTotalValue(snapDifficulty, agilityDifficulty, flowDifficulty, flowJerkDifficulty);
 
             currentStrain *= decay;
             currentStrain += totalDifficulty * (1 - decay);
 
+            currentJerkStrain *= jerkDecay;
+            currentJerkStrain += totalJerk * (1 - jerkDecay);
+
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentStrain);
 
-            return currentStrain;
+            return currentStrain + currentJerkStrain;
         }
 
-        private double calculateTotalValue(double snapDifficulty, double agilityDifficulty, double flowDifficulty)
+        private (double aim, double jerk) calculateTotalValue(double snapDifficulty, double agilityDifficulty, double flowDifficulty, double flowJerkDifficulty)
         {
             // We compare flow to combined snap and agility because snap by itself doesn't have enough difficulty to be above flow on streams
             // Agility on the other hand is supposed to measure the rate of cursor velocity changes while snapping
             // So snapping every circle on a stream requires an enormous amount of agility at which point it's easier to flow
-            double combinedSnapDifficulty = DifficultyCalculationUtils.Norm(combinedSnapNormExponent, snapDifficulty, agilityDifficulty);
+            double combinedSnapDifficulty = DifficultyCalculationUtils.Norm(1, snapDifficulty, agilityDifficulty);
+            double combinedFlowDifficulty = DifficultyCalculationUtils.Norm(1, flowDifficulty, flowJerkDifficulty);
 
-            double pSnap = calculateSnapFlowProbability(flowDifficulty / combinedSnapDifficulty);
+            double pSnap = calculateSnapFlowProbability(combinedFlowDifficulty / combinedSnapDifficulty);
             double pFlow = 1 - pSnap;
+            previousPFlow = pFlow;
 
             if (Mods.Any(m => m is OsuModTouchDevice))
             {
@@ -97,11 +113,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 flowDifficulty *= 0.6;
             }
 
-            double totalDifficulty = combinedSnapDifficulty * pSnap + flowDifficulty * pFlow;
+            double totalDifficulty = snapDifficulty * pSnap + flowDifficulty * pFlow;
 
-            double totalStrain = totalDifficulty * skillMultiplierTotal;
+            double totalJerk = agilityDifficulty * pSnap + flowJerkDifficulty * pFlow;
 
-            return totalStrain;
+            double totalAimStrain = totalDifficulty * skillMultiplierTotal;
+
+            double totalJerkStrain = totalJerk * skillMultiplierTotal;
+
+            return (totalAimStrain, totalJerkStrain);
         }
 
         // A function that turns the ratio of snap : flow into the probability of snapping/flowing
