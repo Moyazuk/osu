@@ -42,14 +42,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 double currDistanceMultiplier = DifficultyCalculationUtils.Smootherstep(osuCurrObj.LazyJumpDistance / radius, 1, 2);
                 double prevDistanceMultiplier = DifficultyCalculationUtils.Smootherstep(osuPrevObj.LazyJumpDistance / radius, 1, 2);
 
-                double currTime = currStrainTime;
+                double currTime = currStrainTime + osuCurrObj.ExtraDeltaTime * (1 - prevDistanceMultiplier);
                 double prevTime = lastStrainTime;
 
                 double currentAngle = osuCurrObj.Angle!.Value * 180 / Math.PI;
 
                 double angleBonus = 0.55 * DifficultyCalculationUtils.Smootherstep(currentAngle, 40, 180) * currDistanceMultiplier * prevDistanceMultiplier;
 
-                double velocityBonus = Math.Pow(osuCurrObj.LazyJumpDistance / currStrainTime, 2) * 0.005;
+                double velocityBonus = Math.Pow(osuCurrObj.LazyJumpDistance / currStrainTime, 2) * 0.000;
 
                 double velocityChangeBonus = Math.Abs(prevVelocity - currVelocity) * 0.00;
 
