@@ -31,6 +31,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
+        private double lengthBonusMultiplier => 2.5;
+
         private double skillMultiplierSnap => 70.9;
         private double skillMultiplierAgility => 2.35;
         private double skillMultiplierFlow => 243.0;
@@ -230,7 +232,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return strains.OrderByDescending(p => p.Value);
         }
 
-        public double CalculateLengthBonus(OsuRatingCalculator osuRatingCalculator)
+        public double LengthBonus()
         {
             double bonus = 0;
 
@@ -239,18 +241,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             foreach (StrainPeak strain in strains)
             {
-                double difficulty = strain.Value * 10;
-                double rating = osuRatingCalculator.ComputeAimRating(difficulty);
-                double performance = OsuPerformanceCalculator.DifficultyToPerformance(rating);
                 double multiplier = LengthBonusMultiplier(time + (strain.SectionLength / MaxSectionLength)) - LengthBonusMultiplier(time);
 
-                double currStrainBonus = performance * multiplier;
+                double currStrainBonus = strain.Value * multiplier;
 
                 bonus += currStrainBonus;
                 time += strain.SectionLength / MaxSectionLength;
             }
 
-            return bonus * 0.58;
+            return bonus * lengthBonusMultiplier;
         }
 
         // https://www.desmos.com/calculator/secrjaywao

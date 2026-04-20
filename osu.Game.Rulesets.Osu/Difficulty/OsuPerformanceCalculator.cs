@@ -177,7 +177,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 return 0.0;
 
             double aimDifficulty = attributes.AimDifficulty;
-            double lengthBonus = attributes.AimLengthBonus;
 
             if (attributes.SliderCount > 0 && attributes.AimDifficultSliderCount > 0)
             {
@@ -198,16 +197,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
                 double sliderNerfFactor = (1 - attributes.SliderFactor) * Math.Pow(1 - estimateImproperlyFollowedDifficultSliders / attributes.AimDifficultSliderCount, 3) + attributes.SliderFactor;
                 aimDifficulty *= sliderNerfFactor;
-
-                double lengthBonusSliderNerfFactor = (1 - attributes.LengthBonusSliderFactor) * Math.Pow(1 - estimateImproperlyFollowedDifficultSliders / attributes.AimDifficultSliderCount, 3) + attributes.LengthBonusSliderFactor;
-                lengthBonus *= lengthBonusSliderNerfFactor;
             }
 
             double aimValue = DifficultyToPerformance(aimDifficulty);
-
-            // Take away some performance before adding length bonus
-            aimValue *= 0.95;
-            aimValue += lengthBonus;
 
             if (effectiveMissCount > 0)
             {
