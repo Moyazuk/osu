@@ -31,7 +31,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
-        private double lengthBonusMultiplier => 2.5;
+        public static double DifficultyMultiplier => 0.5;
+        public static double LengthBonusMultiplier => 0.00015;
+        public static double LengthBonusChunkPow => 1;
+        public static double LengthBonusChunkBase => 0;
 
         private double skillMultiplierSnap => 70.9;
         private double skillMultiplierAgility => 2.35;
@@ -241,18 +244,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             foreach (StrainPeak strain in strains)
             {
-                double multiplier = LengthBonusMultiplier(time + (strain.SectionLength / MaxSectionLength)) - LengthBonusMultiplier(time);
+                double difficulty = Math.Pow(strain.Value, LengthBonusChunkPow) + LengthBonusChunkBase;
+                double multiplier = LengthBonusFormula(time + strain.SectionLength) - LengthBonusFormula(time);
 
-                double currStrainBonus = strain.Value * multiplier;
+                double currStrainBonus = difficulty * multiplier;
 
                 bonus += currStrainBonus;
-                time += strain.SectionLength / MaxSectionLength;
+                time += strain.SectionLength;
             }
 
-            return bonus * lengthBonusMultiplier;
+            return bonus;
         }
 
         // https://www.desmos.com/calculator/secrjaywao
-        public static double LengthBonusMultiplier(double strains) => Math.Min(0.5, strains / 500.0) + (strains > 250 ? Math.Log(strains / 500.0 + 0.5) : 0.0);
+        public static double LengthBonusFormula(double time) => time;
     }
 }

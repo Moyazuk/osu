@@ -57,8 +57,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
             var reading = skills.OfType<Reading>().Single();
 
-            double aimDifficultyValue = aim.DifficultyValue() + aim.LengthBonus();
-            double aimNoSlidersDifficultyValue = aimWithoutSliders.DifficultyValue() + aimWithoutSliders.LengthBonus();
+            double aimDifficultyValue = aim.DifficultyValue() * Aim.DifficultyMultiplier +
+                                        aim.LengthBonus() * Aim.LengthBonusMultiplier;
+            double aimNoSlidersDifficultyValue = aimWithoutSliders.DifficultyValue() * Aim.DifficultyMultiplier +
+                                                 aimWithoutSliders.LengthBonus() * Aim.LengthBonusMultiplier;
             double speedDifficultyValue = speed.DifficultyValue();
             double readingDifficultyValue = reading.DifficultyValue();
 
