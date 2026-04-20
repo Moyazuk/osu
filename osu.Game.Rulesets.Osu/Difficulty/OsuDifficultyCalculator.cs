@@ -96,6 +96,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double speedRating = osuRatingCalculator.ComputeSpeedRating(speedDifficultyValue);
             double readingRating = osuRatingCalculator.ComputeReadingRating(readingDifficultyValue);
 
+            double aimLengthBonus = aim.CalculateLengthBonus(osuRatingCalculator);
+            double aimNoSlidersLengthBonus = aimWithoutSliders.CalculateLengthBonus(osuRatingCalculator);
+
+            double lengthBonusSliderFactor = aimLengthBonus > 0 ? aimNoSlidersLengthBonus / aimLengthBonus : 1;
+
             double flashlightRating = 0.0;
 
             if (flashlight is not null)
@@ -107,7 +112,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             var simulator = new OsuLegacyScoreSimulator();
             var scoreAttributes = simulator.Simulate(WorkingBeatmap, beatmap);
 
-            double baseAimPerformance = OsuPerformanceCalculator.DifficultyToPerformance(aimRating);
+            double baseAimPerformance = OsuPerformanceCalculator.DifficultyToPerformance(aimRating) * 0.95 + aimLengthBonus;
             double baseSpeedPerformance = HarmonicSkill.DifficultyToPerformance(speedRating);
             double baseReadingPerformance = HarmonicSkill.DifficultyToPerformance(readingRating);
             double baseFlashlightPerformance = Flashlight.DifficultyToPerformance(flashlightRating);
@@ -133,6 +138,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 ReadingDifficultNoteCount = readingDifficultNoteCount,
                 AimTopWeightedSliderFactor = aimTopWeightedSliderFactor,
                 SpeedTopWeightedSliderFactor = speedTopWeightedSliderFactor,
+                AimLengthBonus = aimLengthBonus,
+                LengthBonusSliderFactor = lengthBonusSliderFactor,
                 MaxCombo = beatmap.GetMaxCombo(),
                 HitCircleCount = hitCircleCount,
                 SliderCount = sliderCount,

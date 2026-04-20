@@ -229,5 +229,31 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             return strains.OrderByDescending(p => p.Value);
         }
+
+        public double CalculateLengthBonus(OsuRatingCalculator osuRatingCalculator)
+        {
+            double bonus = 0;
+
+            var strains = getReducedStrainPeaks();
+            double time = -1;
+
+            foreach (StrainPeak strain in strains)
+            {
+                double difficulty = strain.Value * 10;
+                double rating = osuRatingCalculator.ComputeAimRating(difficulty);
+                double performance = OsuPerformanceCalculator.DifficultyToPerformance(rating);
+                double multiplier = LengthBonusMultiplier(time + (strain.SectionLength / MaxSectionLength)) - LengthBonusMultiplier(time);
+
+                double currStrainBonus = performance * multiplier;
+
+                bonus += currStrainBonus;
+                time += strain.SectionLength / MaxSectionLength;
+            }
+
+            return bonus * 0.58;
+        }
+
+        // https://www.desmos.com/calculator/secrjaywao
+        public static double LengthBonusMultiplier(double strains) => Math.Min(0.5, strains / 500.0) + (strains > 250 ? Math.Log(strains / 500.0 + 0.5) : 0.0);
     }
 }

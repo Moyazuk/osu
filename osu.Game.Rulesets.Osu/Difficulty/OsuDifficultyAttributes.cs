@@ -84,6 +84,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("reading_difficult_note_count")]
         public double ReadingDifficultNoteCount { get; set; }
 
+        [JsonProperty("aim_length_bonus")]
+        public double AimLengthBonus { get; set; }
+
+        [JsonProperty("length_bonus_slider_factor")]
+        public double LengthBonusSliderFactor { get; set; }
+
         [JsonProperty("nested_score_per_object")]
         public double NestedScorePerObject { get; set; }
 
