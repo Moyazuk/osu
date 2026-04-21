@@ -40,6 +40,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double skillMultiplierFlow => 125.0;
 
         private double skillMultiplierJerkFlow => 165;
+        public static double DifficultyMultiplier => 0.95 * 0.8;
+        public static double LengthBonusMultiplier => 1.0 * 0.8;
+        public static double LengthBonusChunkPow => 1;
+        public static double LengthBonusChunkBase => 0;
+
         private double skillMultiplierTotal => 1.12;
         private double combinedSnapNormExponent => 1.2;
 
@@ -249,5 +254,27 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             return strains.OrderByDescending(p => p.Value);
         }
+
+        public double LengthBonus()
+        {
+            double bonus = 0;
+
+            var strains = getReducedStrainPeaks();
+            double time = 1;
+
+            foreach (StrainPeak strain in strains)
+            {
+                double difficulty = Math.Pow(strain.Value, LengthBonusChunkPow) + LengthBonusChunkBase;
+                double multiplier = LengthBonusFormula(time + strain.SectionLength) - LengthBonusFormula(time);
+
+                bonus += difficulty * multiplier;
+                time += strain.SectionLength;
+            }
+
+            return bonus;
+        }
+
+        // https://www.desmos.com/calculator/secrjaywao
+        public static double LengthBonusFormula(double ms) => Math.Pow(ms / 1000, 0.33);
     }
 }
