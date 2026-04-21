@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using osu.Framework.Extensions;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mods;
 
@@ -154,16 +153,7 @@ namespace osu.Game.Rulesets.Difficulty.Skills
         /// </summary>
         private void saveCurrentPeak(double sectionLength)
         {
-            strainPeaks.AddInPlace(new StrainPeak(currentSectionPeak, sectionLength));
-            totalLength += sectionLength;
-
-            // Remove from the back of our strain peaks if there's any which are too deep to contribute to difficulty.
-            // `maxStoredSections` dictates for us how many sections will preserve at least 99.999% of the difficulty value.
-            while (totalLength > maxStoredSections * MaxSectionLength)
-            {
-                totalLength -= strainPeaks[0].SectionLength;
-                strainPeaks.RemoveAt(0);
-            }
+            strainPeaks.Add(new StrainPeak(currentSectionPeak, sectionLength));
         }
 
         /// <summary>
