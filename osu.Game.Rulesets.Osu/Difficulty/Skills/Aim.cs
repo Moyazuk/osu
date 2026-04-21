@@ -31,8 +31,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
-        public static double DifficultyMultiplier => 0.95;
-        public static double LengthBonusMultiplier => 1.0;
+        public static double DifficultyMultiplier => 0.95 * 0.8;
+        public static double LengthBonusMultiplier => 1.0 * 0.8;
         public static double LengthBonusChunkPow => 1;
         public static double LengthBonusChunkBase => 0;
 
