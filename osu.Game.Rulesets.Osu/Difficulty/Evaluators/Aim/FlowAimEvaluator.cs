@@ -80,9 +80,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             {
                 // Acute angles are also hard to flow
                 // We square root velocity to make acute angle switches in streams aren't having difficulty higher than snap
-                flowContinuationDifficulty += Math.Sqrt(currVelocity) *
+                flowContinuationDifficulty += currVelocity *
                                   SnapAimEvaluator.CalcAngleAcuteness(osuCurrObj.Angle.Value) *
-                                  overlappedNotesWeight * 1.5;
+                                  overlappedNotesWeight * 2;
             }
 
             if (Math.Max(prevVelocity, currVelocity) != 0)
@@ -100,9 +100,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                     Math.Abs(prevVelocity - currVelocity));
 
                 flowContinuationDifficulty += overlapVelocityBuff *
-                                  distRatio *
-                                  overlappedNotesWeight *
-                                  velocity_change_multiplier;
+                                              distRatio *
+                                              overlappedNotesWeight *
+                                              velocity_change_multiplier;
             }
 
             if (osuCurrObj.BaseObject is Slider && withSliderTravelDistance)
@@ -120,7 +120,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
 
             // Final velocity is being raised to a power because flow difficulty scales harder with both high distance and time, and we want to account for that
-            return Math.Pow(flowDifficulty, 1.5);
+            return Math.Pow(flowDifficulty, 1.0);
         }
 
         public static double EvaluateJerkDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance, double previousPFlow)
@@ -153,21 +153,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             }
 
             double angleSigned = osuCurrObj.AngleSigned.Value;
-            double prevAngleSigned = osuLastObj.AngleSigned ?? angleSigned;
 
-            double angularJerk = angleSigned - prevAngleSigned;
+            double angleBetween = Math.PI - Math.Abs(angleSigned);
 
-            double vNormal = Math.Sqrt(prevVelocity) * Math.Pow(Math.Sin(angularJerk / 2), 2);
-            double vTangential = Math.Abs(Math.Sqrt(currVelocity) - Math.Sqrt(prevVelocity)) * Math.Cos(angularJerk / 2);
+            double vNormal = prevVelocity * Math.Sin(angleBetween);
+            double vTangentialFlow = currVelocity - prevVelocity * Math.Cos(angleBetween);
+            double vTangentialSnap = currVelocity;
 
-            double deltaV = Math.Sqrt(vNormal * vNormal + vTangential * vTangential);
-            double flowImpulseDeltaV = deltaV;
+            double effectiveVNormal = vNormal * previousPFlow;
+            double effectiveVTangential = Interpolation.Lerp(vTangentialSnap, vTangentialFlow, previousPFlow);
 
-            double snapTransitionDeltaV = currVelocity * (Math.Abs(angularJerk) / (2 * Math.PI));
+            double deltaV = Math.Sqrt(effectiveVNormal * effectiveVNormal + effectiveVTangential * effectiveVTangential);
 
-            double jerk = Interpolation.Lerp(snapTransitionDeltaV, flowImpulseDeltaV, previousPFlow);
+            Console.WriteLine($" vnormal : {effectiveVNormal} vtangential : {effectiveVTangential} angleSigned {angleSigned}");
 
-            return Math.Pow(jerk, 3) * overlappedNotesWeight;
+            return Math.Pow(deltaV, 2) * overlappedNotesWeight;
         }
 
         private static double calculateOverlapFactor(OsuDifficultyHitObject first, OsuDifficultyHitObject second)
