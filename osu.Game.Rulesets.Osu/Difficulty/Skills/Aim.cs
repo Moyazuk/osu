@@ -36,10 +36,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double previousPFlow;
 
         private double skillMultiplierSnap => 84.9;
-        private double skillMultiplierAgility => 85.35;
-        private double skillMultiplierFlow => 125.0;
+        private double skillMultiplierAgility => 95.35;
+        private double skillMultiplierFlow => 245.0;
 
-        private double skillMultiplierJerkFlow => 165;
+        private double skillMultiplierJerkFlow => 45;
         public static double DifficultyMultiplier => 0.95 * 0.8;
         public static double LengthBonusMultiplier => 1.0 * 0.8;
         public static double LengthBonusChunkPow => 1;
@@ -63,7 +63,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecay(double ms) => Math.Pow(0.2, ms / 1000);
 
-        private double jerkStrainDecay(double ms) => Math.Pow(0.1, ms / 1000);
+        private double jerkStrainDecay(double ms) => Math.Pow(0.85, ms / 1000);
 
         protected override double CalculateInitialStrain(double time, DifficultyHitObject current) =>
             currentStrain * strainDecay(time - current.Previous(0).StartTime);

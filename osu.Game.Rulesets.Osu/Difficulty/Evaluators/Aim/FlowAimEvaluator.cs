@@ -165,9 +165,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
             double deltaV = Math.Sqrt(effectiveVNormal * effectiveVNormal + effectiveVTangential * effectiveVTangential);
 
-            Console.WriteLine($" vnormal : {effectiveVNormal} vtangential : {effectiveVTangential} angleSigned {angleSigned}");
-
-            return Math.Pow(deltaV, 2) * overlappedNotesWeight;
+            return Math.Pow(deltaV, 3) * overlappedNotesWeight;
         }
 
         private static double calculateOverlapFactor(OsuDifficultyHitObject first, OsuDifficultyHitObject second)

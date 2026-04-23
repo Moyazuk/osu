@@ -55,7 +55,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
                 double baseBpm = 280 / (1 + (angleBonus + velocityBonus + velocityChangeBonus));
 
-                agilityBonus = Math.Max(0, Math.Pow(DifficultyCalculationUtils.MillisecondsToBPM(currTime, 2) / baseBpm, 4) - 1);
+                agilityBonus = Math.Max(0, Math.Pow(DifficultyCalculationUtils.MillisecondsToBPM(currTime, 2) / baseBpm, 6) - 1);
 
                 agilityBonus *= vectorAngleRepetition(osuCurrObj, osuPrevObj);
 
