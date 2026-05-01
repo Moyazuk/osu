@@ -116,7 +116,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 }
 
                 // Add in acute angle bonus or wide angle bonus, whichever is larger.
-                snapDifficulty += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier);
+                snapDifficulty += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * 9);
 
                 // Apply wiggle bonus for jumps that are [radius, 3*diameter] in distance, with < 110 angle
                 // https://www.desmos.com/calculator/dp0v0nvowc
@@ -150,7 +150,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 // Penalize for rhythm changes.
                 velocityChangeBonus *= Math.Pow(Math.Min(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime) / Math.Max(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime), 2);
 
-                snapDifficulty += velocityChangeBonus * velocity_change_multiplier;
+                if (osuCurrObj.Angle != null)
+                {
+                    //velocity changes matter more when the angle is wide, because reasons
+                    velocityChangeBonus *= 1 + DifficultyCalculationUtils.Smootherstep(osuCurrObj.Angle.Value, double.DegreesToRadians(90), double.DegreesToRadians(180)) * 6 * DifficultyCalculationUtils.Smootherstep(prevDistance, radius, diameter);
+                }
+
+                snapDifficulty += velocityChangeBonus * 0.75;
             }
 
             // Reward sliders based on velocity.
