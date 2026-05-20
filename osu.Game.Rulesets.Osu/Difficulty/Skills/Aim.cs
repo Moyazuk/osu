@@ -33,15 +33,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentJerkStrain;
 
+        private double currentJerkStamina;
+
         private double previousPFlow;
 
-        private double skillMultiplierSnap => 84.9;
-        private double skillMultiplierAgility => 85.35;
-        private double skillMultiplierFlow => 235.0;
+        private double skillMultiplierSnap => 125.9;
+        private double skillMultiplierAgility => 1350000000.35;
+        private double skillMultiplierFlow => 245.0;
 
-        private double skillMultiplierJerkFlow => 400;
+        private double skillMultiplierJerkFlow => 500;
         private double skillMultiplierTotal => 1.12;
         private double combinedSnapNormExponent => 1.2;
+
+        private double jerkStrainMultiplier => 0.15;
+
+        private double jerkStaminaMultiplier => 1.05;
 
         /// <summary>
         /// The number of sections with the highest strains, which the peak strain reductions will apply to.
@@ -58,7 +64,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecay(double ms) => Math.Pow(0.2, ms / 1000);
 
-        private double jerkStrainDecay(double ms) => Math.Pow(0.1, ms / 1000);
+        private double jerkStrainDecay(double ms) => Math.Pow(0.1
+            , ms / 1000);
+
+        private double jerkStaminaDecay(double ms) => Math.Pow(0.75
+            , ms / 1000);
 
         protected override double CalculateInitialStrain(double time, DifficultyHitObject current) =>
             currentStrain * strainDecay(time - current.Previous(0).StartTime);
@@ -68,6 +78,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double decay = strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
 
             double jerkDecay = jerkStrainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
+
+            double jerkStamDecay = jerkStaminaDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
 
             double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplierSnap;
             double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skillMultiplierAgility;
@@ -80,12 +92,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             currentStrain += totalDifficulty * (1 - decay);
 
             currentJerkStrain *= jerkDecay;
-            currentJerkStrain += totalJerk * (1 - jerkDecay);
+            currentJerkStrain += totalJerk * (1 - jerkDecay) * jerkStrainMultiplier;
+
+            currentJerkStamina *= jerkStamDecay;
+            currentJerkStamina += totalJerk * (1 - jerkStamDecay) * jerkStaminaMultiplier;
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentStrain);
 
-            return currentStrain + currentJerkStrain;
+            return currentStrain + currentJerkStrain + currentJerkStamina;
         }
 
         private (double aim, double jerk) calculateTotalValue(double snapDifficulty, double agilityDifficulty, double flowDifficulty, double flowJerkDifficulty)
