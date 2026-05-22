@@ -1148,12 +1148,12 @@ namespace osu.Game
             ScreenStack.ScreenPushed += screenPushed;
             ScreenStack.ScreenExited += screenExited;
 
-            loadComponentSingleFile(fpsCounter = new FPSCounter
-            {
-                Anchor = Anchor.BottomRight,
-                Origin = Anchor.BottomRight,
-                Margin = new MarginPadding(5),
-            }, topMostOverlayContent.Add);
+            // loadComponentSingleFile(fpsCounter = new FPSCounter
+            // {
+            //     Anchor = Anchor.BottomRight,
+            //     Origin = Anchor.BottomRight,
+            //     Margin = new MarginPadding(5),
+            // }, topMostOverlayContent.Add);
 
             if (!IsDeployedBuild)
                 loadComponentSingleFile(devBuildBanner = new DevBuildBanner(), ScreenContainer.Add);
