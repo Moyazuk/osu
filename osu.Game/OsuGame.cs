@@ -95,7 +95,7 @@ namespace osu.Game
         // Different port allows running release and debug builds alongside each other.
         public const string IPC_PIPE_NAME = "osu-lazer-debug";
 #else
-        public const string IPC_PIPE_NAME = "osu-lazer";
+        public const string IPC_PIPE_NAME = "osu-lazer-fps-test";
 #endif
 
         /// <summary>
@@ -1527,9 +1527,9 @@ namespace osu.Game
                 case GlobalAction.PreviousVolumeMeter:
                     return volume.Adjust(e.Action);
 
-                case GlobalAction.ToggleFPSDisplay:
-                    fpsCounter.ToggleVisibility();
-                    return true;
+                // case GlobalAction.ToggleFPSDisplay:
+                //     fpsCounter.ToggleVisibility();
+                //     return true;
 
                 case GlobalAction.ToggleSkinEditor:
                     skinEditor.ToggleVisibility();

@@ -23,7 +23,7 @@ namespace osu.Desktop
 #if DEBUG
         private const string base_game_name = @"osu-development";
 #else
-        private const string base_game_name = @"osu";
+        private const string base_game_name = @"osu-fps-test";
 #endif
 
         private static LegacyTcpIpcProvider? legacyIpc;
