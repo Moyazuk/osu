@@ -106,8 +106,7 @@ namespace osu.Game
 
         public virtual bool UseDevelopmentServer => DebugUtils.IsDebugBuild;
 
-        public virtual EndpointConfiguration CreateEndpoints() =>
-            UseDevelopmentServer ? new DevelopmentEndpointConfiguration() : new ProductionEndpointConfiguration();
+        public virtual EndpointConfiguration CreateEndpoints() => new DevelopmentEndpointConfiguration();
 
         protected override OnlineStore CreateOnlineStore() => new TrustedDomainOnlineStore();
 
