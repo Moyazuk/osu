@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
@@ -12,12 +13,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 {
     public static class FlowAimEvaluator
     {
-        private const double velocity_change_multiplier = 0.52;
+        private const double velocity_change_multiplier = 2.0;
 
         /// <summary>
         /// Evaluates difficulty of "flow aim" - aiming pattern where player doesn't stop their cursor on every object and instead "flows" through them.
         /// </summary>
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance, double previousPFlow)
         {
             if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
                 return 0;
@@ -40,14 +41,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
             double prevVelocity = prevDistance / osuLastObj.AdjustedDeltaTime;
 
-            double flowDifficulty = currVelocity;
+            double flowContinuationDifficulty = currVelocity;
+            double flowTransitionDifficulty = currVelocity;
 
             // Apply high circle size bonus to the base velocity.
             // We use reduced CS bonus here because the bonus was made for an evaluator with a different d/t scaling
-            flowDifficulty *= Math.Sqrt(osuCurrObj.SmallCircleBonus);
+            flowContinuationDifficulty *= Math.Sqrt(osuCurrObj.SmallCircleBonus);
+            flowTransitionDifficulty *= Math.Sqrt(osuCurrObj.SmallCircleBonus);
 
             // Rhythm changes are harder to flow
-            flowDifficulty *= 1 + Math.Min(0.25,
+            flowContinuationDifficulty *= 1 + Math.Min(0.25,
                 Math.Pow((Math.Max(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime) - Math.Min(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime)) / 50, 4));
 
             if (osuCurrObj.Angle != null && osuLastObj.Angle != null)
@@ -57,7 +60,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 double angularVelocity = angleDifferenceAdjusted / (osuCurrObj.AdjustedDeltaTime * 0.1);
 
                 // Low angular velocity flow (angles are consistent) is easier to follow than erratic flow
-                flowDifficulty *= 0.8 + Math.Sqrt(angularVelocity / 270.0);
+                flowContinuationDifficulty *= 0.8 + Math.Sqrt(angularVelocity / 270.0);
+                flowTransitionDifficulty *= 0.8;
             }
 
             // If all three notes are overlapping - don't reward bonuses as you don't have to do additional movement
@@ -70,14 +74,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 double o3 = calculateOverlapFactor(osuLastObj, osuLastLastObj);
 
                 overlappedNotesWeight = 1 - o1 * o2 * o3;
-            }
-
-            if (osuCurrObj.Angle != null)
-            {
-                // Acute angles are also hard to flow
-                flowDifficulty += currVelocity *
-                                  SnapAimEvaluator.CalcAngleAcuteness(osuCurrObj.Angle.Value) *
-                                  overlappedNotesWeight;
             }
 
             if (Math.Max(prevVelocity, currVelocity) != 0)
@@ -94,7 +90,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 double overlapVelocityBuff = Math.Min(OsuDifficultyHitObject.NORMALISED_DIAMETER * 1.25 / Math.Min(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime),
                     Math.Abs(prevVelocity - currVelocity));
 
-                flowDifficulty += overlapVelocityBuff *
+                flowContinuationDifficulty += overlapVelocityBuff *
                                   distRatio *
                                   overlappedNotesWeight *
                                   velocity_change_multiplier;
@@ -103,14 +99,66 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             if (osuCurrObj.BaseObject is Slider && withSliderTravelDistance)
             {
                 // Include slider velocity to make velocity more consistent with snap
-                flowDifficulty += osuCurrObj.TravelDistance / osuCurrObj.TravelTime;
+                flowContinuationDifficulty += osuCurrObj.TravelDistance / osuCurrObj.TravelTime;
+                flowTransitionDifficulty += osuCurrObj.TravelDistance / osuCurrObj.TravelTime;
             }
 
-            // Final velocity is being raised to a power because flow difficulty scales harder with both high distance and time, and we want to account for that
-            flowDifficulty = Math.Pow(flowDifficulty, 1.45);
+            flowTransitionDifficulty *= 1 - previousPFlow;
 
-            // Reduce difficulty for low spacing since spacing below radius is always to be flowed
-            return flowDifficulty * DifficultyCalculationUtils.Smootherstep(currDistance, 0, OsuDifficultyHitObject.NORMALISED_RADIUS);
+            flowContinuationDifficulty *= previousPFlow;
+
+            double flowDifficulty = flowTransitionDifficulty + flowContinuationDifficulty;
+
+
+            // Final velocity is being raised to a power because flow difficulty scales harder with both high distance and time, and we want to account for that
+            return Math.Pow(flowDifficulty, 1.5);
+        }
+
+        public static double EvaluateJerkDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance, double previousPFlow)
+        {
+            if (current.BaseObject is Spinner || current.Index <= 1 || current.Previous(0).BaseObject is Spinner)
+                return 0;
+
+            var osuCurrObj = (OsuDifficultyHitObject)current;
+            var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
+            var osuLastLastObj = (OsuDifficultyHitObject)current.Previous(1);
+
+            double currDistance = withSliderTravelDistance ? osuCurrObj.LazyJumpDistance : osuCurrObj.JumpDistance;
+            double prevDistance = withSliderTravelDistance ? osuLastObj.LazyJumpDistance : osuLastObj.JumpDistance;
+
+            double currVelocity = currDistance / osuCurrObj.AdjustedDeltaTime;
+            double prevVelocity = prevDistance / osuLastObj.AdjustedDeltaTime;
+
+            if (osuCurrObj.AngleSigned == null)
+                return 0;
+
+            double overlappedNotesWeight = 1;
+
+            if (current.Index > 2)
+            {
+                double o1 = calculateOverlapFactor(osuCurrObj, osuLastObj);
+                double o2 = calculateOverlapFactor(osuCurrObj, osuLastLastObj);
+                double o3 = calculateOverlapFactor(osuLastObj, osuLastLastObj);
+
+                overlappedNotesWeight = 1 - o1 * o2 * o3;
+            }
+
+            double angleSigned = osuCurrObj.AngleSigned.Value;
+            double prevAngleSigned = osuLastObj.AngleSigned ?? angleSigned;
+
+            double angularJerk = angleSigned - prevAngleSigned;
+
+            double vNormal = Math.Sqrt(prevVelocity) * Math.Pow(Math.Sin(angularJerk / 2), 2);
+            double vTangential = Math.Abs(Math.Sqrt(currVelocity) - Math.Sqrt(prevVelocity)) * Math.Cos(angularJerk / 2);
+
+            double deltaV = Math.Sqrt(vNormal * vNormal + vTangential * vTangential);
+            double flowImpulseDeltaV = deltaV;
+
+            double snapTransitionDeltaV = currVelocity * (Math.Abs(angularJerk) / (2 * Math.PI));
+
+            double jerk = Interpolation.Lerp(snapTransitionDeltaV, flowImpulseDeltaV, previousPFlow);
+
+            return Math.Pow(jerk, 3) * overlappedNotesWeight;
         }
 
         private static double calculateOverlapFactor(OsuDifficultyHitObject first, OsuDifficultyHitObject second)

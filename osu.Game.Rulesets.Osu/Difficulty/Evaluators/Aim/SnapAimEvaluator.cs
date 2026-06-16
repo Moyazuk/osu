@@ -12,7 +12,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 {
     public static class SnapAimEvaluator
     {
-        private const double wide_angle_multiplier = 9.67;
+        private const double wide_angle_multiplier = 1.05;
         private const double acute_angle_multiplier = 2.41;
         private const double slider_multiplier = 1.5;
         private const double velocity_change_multiplier = 0.9;
@@ -55,10 +55,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             double prevDistance = withSliderTravelDistance ? osuLastObj.LazyJumpDistance : osuLastObj.JumpDistance;
             double prevVelocity = prevDistance / osuLastObj.AdjustedDeltaTime;
 
-            double snapDifficulty = currVelocity; // Start difficulty with regular velocity.
+            double aimStrain = currVelocity; // Start strain with regular velocity.
 
             // Penalize angle repetition.
-            snapDifficulty *= vectorAngleRepetition(osuCurrObj, osuLastObj);
+            aimStrain *= vectorAngleRepetition(osuCurrObj, osuLastObj);
 
             if (osuCurrObj.Angle != null && osuLastObj.Angle != null)
             {
@@ -68,37 +68,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 // Rewarding angles, take the smaller velocity as base.
                 double velocityInfluence = Math.Min(currVelocity, prevVelocity);
 
-                double acuteAngleBonus = 0;
-
-                if (Math.Max(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime) < 1.25 * Math.Min(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime)) // If rhythms are the same.
-                {
-                    acuteAngleBonus = CalcAngleAcuteness(currAngle);
-
-                    // Penalize angle repetition. It is important to do it _before_ multiplying by anything because we compare raw acuteness here
-                    acuteAngleBonus *= 0.08 + 0.92 * (1 - Math.Min(acuteAngleBonus, Math.Pow(CalcAngleAcuteness(lastAngle), 3)));
-
-                    // Apply acute angle bonus for BPM above 300 1/2 and distance more than one diameter
-                    acuteAngleBonus *= velocityInfluence * DifficultyCalculationUtils.Smootherstep(DifficultyCalculationUtils.MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime, 2), 300, 400) *
-                                       DifficultyCalculationUtils.Smootherstep(currDistance, 0, diameter * 2);
-                }
-
-                double wideAngleBonus = calcAngleWideness(currAngle);
+                double wideAngleBonus = CalcAngleWideness(currAngle);
 
                 // Penalize angle repetition. It is important to do it _before_ multiplying by velocity because we compare raw wideness here
-                wideAngleBonus *= 0.25 + 0.75 * (1 - Math.Min(wideAngleBonus, Math.Pow(calcAngleWideness(lastAngle), 3)));
+                wideAngleBonus *= 0.25 + 0.75 * (1 - Math.Min(wideAngleBonus, Math.Pow(CalcAngleWideness(lastAngle), 3)));
 
-                // Rescaling velocity for the wide angle bonus
-                const double wide_angle_time_scale = 1.45;
-                double wideAngleCurrVelocity = currDistance / Math.Pow(osuCurrObj.AdjustedDeltaTime, wide_angle_time_scale);
-                double wideAnglePrevVelocity = prevDistance / Math.Pow(osuLastObj.AdjustedDeltaTime, wide_angle_time_scale);
-
-                if (osuLastObj.BaseObject is Slider && withSliderTravelDistance)
-                {
-                    double sliderDistance = osuLastObj.LazyTravelDistance + osuCurrObj.LazyJumpDistance;
-                    wideAngleCurrVelocity = Math.Max(wideAngleCurrVelocity, sliderDistance / Math.Pow(osuCurrObj.AdjustedDeltaTime, wide_angle_time_scale));
-                }
-
-                wideAngleBonus *= Math.Min(wideAngleCurrVelocity, wideAnglePrevVelocity);
+                wideAngleBonus *= velocityInfluence;
 
                 if (osuLast2Obj != null)
                 {
@@ -116,7 +91,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 }
 
                 // Add in acute angle bonus or wide angle bonus, whichever is larger.
-                snapDifficulty += Math.Max(acuteAngleBonus * acute_angle_multiplier, wideAngleBonus * wide_angle_multiplier);
+                aimStrain += (wideAngleBonus / Math.Pow(osuCurrObj.AdjustedDeltaTime, 1.1)) * 160;
 
                 // Apply wiggle bonus for jumps that are [radius, 3*diameter] in distance, with < 110 angle
                 // https://www.desmos.com/calculator/dp0v0nvowc
@@ -128,7 +103,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                                      * Math.Pow(DifficultyCalculationUtils.ReverseLerp(prevDistance, diameter * 3, diameter), 1.8)
                                      * DifficultyCalculationUtils.Smootherstep(lastAngle, double.DegreesToRadians(110), double.DegreesToRadians(60));
 
-                snapDifficulty += wiggleBonus * wiggle_multiplier;
+                aimStrain += wiggleBonus * wiggle_multiplier;
             }
 
             if (Math.Max(prevVelocity, currVelocity) != 0)
@@ -150,25 +125,33 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 // Penalize for rhythm changes.
                 velocityChangeBonus *= Math.Pow(Math.Min(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime) / Math.Max(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime), 2);
 
-                snapDifficulty += velocityChangeBonus * velocity_change_multiplier;
+                if (osuCurrObj.Angle != null)
+                {
+                    //velocity changes matter more when the angle is wide, because reasons
+                    velocityChangeBonus *= 1 + DifficultyCalculationUtils.Smootherstep(osuCurrObj.Angle.Value, double.DegreesToRadians(90), double.DegreesToRadians(180)) * 6 * DifficultyCalculationUtils.Smootherstep(prevDistance, radius, diameter);
+                }
+
+                aimStrain += velocityChangeBonus * 0.75;
             }
 
             // Reward sliders based on velocity.
             if (osuCurrObj.BaseObject is Slider && withSliderTravelDistance)
             {
                 double sliderBonus = osuCurrObj.TravelDistance / osuCurrObj.TravelTime;
-                snapDifficulty += (sliderBonus < 1 ? sliderBonus : Math.Pow(sliderBonus, 0.75)) * slider_multiplier;
+                aimStrain += (sliderBonus < 1 ? sliderBonus : Math.Pow(sliderBonus, 0.75)) * 0.9;
             }
 
             // Apply high circle size bonus
-            snapDifficulty *= osuCurrObj.SmallCircleBonus;
+            aimStrain *= osuCurrObj.SmallCircleBonus;
 
-            snapDifficulty *= highBpmBonus(osuCurrObj.AdjustedDeltaTime);
-
-            return snapDifficulty;
+            return aimStrain;
         }
 
-        private static double highBpmBonus(double ms) => 1 / (1 - Math.Pow(0.03, Math.Pow(ms / 1000, 0.65)));
+        // We decrease strain for distances <radius to fix cases where doubles with no aim requirement
+        // have their strain buffed incredibly high due to the delta time.
+        // These objects do not require any movement, so it does not make sense to award them.
+        private static double highBpmBonus(double ms, double distance) => 1 / (1 - Math.Pow(0.03, Math.Pow(ms / 1000, 0.65)))
+                                                                          * DifficultyCalculationUtils.Smootherstep(distance, 0, OsuDifficultyHitObject.NORMALISED_RADIUS);
 
         private static double vectorAngleRepetition(OsuDifficultyHitObject current, OsuDifficultyHitObject previous)
         {
@@ -213,7 +196,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             return Math.Pow(baseNerf + (1 - baseNerf) * vectorRepetition * maximum_vector_influence * stackFactor, 2);
         }
 
-        private static double calcAngleWideness(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(40), double.DegreesToRadians(140));
+        public static double CalcAngleWideness(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(40), double.DegreesToRadians(140));
 
         public static double CalcAngleAcuteness(double angle) => DifficultyCalculationUtils.Smoothstep(angle, double.DegreesToRadians(140), double.DegreesToRadians(40));
     }

@@ -3,6 +3,7 @@
 
 using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
 
@@ -10,8 +11,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 {
     public static class AgilityEvaluator
     {
-        private const double distance_cap = OsuDifficultyHitObject.NORMALISED_DIAMETER * 1.2; // 1.2 circles distance between centers
-
         /// <summary>
         /// Evaluates the difficulty of fast aiming
         /// </summary>
@@ -23,20 +22,28 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuPrevObj = current.Index > 0 ? (OsuDifficultyHitObject)current.Previous(0) : null;
 
+            const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
+
             double travelDistance = osuPrevObj?.LazyTravelDistance ?? 0;
-            double distance = travelDistance + osuCurrObj.LazyJumpDistance;
 
-            double distanceScaled = Math.Min(distance, distance_cap) / distance_cap;
+            double strain = 10 / Math.Pow(osuCurrObj.AdjustedDeltaTime, 4);
 
-            double agilityDifficulty = distanceScaled * 1000 / osuCurrObj.AdjustedDeltaTime;
+            double wideAngleBonus = 0;
 
-            agilityDifficulty *= Math.Pow(osuCurrObj.SmallCircleBonus, 1.5);
+            if (osuCurrObj.Angle != null)
+            {
+                double currAngle = osuCurrObj.Angle.Value;
 
-            agilityDifficulty *= highBpmBonus(osuCurrObj.AdjustedDeltaTime);
+                double prevDistanceMultiplier = DifficultyCalculationUtils.Smootherstep(osuPrevObj.LazyJumpDistance / radius, 1, 2);
 
-            return agilityDifficulty;
+                wideAngleBonus = SnapAimEvaluator.CalcAngleWideness(currAngle) * prevDistanceMultiplier;
+            }
+
+            strain *= 1 + wideAngleBonus * 2;
+
+            strain *= Math.Pow(osuCurrObj.SmallCircleBonus, 1.5);
+
+            return strain;
         }
-
-        private static double highBpmBonus(double ms) => 1 / (1 - Math.Pow(0.2, ms / 1000));
     }
 }
