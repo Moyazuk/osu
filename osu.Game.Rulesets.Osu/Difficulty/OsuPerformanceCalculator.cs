@@ -254,7 +254,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 speedValue *= 1.12;
             }
 
-            double speedHighDeviationMultiplier = calculateSpeedRakeNerf(attributes);
+            double speedHighDeviationMultiplier = calculateSpeedHighDeviationNerf(attributes);
             speedValue *= speedHighDeviationMultiplier;
 
             // An effective hit window is created based on the speed SR. The higher the speed difficulty, the shorter the hit window.
@@ -471,22 +471,28 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return attributes.EffectiveSSDeviation * ratio;
         }
 
-        // Calculates multiplier for speed accounting for rake based on the deviation and speed difficulty
-        // https://www.desmos.com/calculator/puc1mzdtfv
-        private double calculateSpeedRakeNerf(OsuDifficultyAttributes attributes)
+        // Calculates multiplier for speed to account for improper tapping based on the deviation and speed difficulty
+        // https://www.desmos.com/calculator/dmogdhzofn
+        private double calculateSpeedHighDeviationNerf(OsuDifficultyAttributes attributes)
         {
-            // Base speed value
+            if (speedDeviation == null)
+                return 0;
+
             double speedValue = HarmonicSkill.DifficultyToPerformance(attributes.SpeedDifficulty);
 
-            // Starting from this pp amount - penalty will be applied
-            double abusePoint = 100 + 260 * Math.Pow(22 / speedDeviation, 5.8);
+            // Decides a point where the PP value achieved compared to the speed deviation is assumed to be tapped improperly. Any PP above this point is considered "excess" speed difficulty.
+            // This is used to cause PP above the cutoff to scale logarithmically towards the original speed value thus nerfing the value.
+            double excessSpeedDifficultyCutoff = 100 + 220 * Math.Pow(22 / speedDeviation, 6.5);
 
-            if (speedValue <= abusePoint)
+            if (speedValue <= excessSpeedDifficultyCutoff)
                 return 1.0;
 
-            // Use log curve to make additional rise in difficulty unimpactful. Rescale values to make curve have correct steepness
             const double scale = 50;
-            double adjustedSpeedValue = scale * (Math.Log((speedValue - abusePoint) / scale + 1) + abusePoint / scale);
+            double adjustedSpeedValue = scale * (Math.Log((speedValue - excessSpeedDifficultyCutoff) / scale + 1) + excessSpeedDifficultyCutoff / scale);
+
+            // 220 UR and less are considered tapped correctly to ensure that normal scores will be punished as little as possible
+            double lerp = 1 - DifficultyCalculationUtils.ReverseLerp(speedDeviation, 22.0, 27.0);
+            adjustedSpeedValue = double.Lerp(adjustedSpeedValue, speedValue, lerp);
 
             return adjustedSpeedValue / speedValue;
         }

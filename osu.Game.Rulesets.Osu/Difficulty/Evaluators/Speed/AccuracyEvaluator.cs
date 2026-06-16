@@ -3,6 +3,7 @@
 
 using System;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Scoring;
@@ -22,7 +23,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
 
             double hitWindowGreat = ((OsuDifficultyHitObject)current).HitWindow(HitResult.Great);
             double r = Math.Max(RhythmEvaluator.EvaluateDifficultyOf(current), 1.0);
-            double effectiveHitWindow = hitWindowGreat / Math.Pow(r, 0.4);
+            double effectiveHitWindow = hitWindowGreat / Math.Pow(r, 0.375);
+
+            double tappingFactor =
+                1.25 * DifficultyCalculationUtils.Smootherstep(osuCurrObj.AdjustedDeltaTime, DifficultyCalculationUtils.BPMToMilliseconds(140), DifficultyCalculationUtils.BPMToMilliseconds(180));
+
+            effectiveHitWindow /= Math.Max(1, tappingFactor);
 
             return effectiveHitWindow;
         }
