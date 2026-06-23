@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to correctly aim at every object in the map with a uniform CircleSize and normalized distances.
     /// </summary>
-    public class Aim : StrainSkill
+    public class Aim : VariableLengthStrainSkill
     {
         public readonly bool IncludeSliders;
 
@@ -34,21 +34,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double previousPFlow;
 
         private double skillMultiplierSnap => 78.75;
-        private double skillMultiplierAgility => 188500;
-        private double skillMultiplierFlow => 243.5;
-        private double skillMultiplierTotal => 1.11;
-        private double meanExponent => 1.2;
+        private double skillMultiplierAgility => 2.35;
+        private double skillMultiplierFlow => 242.0;
+        private double skillMultiplierTotal => 1.12;
+        private double combinedSnapNormExponent => 1.2;
 
         /// <summary>
         /// The number of sections with the highest strains, which the peak strain reductions will apply to.
         /// This is done in order to decrease their impact on the overall difficulty of the map for this skill.
         /// </summary>
-        private int reducedSectionCount => 10;
+        private int reducedSectionTime => 4000;
 
         /// <summary>
         /// The baseline multiplier applied to the section with the biggest strain.
         /// </summary>
-        private double reducedStrainBaseline => 0.75;
+        private double reducedStrainBaseline => 0.727;
 
         private readonly List<double> sliderStrains = new List<double>();
 
@@ -59,28 +59,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
+            if (Mods.Any(m => m is OsuModAutopilot))
+                return 0;
+
             double decay = strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
 
-            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplierSnap;
-            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skillMultiplierAgility;
-            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, previousPFlow) * skillMultiplierFlow;
-
-            if (Mods.Any(m => m is OsuModTouchDevice))
-            {
-                snapDifficulty = Math.Pow(snapDifficulty, 0.89);
-                // we don't adjust agility here since agility represents TD difficulty in a decent enough way
-                flowDifficulty = Math.Pow(flowDifficulty, 1.1);
-            }
-
-            if (Mods.Any(m => m is OsuModRelax))
-            {
-                agilityDifficulty *= 0.3;
-            }
-
-            double totalDifficulty = calculateTotalValue(snapDifficulty, agilityDifficulty, flowDifficulty);
-
             currentStrain *= decay;
-            currentStrain += totalDifficulty * (1 - decay);
+            currentStrain += calculateAdjustedDifficulty(current) * (1 - decay);
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentStrain);
@@ -88,17 +73,49 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return currentStrain;
         }
 
+        private double calculateAdjustedDifficulty(DifficultyHitObject current)
+        {
+            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skillMultiplierSnap;
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skillMultiplierAgility;
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, previousPFlow) * skillMultiplierFlow;
+
+            double totalDifficulty = calculateTotalValue(snapDifficulty, agilityDifficulty, flowDifficulty);
+
+            if (Mods.Any(m => m is OsuModMagnetised))
+            {
+                float magnetisedStrength = Mods.OfType<OsuModMagnetised>().First().AttractionStrength.Value;
+                totalDifficulty *= 1.0 - magnetisedStrength;
+            }
+
+            totalDifficulty *= 0.985 + Math.Pow(Math.Max(0, ((OsuDifficultyHitObject)current).OverallDifficulty), 2) / 4000;
+
+            return totalDifficulty;
+        }
+
         private double calculateTotalValue(double snapDifficulty, double agilityDifficulty, double flowDifficulty)
         {
             // We compare flow to combined snap and agility because snap by itself doesn't have enough difficulty to be above flow on streams
             // Agility on the other hand is supposed to measure the rate of cursor velocity changes while snapping
             // So snapping every circle on a stream requires an enormous amount of agility at which point it's easier to flow
-            double combinedSnapDifficulty = DifficultyCalculationUtils.Norm(meanExponent, snapDifficulty, agilityDifficulty);
+            double combinedSnapDifficulty = DifficultyCalculationUtils.Norm(combinedSnapNormExponent, snapDifficulty, agilityDifficulty);
 
             double pSnap = calculateSnapFlowProbability(flowDifficulty / combinedSnapDifficulty);
             double pFlow = 1 - pSnap;
             previousPFlow = pFlow;
 
+
+            if (Mods.Any(m => m is OsuModTouchDevice))
+            {
+                // we don't adjust agility here since agility represents TD difficulty in a decent enough way
+                snapDifficulty = Math.Pow(snapDifficulty, 0.89);
+                combinedSnapDifficulty = DifficultyCalculationUtils.Norm(combinedSnapNormExponent, snapDifficulty, agilityDifficulty);
+            }
+
+            if (Mods.Any(m => m is OsuModRelax))
+            {
+                combinedSnapDifficulty *= 0.75;
+                flowDifficulty *= 0.6;
+            }
 
             double totalDifficulty = combinedSnapDifficulty * pSnap + flowDifficulty * pFlow;
 
@@ -157,30 +174,80 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         public override double DifficultyValue()
         {
             double difficulty = 0;
-            double weight = 1;
+            double time = 0;
 
+            var strains = getReducedStrainPeaks();
+
+            // Difficulty is a continuous weighted sum of the sorted strains
+            foreach (StrainPeak strain in strains)
+            {
+                /* Weighting function can be thought of as:
+                        b
+                        ∫ DecayWeight^x dx
+                        a
+                    where a = startTime and b = endTime
+
+                    Technically, the function below has been slightly modified from the equation above.
+                    The real function would be
+                        double weight = Math.Pow(DecayWeight, startTime) - Math.Pow(DecayWeight, endTime);
+                        ...
+                        return difficulty / Math.Log(1 / DecayWeight);
+                    E.g. for a DecayWeight of 0.9, we're multiplying by 10 instead of 9.49122...
+
+                    This change makes it so that a map composed solely of MaxSectionLength chunks will have the exact same value when summed in this class and StrainSkill.
+                    Doing this ensures the relationship between strain values and difficulty values remains the same between the two classes.
+                */
+                double startTime = time;
+                double endTime = time + strain.SectionLength / MaxSectionLength;
+
+                double weight = Math.Pow(DecayWeight, startTime) - Math.Pow(DecayWeight, endTime);
+
+                difficulty += strain.Value * weight;
+                time = endTime;
+            }
+
+            return difficulty / (1 - DecayWeight);
+        }
+
+        /// <summary>
+        /// Returns a sorted enumerable of strain peaks with the highest values reduced.
+        /// </summary>
+        /// <returns></returns>
+        private IEnumerable<StrainPeak> getReducedStrainPeaks()
+        {
             // Sections with 0 strain are excluded to avoid worst-case time complexity of the following sort (e.g. /b/2351871).
             // These sections will not contribute to the difficulty.
-            var peaks = GetCurrentStrainPeaks().Where(p => p > 0);
+            var peaks = GetCurrentStrainPeaks().Where(p => p.Value > 0);
 
-            List<double> strains = peaks.OrderDescending().ToList();
+            List<StrainPeak> strains = peaks.OrderByDescending(p => p.Value).ToList();
+
+            const int chunk_size = 20;
+            double time = 0;
+            int strainsToRemove = 0; // All strains are removed at the end for optimization purposes
 
             // We are reducing the highest strains first to account for extreme difficulty spikes
-            for (int i = 0; i < Math.Min(strains.Count, reducedSectionCount); i++)
+            // Strains are split into 20ms chunks to try to mitigate inconsistencies caused by reducing strains
+            while (strains.Count > strainsToRemove && time < reducedSectionTime)
             {
-                double scale = Math.Log10(Interpolation.Lerp(1, 10, Math.Clamp((float)i / reducedSectionCount, 0, 1)));
-                strains[i] *= Interpolation.Lerp(reducedStrainBaseline, 1.0, scale);
+                StrainPeak strain = strains[strainsToRemove];
+
+                for (double addedTime = 0; addedTime < strain.SectionLength; addedTime += chunk_size)
+                {
+                    double scale = Math.Log10(Interpolation.Lerp(1, 10, Math.Clamp((time + addedTime) / reducedSectionTime, 0, 1)));
+
+                    strains.Add(new StrainPeak(
+                        strain.Value * Interpolation.Lerp(reducedStrainBaseline, 1.0, scale),
+                        Math.Min(chunk_size, strain.SectionLength - addedTime)
+                    ));
+                }
+
+                time += strain.SectionLength;
+                strainsToRemove++;
             }
 
-            // Difficulty is the weighted sum of the highest strains from every section.
-            // We're sorting from highest to lowest strain.
-            foreach (double strain in strains.OrderDescending())
-            {
-                difficulty += strain * weight;
-                weight *= DecayWeight;
-            }
+            strains.RemoveRange(0, strainsToRemove);
 
-            return difficulty;
+            return strains.OrderByDescending(p => p.Value);
         }
     }
 }
