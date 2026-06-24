@@ -72,12 +72,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double StrainValueAt(DifficultyHitObject current)
         {
-
-            if (current.Index == 27 || current.Index == 28)
-            {
-                Console.WriteLine($"prevpflow {previousPFlow}");
-            }
-
             double decay = strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
 
             double jerkDecay = jerkStrainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
@@ -90,11 +84,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double flowJerkDifficulty = FlowAimEvaluator.EvaluateJerkDifficultyOf(current, IncludeSliders, previousPFlow) * skillMultiplierJerkFlow;
 
             var (totalDifficulty, totalJerk) = calculateTotalValue(snapDifficulty, agilityDifficulty, flowDifficulty, flowJerkDifficulty, current);
-
-            if (current.Index == 27 || current.Index == 28)
-            {
-                Console.WriteLine($"[totalJerk idx={current.Index}] totalJerk={totalJerk:F3} jerkDecay={jerkDecay:F6}");
-            }
 
             currentStrain *= decay;
             currentStrain += totalDifficulty * (1 - decay);
@@ -109,11 +98,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 sliderStrains.Add(currentStrain);
 
             double result = currentStrain + DifficultyCalculationUtils.Norm(jerkPowerMean, currentJerkStrain, currentJerkStamina);
-
-            if (result > 400)
-            {
-                Console.WriteLine($"[SPIKE idx={current.Index}] final={result:F3} strain={currentStrain:F3} jerkStrain={currentJerkStrain:F3} jerkStamina={currentJerkStamina:F3}");
-            }
 
             return result;
         }
@@ -178,11 +162,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             double totalAimStrain = totalDifficulty * skillMultiplierTotal;
 
             double totalJerkStrain = totalJerk * skillMultiplierTotal;
-
-            if ((current.Index >= 786 && current.Index <= 792))
-            {
-                Console.WriteLine($"[pre-spike idx={current.Index}] totalJerk={totalJerk:F3} jerkStrain={currentJerkStrain:F3} pSnap={pSnap:F3} agility={agilityDifficulty:F3}");
-            }
 
             return (totalAimStrain, totalJerkStrain);
         }
