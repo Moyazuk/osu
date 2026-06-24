@@ -24,9 +24,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
             const int radius = OsuDifficultyHitObject.NORMALISED_RADIUS;
 
-            double travelDistance = osuPrevObj?.LazyTravelDistance ?? 0;
-
-            double strain = 10 / Math.Pow(osuCurrObj.AdjustedDeltaTime, 4);
+            double strain = 10 / Math.Pow(osuCurrObj.AdjustedDeltaTime / 1000.0, 4);
 
             double wideAngleBonus = 0;
 
