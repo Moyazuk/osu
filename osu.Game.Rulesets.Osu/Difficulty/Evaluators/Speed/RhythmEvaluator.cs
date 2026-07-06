@@ -270,5 +270,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
                 return $"{Delta}x{DeltaCount}";
             }
         }
+
+        public static double CalculateSpeedingUpBonus(DifficultyHitObject current)
+        {
+            var osuCurrObj = (OsuDifficultyHitObject)current;
+            var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
+
+            if (osuLastObj == null)
+                return 0;
+
+            double speedupRatio = osuLastObj.AdjustedDeltaTime / osuCurrObj.AdjustedDeltaTime;
+
+            const double speedupThreshold = 1.15;
+
+            if (speedupRatio <= speedupThreshold)
+                return 0;
+
+            return Math.Min(1.0, (speedupRatio - speedupThreshold) / speedupThreshold);
+        }
     }
 }

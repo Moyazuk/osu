@@ -20,14 +20,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
 
             double bpmBonus = 0.0;
 
-            if (DifficultyCalculationUtils.MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime) > 240)
-                bpmBonus = Math.Pow((DifficultyCalculationUtils.BPMToMilliseconds(240) - osuCurrObj.AdjustedDeltaTime) / 18, 1.1);
+            double bigBpmBonus = 0.0;
 
-            double finalValue = (1 + bpmBonus) * 1000 / osuCurrObj.AdjustedDeltaTime;
+            if (DiffUtils.MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime) > 240)
+                bpmBonus = Math.Pow((DiffUtils.BPMToMilliseconds(240) - osuCurrObj.AdjustedDeltaTime) / 30, 1.5);
 
-            double doubletapness = 1.0 - osuCurrObj.GetDoubletapness((OsuDifficultyHitObject?)osuCurrObj.Next(0));
+            if (DiffUtils.MillisecondsToBPM(osuCurrObj.AdjustedDeltaTime) > 290)
+                bigBpmBonus = Math.Pow((DiffUtils.BPMToMilliseconds(290) - osuCurrObj.AdjustedDeltaTime) / 20, 1);
 
-            return finalValue * doubletapness;
+            double finalValue = (1 + bigBpmBonus) * 1000 / osuCurrObj.AdjustedDeltaTime;
+
+            double doubleTapFeasibility = 1.0 - osuCurrObj.CalculateDoubleTapFeasibility((OsuDifficultyHitObject?)osuCurrObj.Next(0));
+
+            return finalValue * doubleTapFeasibility;
         }
     }
 }
