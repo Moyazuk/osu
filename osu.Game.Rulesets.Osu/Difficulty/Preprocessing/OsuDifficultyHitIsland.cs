@@ -83,7 +83,7 @@ public void Process(OsuDifficultyHitObject obj, bool isSpinner)
         return;
     }
 
-    double tolerance = obj.HitWindowGreat / 2;
+    double tolerance = obj.HitWindowGreat / 4;
 
     if (currentIsland != null && currentIsland.TryExtend(obj, tolerance))
     {
