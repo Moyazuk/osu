@@ -149,12 +149,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             List<DifficultyHitObject> objects = new List<DifficultyHitObject>(beatmap.HitObjects.Count);
 
             double clockRate = ModUtils.CalculateRateWithMods(mods);
+            var islandBuilder = new OsuDifficultyHitIslandBuilder();
 
             // The first jump is formed by the first two hitobjects of the map.
             // If the map has less than two OsuHitObjects, the enumerator will not return anything.
             for (int i = 1; i < beatmap.HitObjects.Count; i++)
             {
-                objects.Add(new OsuDifficultyHitObject(beatmap.HitObjects[i], beatmap.HitObjects[i - 1], clockRate, objects, objects.Count));
+                var newObject = new OsuDifficultyHitObject(beatmap.HitObjects[i], beatmap.HitObjects[i - 1], clockRate, objects, objects.Count);
+                objects.Add(newObject);
+
+                islandBuilder.Process(newObject, beatmap.HitObjects[i] is Spinner);
             }
 
             return objects;
