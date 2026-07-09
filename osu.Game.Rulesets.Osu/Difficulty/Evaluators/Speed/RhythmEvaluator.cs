@@ -2,7 +2,6 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
@@ -24,7 +23,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
         private static double repeated_polarity_multiplier => 0.5;
         private static double slider_boundary_multiplier => 0.6;
 
-        private static double gap_speed_multiplier => 40.0; // tune this to bring the divided bonus back to a comparable scale
+        private static double gap_speed_multiplier => 1080; // tune this to bring the divided bonus back to a comparable scale
 
         /// <summary>
         /// Calculates a rhythm multiplier for the difficulty of the tap associated with historic data of the current <see cref="OsuDifficultyHitObject"/>.
@@ -41,8 +40,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
             if (currentIsland == null)
                 return 1.0;
 
-            double deltaDifferenceEpsilon = currObj.HitWindowGreat * 0.3;
-
             double rhythmComplexitySum = 0;
             double? transitionOut = null;
 
@@ -52,9 +49,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
             {
                 var previous = island.Previous(0);
 
-                var next = island.Next(0);
-
-                // No previous island, or rhythm continuity was severed (spinner) - stop walking.
                 if (previous == null || island.StartDeltaTime == null)
                     break;
 
@@ -64,20 +58,37 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
                     break;
 
                 double decay = (history_time_max - elapsed) / history_time_max;
+                double tolerance = island.FirstObject.HitWindowGreat / 4;
 
-                double transitionIn = transitionDifficulty(previous, island, deltaDifferenceEpsilon);
+                var beforePrevious = previous.Previous(0);
 
-                double contribution;
+                bool previousIsBlip = previous.Length == 2
+                                      && beforePrevious != null
+                                      && Math.Abs(beforePrevious.DeltaTime - island.DeltaTime) < tolerance
+                                      && Math.Abs(previous.DeltaTime - island.DeltaTime) >= tolerance;
 
-                if (island.Length == 2 && previous.Length > 2 && next != null && next.Length > 2)
-                    contribution = single_note_island_difficulty; // constant difficulty for single-note islands
+                double transitionIn;
+
+                if (previousIsBlip)
+                {
+                    transitionIn = transitionDifficulty(beforePrevious, island);
+
+                    double blipRatio = Math.Abs(previous.DeltaTime - island.DeltaTime)
+                                       / Math.Max(island.DeltaTime, OsuDifficultyHitObject.MIN_DELTA_TIME);
+
+                    rhythmComplexitySum += 0.5 * Math.Min(1.0, blipRatio) * decay;
+                }
                 else
-                    contribution = transitionOut == null ? transitionIn : Math.Sqrt(transitionIn * transitionOut.Value);
+                {
+                    transitionIn = transitionDifficulty(previous, island);
+                }
+
+                double contribution = transitionOut == null ? transitionIn : Math.Sqrt(transitionIn * transitionOut.Value);
 
                 rhythmComplexitySum += contribution * decay;
 
                 transitionOut = transitionIn;
-                island = previous;
+                island = previousIsBlip ? beforePrevious : previous;
             }
 
             // Long uninterrupted rhythm goes stale - scale the sum down as the current island drags on.
@@ -94,18 +105,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
         /// The rhythm difficulty of transitioning from <paramref name="previous"/> into <paramref name="island"/>,
         /// considering both the change in internal deltaTime and the gap between the two islands.
         /// </summary>
-        private static double transitionDifficulty(OsuDifficultyHitIsland previous, OsuDifficultyHitIsland island, double deltaDifferenceEpsilon)
+        private static double transitionDifficulty(OsuDifficultyHitIsland previous, OsuDifficultyHitIsland island)
         {
             double prevDelta = Math.Max(previous.DeltaTime, OsuDifficultyHitObject.MIN_DELTA_TIME);
             double currDelta = Math.Max(island.DeltaTime, OsuDifficultyHitObject.MIN_DELTA_TIME);
             double gap = Math.Max(island.StartDeltaTime!.Value, OsuDifficultyHitObject.MIN_DELTA_TIME);
-
-            // Signal 1: the change in internal deltaTime from one island to the next.
             double islandRatio = Math.Max(prevDelta, currDelta) / Math.Min(prevDelta, currDelta);
             double ratioDifficulty = getEffectiveDifficulty(islandRatio);
-
-            // Signal 2: the gap between the islands as a rhythm event of its own,
-            // measured against the internal spacing of both neighbours.
             double gapRatioPrev = Math.Max(gap, prevDelta) / Math.Min(gap, prevDelta);
             double gapRatioCurr = Math.Max(gap, currDelta) / Math.Min(gap, currDelta);
             double gapDifficulty = Math.Max(getEffectiveDifficulty(gapRatioPrev), getEffectiveDifficulty(gapRatioCurr));
@@ -122,9 +128,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
             // reduce bonus for deltas that are large multiples of each other (1/1 -> 1/8 is different, not hard)
             difficulty *= Math.Clamp(2.0 - islandRatio / 8.0, 0.0, 1.0);
 
-            // smooth the difficulty in near-threshold transitions that only just exceeded island tolerance
-            double deltaDifference = Math.Abs(prevDelta - currDelta);
-            difficulty *= Math.Clamp((deltaDifference - deltaDifferenceEpsilon) / deltaDifferenceEpsilon, 0, 1);
 
             bool speedingUp = currDelta < prevDelta;
 
@@ -134,7 +137,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
             // consecutive speedups (1/1 -> 1/2 -> 1/4): the intermediate step already got credit, don't double-buff
             if (speedingUp && previous.StartDeltaTime != null
                            && previous.Previous(0) is OsuDifficultyHitIsland prevPrev
-                           && prevDelta + deltaDifferenceEpsilon < Math.Max(prevPrev.DeltaTime, OsuDifficultyHitObject.MIN_DELTA_TIME))
+                           && prevDelta < Math.Max(prevPrev.DeltaTime, OsuDifficultyHitObject.MIN_DELTA_TIME))
                 difficulty *= consecutive_speedup_multiplier;
 
             // repeated island size (ex: triplet -> triplet)
@@ -143,8 +146,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
 
             // repeated island polarity (2 -> 4, 3 -> 5) at similar speed
             if (island.Length > 1 && previous.Length > 1
-                                  && island.Length % 2 == previous.Length % 2
-                                  && Math.Abs(currDelta - prevDelta) < deltaDifferenceEpsilon)
+                                  && island.Polarity == previous.Polarity)
                 difficulty *= repeated_polarity_multiplier;
 
             // transitions into or out of sliders have relaxed tap timing
@@ -163,7 +165,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
 
             for (int j = 0; j < history_islands_max && scan != null; j++)
             {
-                if (Math.Abs(scan.DeltaTime - currDelta) < deltaDifferenceEpsilon && scan.Length == island.Length)
+                if (scan.Length == island.Length)
                     occurrences++;
 
                 scan = scan.Previous(0);
@@ -205,7 +207,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static double getEffectiveDifficulty(double deltaDifferenceRatio)
         {
-            const double rhythm_ratio_difficulty_multiplier = 26.0;
+            const double rhythm_ratio_difficulty_multiplier = 126.0;
 
             // Take only the fractional part of the value since we're only interested in punishing multiples
             double deltaDifferenceFraction = deltaDifferenceRatio - Math.Truncate(deltaDifferenceRatio);

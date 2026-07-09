@@ -11,6 +11,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         public double DeltaTime { get; }
         public double? StartDeltaTime { get; }
         public int Length { get; private set; }
+        public int Polarity => Length % 2;
         public readonly int Index;
 
         public OsuDifficultyHitObject FirstObject { get; private set; }
