@@ -117,6 +117,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         public double? Angle { get; private set; }
 
         /// <summary>
+        /// Angle the player has to take to hit this <see cref="OsuDifficultyHitObject"/>.
+        /// Calculated as the angle between the circles (current-2, current-1, current).
+        /// </summary>
+        public double? AngleSigned { get; private set; }
+
+        /// <summary>
         /// Angle of the vector created between current and current-1
         /// normalised to consider symmetrical vectors in any axis to be the same angle.
         /// </summary>
@@ -266,7 +272,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
                 Vector2 v = BaseObject.StackedPosition - lastCursorPosition;
                 NormalisedVectorAngle = Math.Atan2(Math.Abs(v.Y), Math.Abs(v.X));
 
-                Angle = Math.Min(angle, sliderAngle);
+                AngleSigned = Math.Min(angle, sliderAngle);
+                Angle = Math.Min(Math.Abs(angle), Math.Abs(sliderAngle));
             }
         }
 

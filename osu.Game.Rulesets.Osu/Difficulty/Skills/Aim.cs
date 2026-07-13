@@ -67,7 +67,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (difficulty <= 0) return 1;
             if (skill <= 0) return 0;
 
-            return DifficultyCalculationUtils.Erf(skill / (Math.Sqrt(2) * difficulty));
+            return DiffUtils.Erf(skill / (Math.Sqrt(2) * difficulty));
         }
 
         protected override double StrainValueAt(DifficultyHitObject current)
@@ -97,7 +97,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (current.BaseObject is Slider)
                 sliderStrains.Add(currentStrain);
 
-            double result = currentStrain + DifficultyCalculationUtils.Norm(jerkPowerMean, currentJerkStrain, currentJerkStamina);
+            double result = currentStrain + DiffUtils.Norm(jerkPowerMean, currentJerkStrain, currentJerkStamina);
 
             return result;
         }
@@ -107,8 +107,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             // We compare flow to combined snap and agility because snap by itself doesn't have enough difficulty to be above flow on streams
             // Agility on the other hand is supposed to measure the rate of cursor velocity changes while snapping
             // So snapping every circle on a stream requires an enormous amount of agility at which point it's easier to flow
-            double combinedSnapDifficulty = DifficultyCalculationUtils.Norm(1, snapDifficulty, agilityDifficulty);
-            double combinedFlowDifficulty = DifficultyCalculationUtils.Norm(1, flowDifficulty, flowJerkDifficulty);
+            double combinedSnapDifficulty = DiffUtils.Norm(1, snapDifficulty, agilityDifficulty);
+            double combinedFlowDifficulty = DiffUtils.Norm(1, flowDifficulty, flowJerkDifficulty);
 
             double pSnap = calculateSnapFlowProbability(combinedFlowDifficulty / combinedSnapDifficulty);
             double pFlow = 1 - pSnap;
@@ -122,8 +122,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 double nextFlowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current.Next(0), IncludeSliders, pFlow) * skillMultiplierFlow;
                 double nextJerkDifficulty = FlowAimEvaluator.EvaluateJerkDifficultyOf(current.Next(0), IncludeSliders, pFlow) * skillMultiplierJerkFlow;
 
-                double nextCombinedSnap = DifficultyCalculationUtils.Norm(1, nextSnapDifficulty, nextAgilityDifficulty);
-                double nextCombinedFlow = DifficultyCalculationUtils.Norm(1, nextFlowDifficulty, nextJerkDifficulty);
+                double nextCombinedSnap = DiffUtils.Norm(1, nextSnapDifficulty, nextAgilityDifficulty);
+                double nextCombinedFlow = DiffUtils.Norm(1, nextFlowDifficulty, nextJerkDifficulty);
 
                 double nextPSnap = calculateSnapFlowProbability(nextCombinedFlow / nextCombinedSnap);
                 double nextPFlow = 1 - nextPSnap;
@@ -133,7 +133,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
                 double nextFinal = nextTotalDifficulty + nextTotalJerk;
 
-                double combinedFlowDifficultyWithLookahead = DifficultyCalculationUtils.Norm(1,
+                double combinedFlowDifficultyWithLookahead = DiffUtils.Norm(1,
                     combinedFlowDifficulty, nextFinal);
 
                 pSnap = calculateSnapFlowProbability(combinedFlowDifficultyWithLookahead / combinedSnapDifficulty);
@@ -146,7 +146,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             {
                 // we don't adjust agility here since agility represents TD difficulty in a decent enough way
                 snapDifficulty = Math.Pow(snapDifficulty, 0.89);
-                combinedSnapDifficulty = DifficultyCalculationUtils.Norm(combinedSnapNormExponent, snapDifficulty, agilityDifficulty);
+                combinedSnapDifficulty = DiffUtils.Norm(combinedSnapNormExponent, snapDifficulty, agilityDifficulty);
             }
 
             if (Mods.Any(m => m is OsuModRelax))
@@ -183,7 +183,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (double.IsNaN(ratio))
                 return 1;
 
-            return DifficultyCalculationUtils.Logistic(-k * Math.Log(ratio));
+            return DiffUtils.Logistic(-k * Math.Log(ratio));
         }
 
         public double GetDifficultSliders()
@@ -210,7 +210,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 return 0;
 
             // Use a weighted sum of all strains. Constants are arbitrary and give nice values
-            return sliderStrains.Sum(s => DifficultyCalculationUtils.Logistic(s / consistentTopStrain, 0.88, 10, 1.1));
+            return sliderStrains.Sum(s => DiffUtils.Logistic(s / consistentTopStrain, 0.88, 10, 1.1));
         }
     }
 }

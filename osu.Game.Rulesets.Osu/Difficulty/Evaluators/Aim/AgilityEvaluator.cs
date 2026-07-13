@@ -32,7 +32,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             {
                 double currAngle = osuCurrObj.Angle.Value;
 
-                double prevDistanceMultiplier = DifficultyCalculationUtils.Smootherstep(osuPrevObj.LazyJumpDistance / radius, 1, 2);
+                double prevDistanceMultiplier = DiffUtils.Smootherstep(osuPrevObj.LazyJumpDistance / radius, 1, 2);
 
                 wideAngleBonus = SnapAimEvaluator.CalcAngleWideness(currAngle) * prevDistanceMultiplier;
             }

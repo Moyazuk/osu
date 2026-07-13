@@ -111,7 +111,7 @@ namespace osu.Game.Rulesets.Difficulty.Utils
             double k = (count + 0.5 - mu) / sigma;
 
             // see equation (14) of the cited paper
-            double result = DifficultyCalculationUtils.NormalCdf(0, 1, k) + v * (1 - k * k) * DifficultyCalculationUtils.NormalPdf(0, 1, k);
+            double result = DiffUtils.NormalCdf(0, 1, k) + v * (1 - k * k) * DiffUtils.NormalPdf(0, 1, k);
 
             return Math.Clamp(result, 0, 1);
         }
@@ -165,7 +165,7 @@ namespace osu.Game.Rulesets.Difficulty.Utils
             double v = gamma / (6 * Math.Pow(sigma, 3));
             double k = (count + 0.5 - mu) / sigma;
 
-            double result = DifficultyCalculationUtils.NormalCdf(0, 1, k) + v * (1 - k * k) * DifficultyCalculationUtils.NormalPdf(0, 1, k);
+            double result = DiffUtils.NormalCdf(0, 1, k) + v * (1 - k * k) * DiffUtils.NormalPdf(0, 1, k);
 
             return Math.Clamp(result, 0, 1);
         }
