@@ -156,13 +156,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             if (osuCurrObj.BaseObject is Slider && withSliderTravelDistance)
             {
                 double sliderBonus = osuCurrObj.TravelDistance / osuCurrObj.TravelTime;
-                snapDifficulty += (sliderBonus < 1 ? sliderBonus : DiffUtils.Pow(sliderBonus, 0.75)) * slider_multiplier;
+                snapDifficulty += (sliderBonus < 1 ? sliderBonus : DiffUtils.Pow(sliderBonus, 0.75)) * 1.15;
             }
 
             // Apply high circle size bonus
             snapDifficulty *= osuCurrObj.SmallCircleBonus;
-
-            snapDifficulty *= highBpmBonus(osuCurrObj.AdjustedDeltaTime);
 
             return snapDifficulty;
         }

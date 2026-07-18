@@ -67,9 +67,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double calculateAdjustedDifficulty(DifficultyHitObject current)
         {
-            const double skill_multiplier_snap = 74.9;
-            const double skill_multiplier_agility = 2.35;
-            const double skill_multiplier_flow = 265.0;
+            const double skill_multiplier_snap = 125;
+            const double skill_multiplier_agility = 3.25;
+            const double skill_multiplier_flow = 315.0;
 
             double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skill_multiplier_snap;
             double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skill_multiplier_agility;
@@ -83,7 +83,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 totalDifficulty *= 1.0 - magnetisedStrength;
             }
 
-            totalDifficulty *= 0.985 + DiffUtils.Pow(Math.Max(0, ((OsuDifficultyHitObject)current).OverallDifficulty), 2) / 4000;
+            totalDifficulty *= 0.725 + DiffUtils.Pow(Math.Max(0, ((OsuDifficultyHitObject)current).OverallDifficulty), 2) / 4000;
 
             return totalDifficulty;
         }
