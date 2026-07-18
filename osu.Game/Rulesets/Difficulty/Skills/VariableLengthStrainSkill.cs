@@ -168,15 +168,7 @@ namespace osu.Game.Rulesets.Difficulty.Skills
         /// </summary>
         private void saveCurrentPeak(double sectionLength)
         {
-            if (finalPeak != null)
-            {
-                strainPeaks.Remove(finalPeak.Value);
-                finalPeak = null;
-            }
-
-            StrainPeak peak = new StrainPeak(currentSectionPeak, sectionLength);
-
-            strainPeaks.AddInPlace(peak);
+            strainPeaks.AddInPlace(new StrainPeak(currentSectionPeak, sectionLength));
             totalLength += sectionLength;
 
             // Remove from the back of our strain peaks if there's any which are too deep to contribute to difficulty.
@@ -208,7 +200,7 @@ namespace osu.Game.Rulesets.Difficulty.Skills
         /// <returns>The peak strain.</returns>
         protected abstract double CalculateInitialStrain(double time, DifficultyHitObject current);
 
-        private StrainPeak? finalPeak;
+        private bool peaksFinalised;
 
         /// <summary>
         /// Returns a live enumerable of the peak strains for each <see cref="MaxSectionLength"/> section of the beatmap,
@@ -216,10 +208,10 @@ namespace osu.Game.Rulesets.Difficulty.Skills
         /// </summary>
         public IEnumerable<StrainPeak> GetCurrentStrainPeaks()
         {
-            if (finalPeak == null)
+            if (!peaksFinalised)
             {
-                finalPeak = new StrainPeak(currentSectionPeak, currentSectionEnd - currentSectionBegin);
-                strainPeaks.AddInPlace(finalPeak.Value);
+                saveCurrentPeak(currentSectionEnd - currentSectionBegin);
+                peaksFinalised = true;
             }
 
             return strainPeaks;
@@ -246,7 +238,7 @@ namespace osu.Game.Rulesets.Difficulty.Skills
         /// <summary>
         /// Used to store the difficulty of a section of a map.
         /// </summary>
-        public readonly record struct StrainPeak : IComparable<StrainPeak>
+        public readonly struct StrainPeak : IComparable<StrainPeak>
         {
             public StrainPeak(double value, double sectionLength)
             {

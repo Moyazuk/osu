@@ -33,6 +33,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public double SpeedDifficulty { get; set; }
 
         /// <summary>
+        /// The difficulty corresponding to the accuracy skill.
+        /// </summary>
+        [JsonProperty("effective_ss_deviation")]
+        public double EffectiveSSDeviation { get; set; }
+
+        /// <summary>
         /// The number of clickable objects weighted by difficulty.
         /// Related to <see cref="SpeedDifficulty"/>
         /// </summary>

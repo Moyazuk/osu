@@ -182,8 +182,6 @@ namespace osu.Game.Tests.NonVisual
 
                 double clockRate = ModUtils.CalculateRateWithMods(mods);
 
-                double clockRate = ModUtils.CalculateRateWithMods(mods);
-
                 foreach (var obj in beatmap.HitObjects.OfType<TestHitObject>())
                 {
                     if (!obj.Skip)

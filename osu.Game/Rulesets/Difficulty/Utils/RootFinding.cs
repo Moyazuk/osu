@@ -5,6 +5,14 @@ using System;
 
 namespace osu.Game.Rulesets.Difficulty.Utils
 {
+    public class MaximumIterationsException : Exception
+    {
+        public MaximumIterationsException(string message)
+            : base(message)
+        {
+        }
+    }
+
     public static class RootFinding
     {
         /// <summary>

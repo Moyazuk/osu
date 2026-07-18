@@ -21,7 +21,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 {
     public class OsuDifficultyCalculator : DifficultyCalculator
     {
-        public override int Version => 20260706;
+        public override int Version => 20251020;
 
         public OsuDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
             : base(ruleset, beatmap)
@@ -36,19 +36,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             var aim = skills.OfType<Aim>().Single(a => a.IncludeSliders);
             var aimWithoutSliders = skills.OfType<Aim>().Single(a => !a.IncludeSliders);
             var speed = skills.OfType<Speed>().Single();
+            var accuracy = skills.OfType<Accuracy>().Single();
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
             var reading = skills.OfType<Reading>().Single();
 
             double aimDifficultyValue = aim.DifficultyValue();
             double aimNoSlidersDifficultyValue = aimWithoutSliders.DifficultyValue();
             double speedDifficultyValue = speed.DifficultyValue();
+            double effectiveSSDeviation = accuracy.DifficultyValue();
             double readingDifficultyValue = reading.DifficultyValue();
 
             double aimDifficultStrainCount = aim.CountTopWeightedStrains(aimDifficultyValue);
             double speedDifficultStrainCount = speed.CountTopWeightedObjectDifficulties(speedDifficultyValue);
             double readingDifficultNoteCount = reading.CountTopWeightedObjectDifficulties(readingDifficultyValue);
 
-            double speedNotes = speed.RelevantObjectCount();
+            double speedNotes = speed.RelevantNoteCount();
 
             double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders(aimNoSlidersDifficultyValue);
             double aimNoSlidersDifficultStrainCount = aimWithoutSliders.CountTopWeightedStrains(aimNoSlidersDifficultyValue);
@@ -102,10 +104,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 AimDifficulty = aimRating,
                 AimDifficultSliderCount = difficultSliders,
                 SpeedDifficulty = speedRating,
+                EffectiveSSDeviation = effectiveSSDeviation,
                 SpeedNoteCount = speedNotes,
                 FlashlightDifficulty = flashlightRating,
                 ReadingDifficulty = readingRating,
                 SliderFactor = sliderFactor,
+                AimDifficultStrainCount = aimDifficultStrainCount,
                 SpeedDifficultStrainCount = speedDifficultStrainCount,
                 ReadingDifficultNoteCount = readingDifficultNoteCount,
                 AimTopWeightedSliderFactor = aimTopWeightedSliderFactor,
@@ -134,7 +138,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return DiffUtils.Norm(OsuPerformanceCalculator.PERFORMANCE_NORM_EXPONENT, reading, flashlight * Math.Clamp(flashlight / reading, 0.25, 1.0));
         }
 
-        private double calculateAimDifficultyRating(double difficultyValue) => DiffUtils.Pow(difficultyValue, 0.63) * 0.02275;
+        private double calculateAimDifficultyRating(double difficultyValue) => DiffUtils.Pow(difficultyValue, 0.70) * 0.015;
 
         private double calculateDifficultyRating(double difficultyValue) => Math.Sqrt(difficultyValue) * 0.0675;
 
@@ -148,12 +152,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             List<DifficultyHitObject> objects = new List<DifficultyHitObject>(beatmap.HitObjects.Count);
 
             double clockRate = ModUtils.CalculateRateWithMods(mods);
+            var islandBuilder = new OsuDifficultyHitIslandBuilder();
 
             // The first jump is formed by the first two hitobjects of the map.
             // If the map has less than two OsuHitObjects, the enumerator will not return anything.
             for (int i = 1; i < beatmap.HitObjects.Count; i++)
             {
-                objects.Add(new OsuDifficultyHitObject(beatmap.HitObjects[i], beatmap.HitObjects[i - 1], clockRate, objects, objects.Count));
+                var newObject = new OsuDifficultyHitObject(beatmap.HitObjects[i], beatmap.HitObjects[i - 1], clockRate, objects, objects.Count);
+                objects.Add(newObject);
+
+                islandBuilder.Process(newObject, beatmap.HitObjects[i] is Spinner);
             }
 
             return objects;
@@ -166,7 +174,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 new Aim(mods, true),
                 new Aim(mods, false),
                 new Speed(mods),
-                new Reading(mods)
+                new Reading(mods),
+                new Accuracy(mods)
             };
 
             if (mods.Any(h => h is OsuModFlashlight))
