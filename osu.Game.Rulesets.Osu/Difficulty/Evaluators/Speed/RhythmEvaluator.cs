@@ -98,7 +98,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
             double notesElapsed = (current.StartTime - currentIsland.FirstObject.StartTime) / Math.Max(currentIsland.DeltaTime, OsuDifficultyHitObject.MIN_DELTA_TIME);
             rhythmComplexitySum *= DiffUtils.ReverseLerp(notesElapsed, 22, 3);
 
-            return rhythmComplexitySum;
+            return Math.Sqrt(4 + rhythmComplexitySum * 0.1) / 2.0; // produces multiplier that can be applied to strain. range [1, infinity) (not really though)
         }
 
         /// <summary>

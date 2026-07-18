@@ -10,7 +10,6 @@ using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
-using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed;
 using osu.Game.Rulesets.Osu.Mods;
 
@@ -22,10 +21,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Speed : HarmonicSkill
     {
-        private double totalMultiplier => 0.8;
+        private double totalMultiplier => 1;
         private double burstMultiplier => 2.43;
-        private double streamMultiplier => 0.2;
-        private double staminaMultiplier => 0.042;
+        private double streamMultiplier => 0.4;
+        private double staminaMultiplier => 0.0175;
         private double meanExponent => 1.25;
 
         private double currentBurstStrain;
@@ -56,8 +55,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
             currentBurstStrain *= strainDecayBurst(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
             currentRhythmStrain *= strainDecayBurst(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
-            currentRhythmStrain += RhythmEvaluator.EvaluateBurstAccelerationOf(current) * 4;
-            currentBurstStrain += SpeedEvaluator.EvaluateDifficultyOf(current) * 2;
+            currentRhythmStrain += RhythmEvaluator.CalculateStartOfFastPatternBonus(current) * 3;
+            currentBurstStrain += SpeedEvaluator.EvaluateDifficultyOf(current) * 1.25;
 
             double totalBurstStrain = currentBurstStrain + currentRhythmStrain;
 
@@ -69,7 +68,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             currentStaminaStrain *= strainDecayStamina(((OsuDifficultyHitObject)current).AdjustedDeltaTime, staminaValue * staminaMultiplier);
             currentStaminaStrain += staminaValue * staminaMultiplier;
 
-            double totalValue = DifficultyCalculationUtils.Norm(meanExponent,
+            double totalValue = DiffUtils.Norm(meanExponent,
                 totalBurstStrain,
                 currentStreamStrain,
                 currentStaminaStrain) * totalMultiplier;
@@ -107,16 +106,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (sliderStrains.Count == 0)
                 return 0;
 
-            if (NoteWeightSum == 0)
+            if (ObjectWeightSum == 0)
                 return 0.0;
 
-            double consistentTopNote = difficultyValue / NoteWeightSum; // What would the top note be if all note values were identical
+            double consistentTopNote = difficultyValue / ObjectWeightSum; // What would the top note be if all note values were identical
 
             if (consistentTopNote == 0)
                 return 0;
 
             // Use a weighted sum of all notes. Constants are arbitrary and give nice values
-            return sliderStrains.Sum(s => DifficultyCalculationUtils.Logistic(s / consistentTopNote, 0.88, 10, 1.1));
+            return sliderStrains.Sum(s => DiffUtils.Logistic(s / consistentTopNote, 0.88, 10, 1.1));
         }
     }
 }

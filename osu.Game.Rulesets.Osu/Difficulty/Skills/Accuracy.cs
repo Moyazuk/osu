@@ -27,7 +27,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             double p = 1.0;
             foreach (double effectiveHitWindow in effectiveHitWindows)
-                p *= DifficultyCalculationUtils.Erf(effectiveHitWindow / (Math.Sqrt(2) * deviation));
+                p *= DiffUtils.Erf(effectiveHitWindow / (Math.Sqrt(2) * deviation));
 
             return p;
         }

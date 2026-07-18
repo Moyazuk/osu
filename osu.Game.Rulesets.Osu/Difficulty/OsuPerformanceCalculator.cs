@@ -59,7 +59,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         private double approachRate;
         private double drainRate;
 
-        private double? speedDeviation;
+        private double deviation, speedDeviation;
 
         private double aimEstimatedSliderBreaks;
         private double speedEstimatedSliderBreaks;
@@ -150,7 +150,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 effectiveMissCount = Math.Min(effectiveMissCount + countOk * okMultiplier + countMeh * mehMultiplier, totalHits);
             }
 
-            speedDeviation = calculateSpeedDeviation(osuAttributes);
+            deviation = calculateEffectiveDeviation(score, osuAttributes);
+            speedDeviation = calculateSpeedDeviation(score, osuAttributes);
 
             double aimValue = computeAimValue(score, osuAttributes);
             double speedValue = computeSpeedValue(score, osuAttributes);
@@ -274,7 +275,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (score.Mods.Any(h => h is OsuModRelax))
                 return 0.0;
 
-            double accuracyValue = 380 * Math.Pow(7.5 / deviation, 2);
+            double accuracyValue = 60 * Math.Pow(7.5 / deviation, 2);
 
             // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
             if (score.Mods.Any(m => m is OsuModBlinds))
@@ -389,25 +390,51 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         }
 
         /// <summary>
-        /// Estimates player's deviation on speed notes using <see cref="calculateDeviation"/>, assuming worst-case.
-        /// Treats all speed notes as hit circles.
+        /// Using <see cref="calculateEffectiveDeviation"/> estimates player's deviation on speed notes, assuming worst-case.
+        /// Treats all speed notes as hit circles. This is not good way to do this, but fixing this is impossible under the limitation of current speed pp.
+        /// If score was set with slideracc - tries to remove mistaps on sliders from total mistaps.
         /// </summary>
-        private double? calculateSpeedDeviation(OsuDifficultyAttributes attributes)
+        /// <summary>
+        /// Does the same as <see cref="calculateEffectiveDeviation"/>, but only for notes and inaccuracies that are relevant to speed difficulty.
+        /// Treats all difficult speed notes as circles, so this method can sometimes return a lower deviation than <see cref="calculateEffectiveDeviation"/>.
+        /// This is fine though, since this method is only used to scale speed pp.
+        /// </summary>
+        private double calculateSpeedDeviation(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
             if (totalSuccessfulHits == 0)
-                return null;
+                return double.PositiveInfinity;
 
             // Calculate accuracy assuming the worst case scenario
             double speedNoteCount = attributes.SpeedNoteCount;
-            speedNoteCount += (totalHits - attributes.SpeedNoteCount) * 0.1;
+            double relevantTotalDiff = totalHits - attributes.SpeedNoteCount;
+            double relevantCountGreat = Math.Max(0, countGreat - relevantTotalDiff);
+            double relevantCountOk = Math.Max(0, countOk - Math.Max(0, relevantTotalDiff - countGreat));
+            double relevantCountMeh = Math.Max(0, countMeh - Math.Max(0, relevantTotalDiff - countGreat - countOk));
+            double relevantCountMiss = Math.Max(0, countMiss - Math.Max(0, relevantTotalDiff - countGreat - countOk - countMeh));
 
-            // Assume worst case: all mistakes were on speed notes
-            double relevantCountMiss = Math.Min(countMiss, speedNoteCount);
-            double relevantCountMeh = Math.Min(countMeh, speedNoteCount - relevantCountMiss);
-            double relevantCountOk = Math.Min(countOk, speedNoteCount - relevantCountMiss - relevantCountMeh);
-            double relevantCountGreat = Math.Max(0, speedNoteCount - relevantCountMiss - relevantCountMeh - relevantCountOk);
+            // Assume 100s, 50s, and misses happen on circles. If there are less non-300s on circles than 300s,
+            // compute the deviation on circles.
+            if (relevantCountGreat > 0)
+            {
+                // The probability that a player hits a circle is unknown, but we can estimate it to be
+                // the number of greats on circles divided by the number of circles, and then add one
+                // to the number of circles as a bias correction.
+                double greatProbabilityCircle = relevantCountGreat / (speedNoteCount - relevantCountMiss - relevantCountMeh + 1.0);
 
-            return calculateDeviation(relevantCountGreat, relevantCountOk, relevantCountMeh);
+                // Compute the deviation assuming 300s and 100s are normally distributed, and 50s are uniformly distributed.
+                // Begin with the normal distribution first.
+                double deviationOnCircles = greatHitWindow / (Math.Sqrt(2) * DiffUtils.ErfInv(greatProbabilityCircle));
+
+                // Then compute the variance for 50s.
+                double mehVariance = (mehHitWindow * mehHitWindow + okHitWindow * mehHitWindow + okHitWindow * okHitWindow) / 3;
+
+                // Find the total deviation.
+                deviationOnCircles = Math.Sqrt(((relevantCountGreat + relevantCountOk) * Math.Pow(deviationOnCircles, 2) + relevantCountMeh * mehVariance) / (relevantCountGreat + relevantCountOk + relevantCountMeh));
+
+                return deviationOnCircles;
+            }
+
+            return double.PositiveInfinity;
         }
 
         /// <summary>
@@ -435,18 +462,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double n = circleCount - missCountCircles - mehCountCircles;
 
             // We can be 99% confident that p is at least this value.
-            double pLowerBound(double i) => DifficultyCalculationUtils.BetaInvCDF(i, 1 + n - i, 0.01);
+            double pLowerBound(double i) => DiffUtils.BetaInvCDF(i, 1 + n - i, 0.01);
 
             // If all rhythm difficulties were the same, this is the would-be deviation divided by the would-be SS deviation.
             // Always greater than or equal to 1.
-            double ratio = DifficultyCalculationUtils.ErfInv(pLowerBound(n)) / DifficultyCalculationUtils.ErfInv(pLowerBound(greatCountCircles));
+            double ratio = DiffUtils.ErfInv(pLowerBound(n)) / DiffUtils.ErfInv(pLowerBound(greatCountCircles));
 
             return attributes.EffectiveSSDeviation * ratio;
         }
 
         // Calculates multiplier for speed accounting for rake based on the deviation and speed difficulty
         // https://www.desmos.com/calculator/puc1mzdtfv
-        private double calculateSpeedRakeNerf(OsuDifficultyAttributes attributes)
+        private double calculateSpeedHighDeviationNerf(OsuDifficultyAttributes attributes)
         {
             // Base speed value
             double speedValue = HarmonicSkill.DifficultyToPerformance(attributes.SpeedDifficulty);
