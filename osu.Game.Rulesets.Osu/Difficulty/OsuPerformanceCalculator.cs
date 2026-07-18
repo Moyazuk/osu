@@ -274,38 +274,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (score.Mods.Any(h => h is OsuModRelax))
                 return 0.0;
 
-            // This percentage only considers HitCircles of any value - in this part of the calculation we focus on hitting the timing hit window.
-            double betterAccuracyPercentage;
-            int amountHitObjectsWithAccuracy = attributes.HitCircleCount;
-            if (!usingClassicSliderAccuracy || usingScoreV2)
-                amountHitObjectsWithAccuracy += attributes.SliderCount;
-
-            if (amountHitObjectsWithAccuracy > 0)
-                betterAccuracyPercentage = ((countGreat - Math.Max(totalHits - amountHitObjectsWithAccuracy, 0)) * 6 + countOk * 2 + countMeh) / (double)(amountHitObjectsWithAccuracy * 6);
-            else
-                betterAccuracyPercentage = 0;
-
-            // It is possible to reach a negative accuracy with this formula. Cap it at zero - zero points.
-            if (betterAccuracyPercentage < 0)
-                betterAccuracyPercentage = 0;
-
-            // Lots of arbitrary values from testing.
-            // Considering to use derivation from perfect accuracy in a probabilistic manner - assume normal distribution.
-            double accuracyValue = DiffUtils.Pow(1.52163, overallDifficulty) * DiffUtils.Pow(betterAccuracyPercentage, 24) * 2.83;
-
-            // Bonus for many hitcircles - it's harder to keep good accuracy up for longer.
-            accuracyValue *= amountHitObjectsWithAccuracy < 1000
-                ? DiffUtils.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.3)
-                : DiffUtils.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.1);
+            double accuracyValue = 380 * Math.Pow(7.5 / deviation, 2);
 
             // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
             if (score.Mods.Any(m => m is OsuModBlinds))
                 accuracyValue *= 1.14;
-            else if (score.Mods.Any(m => m is OsuModTraceable))
-            {
-                // Decrease bonus for AR > 10
-                accuracyValue *= 1 + 0.08 * DiffUtils.ReverseLerp(approachRate, 11.5, 10);
-            }
+            else if (score.Mods.Any(m => m is OsuModHidden || m is OsuModTraceable))
+                accuracyValue *= 1.08;
+
+            if (score.Mods.Any(m => m is OsuModFlashlight))
+                accuracyValue *= 1.02;
 
             return accuracyValue;
         }
@@ -433,77 +411,55 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         }
 
         /// <summary>
-        /// Estimates the player's tap deviation based on the OD, given number of greats, oks, mehs and misses,
+        /// Estimates the player's tap deviation based on the OD, given number of 300s, 100s, 50s and misses,
         /// assuming the player's mean hit error is 0. The estimation is consistent in that two SS scores on the same map with the same settings
         /// will always return the same deviation. Misses are ignored because they are usually due to misaiming.
-        /// Greats and oks are assumed to follow a normal distribution, whereas mehs are assumed to follow a uniform distribution.
+        /// 300s and 100s are assumed to follow a normal distribution, whereas 50s are assumed to follow a uniform distribution.
         /// </summary>
-        private double? calculateDeviation(double relevantCountGreat, double relevantCountOk, double relevantCountMeh)
+        private double calculateEffectiveDeviation(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            if (relevantCountGreat + relevantCountOk + relevantCountMeh <= 0)
-                return null;
+            if (totalSuccessfulHits == 0)
+                return double.PositiveInfinity;
 
-            // The sample proportion of successful hits.
-            double n = Math.Max(1, relevantCountGreat + relevantCountOk);
-            double p = relevantCountGreat / n;
+            int circleCount = attributes.HitCircleCount;
+            int missCountCircles = Math.Min(countMiss, circleCount);
+            int mehCountCircles = Math.Min(countMeh, circleCount - missCountCircles);
+            int okCountCircles = Math.Min(countOk, circleCount - missCountCircles - mehCountCircles);
+            int greatCountCircles = Math.Max(0, circleCount - missCountCircles - mehCountCircles - okCountCircles);
 
-            // 99% critical value for the normal distribution (one-tailed).
-            const double z = 2.32634787404;
-
-            // We can be 99% confident that the population proportion is at least this value.
-            double pLowerBound = Math.Min(p, (n * p + z * z / 2) / (n + z * z) - z / (n + z * z) * Math.Sqrt(n * p * (1 - p) + z * z / 4));
-
-            double deviation;
-
-            // Tested max precision for the deviation calculation.
-            if (pLowerBound > 0.01)
+            if (greatCountCircles == 0)
             {
-                // Compute deviation assuming greats and oks are normally distributed.
-                deviation = greatHitWindow / (DiffUtils.SQRT2 * DiffUtils.ErfInv(pLowerBound));
-
-                // Subtract the deviation provided by tails that land outside the ok hit window from the deviation computed above.
-                // This is equivalent to calculating the deviation of a normal distribution truncated at +-okHitWindow.
-                double okHitWindowTailAmount = Math.Sqrt(2 / Math.PI) * okHitWindow * Math.Exp(-0.5 * DiffUtils.Pow(okHitWindow / deviation, 2))
-                                               / (deviation * DiffUtils.Erf(okHitWindow / (DiffUtils.SQRT2 * deviation)));
-
-                deviation *= Math.Sqrt(1 - okHitWindowTailAmount);
-            }
-            else
-            {
-                // A tested limit value for the case of a score only containing oks.
-                deviation = okHitWindow / Math.Sqrt(3);
+                return double.PositiveInfinity;
             }
 
-            // Compute and add the variance for mehs, assuming that they are uniformly distributed.
-            double mehVariance = (mehHitWindow * mehHitWindow + okHitWindow * mehHitWindow + okHitWindow * okHitWindow) / 3;
+            double n = circleCount - missCountCircles - mehCountCircles;
 
-            deviation = Math.Sqrt(((relevantCountGreat + relevantCountOk) * DiffUtils.Pow(deviation, 2) + relevantCountMeh * mehVariance) / (relevantCountGreat + relevantCountOk + relevantCountMeh));
+            // We can be 99% confident that p is at least this value.
+            double pLowerBound(double i) => DifficultyCalculationUtils.BetaInvCDF(i, 1 + n - i, 0.01);
 
-            return deviation;
+            // If all rhythm difficulties were the same, this is the would-be deviation divided by the would-be SS deviation.
+            // Always greater than or equal to 1.
+            double ratio = DifficultyCalculationUtils.ErfInv(pLowerBound(n)) / DifficultyCalculationUtils.ErfInv(pLowerBound(greatCountCircles));
+
+            return attributes.EffectiveSSDeviation * ratio;
         }
 
-        // Calculates multiplier for speed to account for improper tapping based on the deviation and speed difficulty
-        // https://www.desmos.com/calculator/dmogdhzofn
-        private double calculateSpeedHighDeviationNerf(OsuDifficultyAttributes attributes)
+        // Calculates multiplier for speed accounting for rake based on the deviation and speed difficulty
+        // https://www.desmos.com/calculator/puc1mzdtfv
+        private double calculateSpeedRakeNerf(OsuDifficultyAttributes attributes)
         {
-            if (speedDeviation == null)
-                return 0;
-
+            // Base speed value
             double speedValue = HarmonicSkill.DifficultyToPerformance(attributes.SpeedDifficulty);
 
-            // Decides a point where the PP value achieved compared to the speed deviation is assumed to be tapped improperly. Any PP above this point is considered "excess" speed difficulty.
-            // This is used to cause PP above the cutoff to scale logarithmically towards the original speed value thus nerfing the value.
-            double excessSpeedDifficultyCutoff = 100 + 220 * DiffUtils.Pow(22 / speedDeviation.Value, 6.5);
+            // Starting from this pp amount - penalty will be applied
+            double abusePoint = 100 + 260 * Math.Pow(22 / speedDeviation, 5.8);
 
-            if (speedValue <= excessSpeedDifficultyCutoff)
+            if (speedValue <= abusePoint)
                 return 1.0;
 
+            // Use log curve to make additional rise in difficulty unimpactful. Rescale values to make curve have correct steepness
             const double scale = 50;
-            double adjustedSpeedValue = scale * (Math.Log((speedValue - excessSpeedDifficultyCutoff) / scale + 1) + excessSpeedDifficultyCutoff / scale);
-
-            // 220 UR and less are considered tapped correctly to ensure that normal scores will be punished as little as possible
-            double lerp = 1 - DiffUtils.ReverseLerp(speedDeviation.Value, 22.0, 27.0);
-            adjustedSpeedValue = double.Lerp(adjustedSpeedValue, speedValue, lerp);
+            double adjustedSpeedValue = scale * (Math.Log((speedValue - abusePoint) / scale + 1) + abusePoint / scale);
 
             return adjustedSpeedValue / speedValue;
         }

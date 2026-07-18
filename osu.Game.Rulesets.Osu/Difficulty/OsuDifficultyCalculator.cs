@@ -36,12 +36,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             var aim = skills.OfType<Aim>().Single(a => a.IncludeSliders);
             var aimWithoutSliders = skills.OfType<Aim>().Single(a => !a.IncludeSliders);
             var speed = skills.OfType<Speed>().Single();
+            var accuracy = skills.OfType<Accuracy>().Single();
             var flashlight = skills.OfType<Flashlight>().SingleOrDefault();
             var reading = skills.OfType<Reading>().Single();
 
             double aimDifficultyValue = aim.DifficultyValue();
             double aimNoSlidersDifficultyValue = aimWithoutSliders.DifficultyValue();
             double speedDifficultyValue = speed.DifficultyValue();
+            double effectiveSSDeviation = accuracy.DifficultyValue();
             double readingDifficultyValue = reading.DifficultyValue();
 
             double aimDifficultStrainCount = aim.CountTopWeightedStrains(aimDifficultyValue);
@@ -102,6 +104,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 AimDifficulty = aimRating,
                 AimDifficultSliderCount = difficultSliders,
                 SpeedDifficulty = speedRating,
+                EffectiveSSDeviation = effectiveSSDeviation,
                 SpeedNoteCount = speedNotes,
                 FlashlightDifficulty = flashlightRating,
                 ReadingDifficulty = readingRating,
@@ -171,7 +174,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 new Aim(mods, true),
                 new Aim(mods, false),
                 new Speed(mods),
-                new Reading(mods)
+                new Reading(mods),
+                new Accuracy(mods)
             };
 
             if (mods.Any(h => h is OsuModFlashlight))
