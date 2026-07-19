@@ -39,7 +39,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
             strain *= 1 + wideAngleBonus * 2;
 
-            strain *= Math.Pow(osuCurrObj.SmallCircleBonus, 1.5);
+            strain += Math.Max(0, osuCurrObj.SmallCircleBonus - 1);
 
             return strain;
         }

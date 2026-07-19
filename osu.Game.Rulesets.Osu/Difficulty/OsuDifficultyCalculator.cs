@@ -50,6 +50,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double speedDifficultStrainCount = speed.CountTopWeightedObjectDifficulties(speedDifficultyValue);
             double readingDifficultNoteCount = reading.CountTopWeightedObjectDifficulties(readingDifficultyValue);
 
+            double[] aimMissPenaltyCoefficients = aim.GetMissPenaltyCoefficients();
+
             double speedNotes = speed.RelevantNoteCount();
 
             double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders(aimNoSlidersDifficultyValue);
@@ -109,7 +111,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 FlashlightDifficulty = flashlightRating,
                 ReadingDifficulty = readingRating,
                 SliderFactor = sliderFactor,
-                AimDifficultStrainCount = aimDifficultStrainCount,
+                AimMissPenaltyCoefficientA = aimMissPenaltyCoefficients.ElementAtOrDefault(0),
+                AimMissPenaltyCoefficientB = aimMissPenaltyCoefficients.ElementAtOrDefault(1),
+                AimMissPenaltyCoefficientC = aimMissPenaltyCoefficients.ElementAtOrDefault(2),
                 SpeedDifficultStrainCount = speedDifficultStrainCount,
                 ReadingDifficultNoteCount = readingDifficultNoteCount,
                 AimTopWeightedSliderFactor = aimTopWeightedSliderFactor,
@@ -138,13 +142,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return DiffUtils.Norm(OsuPerformanceCalculator.PERFORMANCE_NORM_EXPONENT, reading, flashlight * Math.Clamp(flashlight / reading, 0.25, 1.0));
         }
 
-        private double calculateAimDifficultyRating(double difficultyValue) => DiffUtils.Pow(difficultyValue, 0.70) * 0.015;
+        private double calculateAimDifficultyRating(double difficultyValue) => DiffUtils.Pow(difficultyValue, 0.70) * 0.0425;
 
         private double calculateDifficultyRating(double difficultyValue) => Math.Sqrt(difficultyValue) * 0.0675;
 
         private double calculateStarRating(double basePerformance)
         {
-            return Math.Cbrt(basePerformance * OsuPerformanceCalculator.PERFORMANCE_BASE_MULTIPLIER);
+            return Math.Cbrt(basePerformance * OsuPerformanceCalculator.PERFORMANCE_BASE_MULTIPLIER * 0.8);
         }
 
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, Mod[] mods)

@@ -142,7 +142,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             }
 
             // Apply high circle size bonus
-            aimStrain *= osuCurrObj.SmallCircleBonus;
+            aimStrain += Math.Max(0, osuCurrObj.SmallCircleBonus - 1);
 
             return aimStrain;
         }

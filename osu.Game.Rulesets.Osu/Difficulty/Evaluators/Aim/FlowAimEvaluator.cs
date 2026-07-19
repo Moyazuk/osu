@@ -58,8 +58,8 @@ else
 
             // Apply high circle size bonus to the base velocity.
             // We use reduced CS bonus here because the bonus was made for an evaluator with a different d/t scaling
-            flowContinuationDifficulty *= Math.Sqrt(osuCurrObj.SmallCircleBonus);
-            flowTransitionDifficulty *= Math.Sqrt(osuCurrObj.SmallCircleBonus);
+            flowContinuationDifficulty *= osuCurrObj.SmallCircleBonus;
+            flowTransitionDifficulty *= osuCurrObj.SmallCircleBonus;
 
             // Rhythm changes are harder to flow
             flowContinuationDifficulty *= 1 + Math.Min(0.25,
@@ -72,7 +72,7 @@ else
                 double angularVelocity = angleDifferenceAdjusted / (osuCurrObj.AdjustedDeltaTime * 0.1);
 
                 // Low angular velocity flow (angles are consistent) is easier to follow than erratic flow
-                flowContinuationDifficulty *= 0.8;
+                flowContinuationDifficulty *= 0.8 + Math.Sqrt(angularVelocity / 270.0);
                 flowTransitionDifficulty *= 0.8;
             }
 
@@ -93,7 +93,7 @@ else
                 // Acute angles are also hard to flow
                 flowContinuationDifficulty += currVelocity *
                                               SnapAimEvaluator.CalcAngleAcuteness(osuCurrObj.Angle.Value) *
-                                              0;
+                                              overlappedNotesWeight;
             }
 
             if (Math.Max(prevVelocity, currVelocity) != 0)
@@ -127,7 +127,7 @@ else
 
 
             // Final velocity is being raised to a power because flow difficulty scales harder with both high distance and time, and we want to account for that
-            return Math.Pow(flowDifficulty, 1.5);
+            return Math.Pow(flowDifficulty, 1);
         }
 
         public static double EvaluateJerkDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance, double previousPFlow)
@@ -176,8 +176,8 @@ else
 
             double angularJerk = angleSigned - prevAngleSigned;
 
-            const double vNormalWeight = 0.25;
-            const double vTangentialWeight = 0.5;
+            const double vNormalWeight = 0.5;
+            const double vTangentialWeight = 1;
 
             double vNormal = prevVelocity * Math.Pow(Math.Sin(angularJerk / 2), 2);
             double vTangential = Math.Abs(currVelocity - prevVelocity) * Math.Cos(angularJerk / 2);

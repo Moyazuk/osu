@@ -273,5 +273,135 @@ namespace osu.Game.Rulesets.Difficulty.Utils
             double d = (x - mean) / stddev;
             return Math.Exp(-0.5 * d * d) / (sqrt2_pi * stddev);
         }
+
+        /// <summary>
+        /// Natural logarithm of the gamma function (Lanczos approximation).
+        /// </summary>
+        public static double LogGamma(double x)
+        {
+            double[] c =
+            {
+                0.99999999999980993,
+                676.5203681218851,
+                -1259.1392167224028,
+                771.32342877765313,
+                -176.61502916214059,
+                12.507343278686905,
+                -0.13857109526572012,
+                9.9843695780195716e-6,
+                1.5056327351493116e-7
+            };
+
+            if (x < 0.5)
+            {
+                // Reflection formula: Γ(x)Γ(1-x) = π / sin(πx).
+                return Math.Log(Math.PI / Math.Sin(Math.PI * x)) - LogGamma(1 - x);
+            }
+
+            x -= 1;
+            double a = c[0];
+            double t = x + 7.5;
+
+            for (int i = 1; i < c.Length; i++)
+                a += c[i] / (x + i);
+
+            return 0.5 * Math.Log(2 * Math.PI) + (x + 0.5) * Math.Log(t) - t + Math.Log(a);
+        }
+
+        /// <summary>
+        /// Regularized incomplete beta function I_x(a, b) (https://en.wikipedia.org/wiki/Beta_function#Incomplete_beta_function).
+        /// </summary>
+        /// <param name="x">Upper limit of integration, in [0, 1].</param>
+        /// <param name="a">First shape parameter.</param>
+        /// <param name="b">Second shape parameter.</param>
+        public static double BetaRegularized(double x, double a, double b)
+        {
+            if (x <= 0) return 0;
+            if (x >= 1) return 1;
+
+            double bt = Math.Exp(LogGamma(a + b) - LogGamma(a) - LogGamma(b)
+                                 + a * Math.Log(x) + b * Math.Log(1 - x));
+
+            // Choose the form that converges fastest, evaluating the continued fraction
+            // on whichever side of the symmetry point x falls. No re-swapping.
+            if (x < (a + 1) / (a + b + 2))
+                return bt * betaContinuedFraction(a, b, x) / a;
+
+            return 1 - bt * betaContinuedFraction(b, a, 1 - x) / b;
+        }
+
+        /// <summary>
+        /// Modified Lentz evaluation of the continued fraction for the incomplete beta function.
+        /// </summary>
+        private static double betaContinuedFraction(double a, double b, double x)
+        {
+            const double tiny = 1e-300;
+            const double epsilon = 3e-16;
+            const int max_iterations = 1000;
+
+            double qab = a + b;
+            double qap = a + 1.0;
+            double qam = a - 1.0;
+
+            double c = 1.0;
+            double d = 1.0 - qab * x / qap;
+            if (Math.Abs(d) < tiny) d = tiny;
+            d = 1.0 / d;
+            double h = d;
+
+            for (int m = 1; m <= max_iterations; m++)
+            {
+                int m2 = 2 * m;
+
+                // Even step.
+                double aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+                d = 1.0 + aa * d;
+                if (Math.Abs(d) < tiny) d = tiny;
+                c = 1.0 + aa / c;
+                if (Math.Abs(c) < tiny) c = tiny;
+                d = 1.0 / d;
+                h *= d * c;
+
+                // Odd step.
+                aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+                d = 1.0 + aa * d;
+                if (Math.Abs(d) < tiny) d = tiny;
+                c = 1.0 + aa / c;
+                if (Math.Abs(c) < tiny) c = tiny;
+                d = 1.0 / d;
+                double delta = d * c;
+                h *= delta;
+
+                if (Math.Abs(delta - 1.0) < epsilon)
+                    break;
+            }
+
+            return h;
+        }
+
+        public static double BetaInvCDF(double a, double b, double p)
+        {
+            if (p <= 0) return 0;
+            if (p >= 1) return 1;
+
+            // I_x is monotonically increasing in x, so bisection is unconditionally robust.
+            double lo = 0.0;
+            double hi = 1.0;
+
+            for (int i = 0; i < 200; i++)
+            {
+                double mid = 0.5 * (lo + hi);
+
+                if (BetaRegularized(mid, a, b) < p)
+                    lo = mid;
+                else
+                    hi = mid;
+
+                if (hi - lo < 1e-13)
+                    break;
+            }
+
+            return 0.5 * (lo + hi);
+        }
     }
 }
