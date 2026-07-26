@@ -59,6 +59,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         private double approachRate;
         private double drainRate;
 
+        private double? deviation;
         private double? speedDeviation;
 
         private double aimEstimatedSliderBreaks;
@@ -151,6 +152,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 effectiveMissCount = Math.Min(effectiveMissCount + countOk * okMultiplier + countMeh * mehMultiplier, totalHits);
             }
 
+            deviation = calculateDeviation(countGreat, countOk, countMeh);
+
             speedDeviation = calculateSpeedDeviation(osuAttributes);
 
             double aimValue = computeAimValue(score, osuAttributes);
@@ -236,7 +239,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
         private double computeSpeedValue(ScoreInfo score, OsuDifficultyAttributes attributes)
         {
-            if (score.Mods.Any(h => h is OsuModRelax) || speedDeviation == null)
+            if (score.Mods.Any(h => h is OsuModRelax) || deviation == null)
                 return 0.0;
 
             double speedValue = HarmonicSkill.DifficultyToPerformance(attributes.SpeedDifficulty);
@@ -259,10 +262,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             // An effective hit window is created based on the speed SR. The higher the speed difficulty, the shorter the hit window.
             // For example, a speed SR of 4.0 leads to an effective hit window of 20ms, which is OD 10.
-            double effectiveHitWindow = 20 * DiffUtils.Pow(4 / attributes.SpeedDifficulty, 0.35);
+            double effectiveHitWindow = 15 * DiffUtils.Pow(4 / attributes.SpeedDifficulty, 0.35);
 
             // Find the proportion of 300s on speed notes assuming the hit window was the effective hit window.
-            double effectiveAccuracy = DiffUtils.Erf(effectiveHitWindow / (double)speedDeviation);
+            double effectiveAccuracy = DiffUtils.Erf(effectiveHitWindow / (double)deviation);
 
             // Scale speed value by normalized accuracy.
             speedValue *= DiffUtils.Pow(effectiveAccuracy, 2);
