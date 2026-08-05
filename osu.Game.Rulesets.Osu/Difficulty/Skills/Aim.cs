@@ -68,14 +68,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double calculateAdjustedDifficulty(DifficultyHitObject current)
         {
             const double skill_multiplier_snap = 70.9;
-            const double skill_multiplier_agility = 2.35;
+            const double skill_multiplier_agility = 1.4;
             const double skill_multiplier_flow = 242.0;
 
             double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skill_multiplier_snap;
             double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skill_multiplier_agility;
             double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skill_multiplier_flow;
 
-            double totalDifficulty = calculateTotalValue(snapDifficulty, agilityDifficulty, flowDifficulty);
+            double totalDifficulty = calculateTotalValue(current, snapDifficulty, agilityDifficulty, flowDifficulty);
 
             if (Mods.Any(m => m is OsuModMagnetised))
             {
@@ -88,7 +88,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return totalDifficulty;
         }
 
-        private double calculateTotalValue(double snapDifficulty, double agilityDifficulty, double flowDifficulty)
+        private double calculateTotalValue(DifficultyHitObject current, double snapDifficulty, double agilityDifficulty, double flowDifficulty)
         {
             const double skill_multiplier_total = 1.12;
             const double combined_snap_norm_exponent = 1.2;
@@ -97,6 +97,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             // Agility on the other hand is supposed to measure the rate of cursor velocity changes while snapping
             // So snapping every circle on a stream requires an enormous amount of agility at which point it's easier to flow
             double combinedSnapDifficulty = DiffUtils.Norm(combined_snap_norm_exponent, snapDifficulty, agilityDifficulty);
+
+            combinedSnapDifficulty *= 1.0 + AgilityEvaluator.EvaluateHybridBonus(current);
 
             double pSnap = calculateSnapFlowProbability(flowDifficulty / combinedSnapDifficulty);
             double pFlow = 1 - pSnap;
