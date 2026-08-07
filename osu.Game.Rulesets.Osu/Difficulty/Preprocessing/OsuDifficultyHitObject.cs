@@ -132,6 +132,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Preprocessing
         /// </summary>
         public double OverallDifficulty => (79.5 - HitWindowGreat / 2) / 6;
 
+        public OsuDifficultyHitIsland? Island { get; internal set; }
+
         public OsuDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, int index)
             : base(hitObject, lastObject, clockRate, objects, index)
         {

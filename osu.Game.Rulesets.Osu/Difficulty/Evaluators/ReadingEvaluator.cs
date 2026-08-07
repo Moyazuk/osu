@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
+using osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
 
@@ -23,6 +24,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var currObj = (OsuDifficultyHitObject)current;
             var nextObj = (OsuDifficultyHitObject)current.Next(0);
 
+            double currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
+
             double velocity = Math.Max(1, currObj.LazyJumpDistance / currObj.AdjustedDeltaTime); // Only allow velocity to buff
 
             double currentVisibleObjectDensity = retrieveCurrentVisibleObjectDensity(currObj);
@@ -36,7 +39,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 ? calculateHiddenDifficulty(currObj, pastObjectDifficultyInfluence, currentVisibleObjectDensity, velocity, constantAngleNerfFactor)
                 : 0;
 
+
             double preemptDifficulty = calculatePreemptDifficulty(velocity, constantAngleNerfFactor, currObj.Preempt);
+
+
+
+            preemptDifficulty *= 1 + Math.Pow(currentRhythm, 0.50) * 0.15;
+
+            hiddenDifficulty *= 1 + Math.Pow(currentRhythm, 0.9) * 0.00125;
+            noteDensityDifficulty *= 1 + currentRhythm * Math.Pow(currentRhythm, 0.5) * 0.00025;
 
             double readingDifficulty = DiffUtils.Norm(1.5, preemptDifficulty, hiddenDifficulty, noteDensityDifficulty);
 
@@ -92,7 +103,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         /// </summary>
         private static double calculatePreemptDifficulty(double velocity, double constantAngleNerfFactor, double preempt)
         {
-            const double preempt_balancing_factor = 140000;
+            const double preempt_balancing_factor = 170000;
             const double preempt_starting_point = 500; // AR 9.66 in milliseconds
 
             // Arbitrary curve for the base value preempt difficulty should have as approach rate increases.
