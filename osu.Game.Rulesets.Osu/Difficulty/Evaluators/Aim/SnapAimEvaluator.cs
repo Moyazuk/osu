@@ -84,9 +84,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
                 double wideAngleBonus = calcAngleWideness(currAngle);
 
-                // Penalize angle repetition. It is important to do it _before_ multiplying by velocity because we compare raw wideness here
-                wideAngleBonus *= 0.25 + 0.75 * (1 - Math.Min(wideAngleBonus, DiffUtils.Pow(calcAngleWideness(lastAngle), 3)));
-
                 // Rescaling velocity for the wide angle bonus
                 const double wide_angle_time_scale = 1.45;
                 double wideAngleCurrVelocity = currDistance / DiffUtils.Pow(osuCurrObj.AdjustedDeltaTime, wide_angle_time_scale);

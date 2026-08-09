@@ -209,15 +209,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double aimValue = DifficultyToPerformance(aimDifficulty);
 
-            double lengthBonus = 0.95 + 0.35 * Math.Min(1.0, totalHits / 2000.0) +
-                                 (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
-            aimValue *= lengthBonus;
-
             if (effectiveMissCount > 0)
             {
+                aimEstimatedSliderBreaks = calculateEstimatedSliderBreaks(attributes.AimTopWeightedSliderFactor, attributes);
+
                 double relevantMissCount = Math.Min(effectiveMissCount + aimEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
 
-                aimValue *= calculateMissPenalty(relevantMissCount, attributes.AimDifficultStrainCount);
+                double[] coefficients =
+                [
+                    attributes.AimMissPenaltyCoefficientA,
+                    attributes.AimMissPenaltyCoefficientB,
+                    attributes.AimMissPenaltyCoefficientC,
+                    // We can derive the 4th coefficient from the first third, since at x = 1 our polynomial is equal to the sum of the coefficients,
+                    // and the relevant miss count there is log(totalHits - 1) since our polynomial uses log miss counts.
+                    Math.Log(totalHits + 1) - attributes.AimMissPenaltyCoefficientA - attributes.AimMissPenaltyCoefficientB - attributes.AimMissPenaltyCoefficientC
+                ];
+
+                aimValue *= calculatePolynomialMissPenalty(relevantMissCount, coefficients);
             }
 
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
@@ -536,6 +544,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         // so we use the amount of relatively difficult sections to adjust miss penalty
         // to make it more punishing on maps with lower amount of hard sections.
         private double calculateMissPenalty(double missCount, double difficultStrainCount) => 0.93 / (missCount / (4 * Math.Log(Math.Max(1, difficultStrainCount))) + 1);
+
+        // With the curve fitted miss penalty, we use a pre-computed curve of skill levels for each miss count, raised to the power of 1.89 as
+        // the multiple of the exponents on star rating and PP. This power should be changed if either SR or PP begin to use a different exponent.
+        private double calculatePolynomialMissPenalty(double missCount, double[] coefficients) => Math.Pow(1 - PolynomialPenaltyUtils.GetPenaltyAt(coefficients, Math.Log(missCount + 1)), 1.89);
         private double getComboScalingFactor(OsuDifficultyAttributes attributes) => attributes.MaxCombo <= 0 ? 1.0 : Math.Min(DiffUtils.Pow(scoreMaxCombo, 0.8) / DiffUtils.Pow(attributes.MaxCombo, 0.8), 1.0);
 
         private double calculateRateAdjustedApproachRate(double approachRate, double clockRate)

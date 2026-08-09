@@ -33,8 +33,6 @@ namespace osu.Game.Rulesets.Taiko.Difficulty.Evaluators
 
             double hitWindow = hitObject.HitWindowGreat;
 
-            double hitWindow = hitObject.HitWindow(HitResult.Great);
-
             if (rhythmData.SameRhythmGroupedHitObjects?.FirstHitObject == hitObject) // Difficulty for SameRhythmGroupedHitObjects
             {
                 sameRhythm += 10.0 * evaluateDifficultyOf(rhythmData.SameRhythmGroupedHitObjects, hitWindow);

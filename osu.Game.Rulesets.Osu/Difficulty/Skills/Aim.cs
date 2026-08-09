@@ -30,10 +30,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
+        protected override double TimeThresholdMinutes => 4080;
+
         private double skillMultiplierSnap => 355.0;
-        private double skillMultiplierAgility => 10.0;
+        private double skillMultiplierAgility => 11.0;
         private double skillMultiplierFlow => 1100;
-        private double skillMultiplierTotal => 1.05;
+        private double skillMultiplierTotal => 1.25;
         private double meanExponent => 1.2;
 
         private readonly List<double> sliderStrains = new List<double>();
@@ -43,7 +45,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (difficulty <= 0) return 1;
             if (skill <= 0) return 0;
 
-            return DifficultyCalculationUtils.Erf(skill / (Math.Sqrt(2) * difficulty));
+            return DiffUtils.Erf(skill / (Math.Sqrt(2) * difficulty));
         }
 
         private double strainDecay(double ms) => Math.Pow(0.15, ms / 1000);
@@ -84,7 +86,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             // We compare flow to combined snap and agility because snap by itself doesn't have enough difficulty to be above flow on streams
             // Agility on the other hand is supposed to measure the rate of cursor velocity changes while snapping
             // So snapping every circle on a stream requires an enormous amount of agility at which point it's easier to flow
-            double combinedSnapDifficulty = DifficultyCalculationUtils.Norm(meanExponent, snapDifficulty, agilityDifficulty);
+            double combinedSnapDifficulty = DiffUtils.Norm(meanExponent, snapDifficulty, agilityDifficulty);
 
             double pSnap = calculateSnapFlowProbability(flowDifficulty / combinedSnapDifficulty);
             double pFlow = 1 - pSnap;
@@ -113,7 +115,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (double.IsNaN(ratio))
                 return 1;
 
-            return DifficultyCalculationUtils.Logistic(-k * Math.Log(ratio));
+            return DiffUtils.Logistic(-k * Math.Log(ratio));
         }
 
         public double GetDifficultSliders()
@@ -140,7 +142,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 return 0;
 
             // Use a weighted sum of all strains. Constants are arbitrary and give nice values
-            return sliderStrains.Sum(s => DifficultyCalculationUtils.Logistic(s / consistentTopStrain, 0.88, 10, 1.1));
+            return sliderStrains.Sum(s => DiffUtils.Logistic(s / consistentTopStrain, 0.88, 10, 1.1));
         }
     }
 }

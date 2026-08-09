@@ -97,7 +97,7 @@ namespace osu.Game.Rulesets.Difficulty.Skills
             if (consistentTopNote == 0)
                 return 0;
 
-            return ObjectDifficulties.Sum(d => DifficultyCalculationUtils.Logistic(d / consistentTopNote, 0.88, 10, 1.1));
+            return ObjectDifficulties.Sum(d => DiffUtils.Logistic(d / consistentTopNote, 0.88, 10, 1.1));
         }
 
         public static double DifficultyToPerformance(double difficulty) => 4.0 * Math.Pow(difficulty, 3.0);
