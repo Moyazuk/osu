@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
-using osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
 
@@ -24,8 +23,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             var currObj = (OsuDifficultyHitObject)current;
             var nextObj = (OsuDifficultyHitObject)current.Next(0);
 
-            double currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
-
             double velocity = Math.Max(1, currObj.LazyJumpDistance / currObj.AdjustedDeltaTime); // Only allow velocity to buff
 
             double currentVisibleObjectDensity = retrieveCurrentVisibleObjectDensity(currObj);
@@ -39,15 +36,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
                 ? calculateHiddenDifficulty(currObj, pastObjectDifficultyInfluence, currentVisibleObjectDensity, velocity, constantAngleNerfFactor)
                 : 0;
 
-
             double preemptDifficulty = calculatePreemptDifficulty(velocity, constantAngleNerfFactor, currObj.Preempt);
 
+            double islandDifficulty = calculateIslandDifficulty(currObj);
 
+            preemptDifficulty *= 1 + islandDifficulty * 280;
 
-            preemptDifficulty *= 1 + Math.Pow(currentRhythm, 0.50) * 0.15;
+            hiddenDifficulty *= 1 + islandDifficulty * 80;
 
-            hiddenDifficulty *= 1 + Math.Pow(currentRhythm, 0.9) * 0.00125;
-            noteDensityDifficulty *= 1 + currentRhythm * Math.Pow(currentRhythm, 0.5) * 0.00025;
+            noteDensityDifficulty *= 1 + islandDifficulty * 80;
 
             double readingDifficulty = DiffUtils.Norm(1.5, preemptDifficulty, hiddenDifficulty, noteDensityDifficulty);
 
@@ -93,6 +90,46 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             return noteDensityDifficulty;
         }
 
+        private static double calculateIslandDifficulty(DifficultyHitObject current)
+        {
+            var currObj = (OsuDifficultyHitObject)current;
+            var currentIsland = currObj.Island;
+
+            if (currentIsland == null || currObj != currentIsland.FirstObject)
+                return 0;
+
+            var previousIsland = currentIsland.Previous(0);
+
+            var prevPrevIsland = currentIsland.Previous(1);
+
+
+
+            double islandReadingBonus = 1;
+
+            if (currObj.BaseObject is Slider)
+                islandReadingBonus *= 0.5;
+
+            if (prevPrevIsland != null && currentIsland.Length == previousIsland.Length && currentIsland.Length == prevPrevIsland.Length)
+                islandReadingBonus *= 0.5;
+
+            if (previousIsland != null && currentIsland.StartDeltaTime == previousIsland.StartDeltaTime)
+                islandReadingBonus *= 0.5;
+
+            double deltaTimeFactor = currentIsland.DeltaTime;
+
+            if (currentIsland.Length == 2)
+            {
+                double doubletapFeasibility = currentIsland.LastObject.CalculateDoubleTapFeasibility(currObj);
+
+                islandReadingBonus *= (1 - doubletapFeasibility);
+            }
+
+            if (currentIsland.Length > 4)
+                islandReadingBonus *= double.Lerp(1.0, 0.25, DiffUtils.Smootherstep(currentIsland.Length, 5, 9));
+
+            return islandReadingBonus / deltaTimeFactor;
+        }
+
         /// <summary>
         /// Calculates the difficulty of aiming the current object when the approach rate is very high based on:
         /// <list type="bullet">
@@ -103,7 +140,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         /// </summary>
         private static double calculatePreemptDifficulty(double velocity, double constantAngleNerfFactor, double preempt)
         {
-            const double preempt_balancing_factor = 170000;
+            const double preempt_balancing_factor = 175000;
             const double preempt_starting_point = 500; // AR 9.66 in milliseconds
 
             // Arbitrary curve for the base value preempt difficulty should have as approach rate increases.

@@ -36,7 +36,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double ProcessInternal(DifficultyHitObject current)
         {
-            const double skill_multiplier = 2.5;
+            const double skill_multiplier = 2.2;
             const double reduced_difficulty_duration = 60 * 1000;
 
             double decay = strainDecay(current.DeltaTime);

@@ -3,6 +3,7 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
@@ -18,7 +19,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
 
         private static double single_note_island_difficulty => 0.7;
 
-        private static double slowdown_overlap_bonus => 0.5; // added on top of baseline when fully overlapping
+        private static double slowdown_overlap_bonus => 0.5;
         private static double overlap_distance => OsuDifficultyHitObject.NORMALISED_RADIUS * 2;
         private static double speedup_multiplier => 0.65;
         private static double consecutive_speedup_multiplier => 0.125;
@@ -26,7 +27,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
         private static double repeated_polarity_multiplier => 0.5;
         private static double slider_boundary_multiplier => 0.6;
 
-        private static double gap_speed_multiplier => 1080; // tune this to bring the divided bonus back to a comparable scale
+        private static double ratio_bonus_multiplier => 1.0;
+        private static double gap_bonus_multiplier => 1040.0;
+        private static double step_bonus_multiplier => 1.0;
 
         /// <summary>
         /// Calculates a rhythm multiplier for the difficulty of the tap associated with historic data of the current <see cref="OsuDifficultyHitObject"/>.
@@ -119,14 +122,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
             double gapRatioCurr = Math.Max(gap, currDelta) / Math.Min(gap, currDelta);
             double gapDifficulty = Math.Max(getEffectiveDifficulty(gapRatioPrev), getEffectiveDifficulty(gapRatioCurr));
 
-            double ratioBonus = ratioDifficulty - 1.0;
+            double ratioBonus = ratioDifficulty * ratio_bonus_multiplier - 1.0;
             double gapBonus = gapDifficulty - 1.0;
+
+            double stepBonus = 0;
+
+            if (previous.StartDeltaTime != null)
+            {
+                double prevGap = Math.Max(previous.StartDeltaTime.Value, OsuDifficultyHitObject.MIN_DELTA_TIME);
+                double stepRatio = Math.Max(gap, prevGap) / Math.Min(gap, prevGap);
+                stepBonus = getEffectiveDifficulty(stepRatio) * step_bonus_multiplier - 1.0;
+            }
 
             // Scale the gap's contribution inversely with the gap itself - a fast (small) gap
             // produces a larger divisor result, i.e. more difficulty; a slow (large) gap shrinks it.
-            gapBonus *= gap_speed_multiplier / Math.Pow(gap, 1);
+            gapBonus *= gap_bonus_multiplier / Math.Pow(gap, 1);
 
-            double difficulty = 1.0 + ratioBonus * 1 + gapBonus;
+            double difficulty = 1.0 + ratioBonus * 1 + gapBonus + stepBonus;
 
             // reduce bonus for deltas that are large multiples of each other (1/1 -> 1/8 is different, not hard)
             difficulty *= Math.Clamp(2.0 - islandRatio / 8.0, 0.0, 1.0);
@@ -224,12 +236,49 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static double getEffectiveDifficulty(double deltaDifferenceRatio)
         {
-            const double rhythm_ratio_difficulty_multiplier = 126.0;
+            const double rhythm_ratio_difficulty_multiplier = 4.0;
 
             // Take only the fractional part of the value since we're only interested in punishing multiples
             double deltaDifferenceFraction = deltaDifferenceRatio - Math.Truncate(deltaDifferenceRatio);
 
             return 1.0 + rhythm_ratio_difficulty_multiplier * Math.Min(0.5, DiffUtils.SmoothstepBellCurve(deltaDifferenceFraction));
+        }
+
+        private static double getEffectiveRatio(double deltaDifference)
+        {
+            var ratioMultipliers = new[]
+            {
+                (1.0, 0.01), // same rhythm
+                (4.0 / 3.0, 2.0), // 1/4 <-> 1/3
+                (1.5, 1.5), // 1/3 <-> 1/2
+                (5.0 / 3.0, 3.0), // 1/5 <-> 1/3
+                (2.0, 0.05), // 1/4 <-> 1/2
+                (2.5, 1.5), // 1/5 <-> 1/2
+                (3.0, 0.25), // 1/3 <-> 1/1
+                (4.0, 0.0) // 1/4 <-> 1/1
+            };
+
+            return LerpFromArrays(ratioMultipliers, deltaDifference);
+        }
+
+        public static double LerpFromArrays((double ratio, double multiplier)[] ratioMultipliers, double t)
+        {
+            if (t <= ratioMultipliers[0].ratio)
+                return ratioMultipliers[0].multiplier;
+
+            if (t >= ratioMultipliers[^1].ratio)
+                return ratioMultipliers[^1].multiplier;
+
+            for (int i = 0; i < ratioMultipliers.Length - 1; i++)
+            {
+                if (t >= ratioMultipliers[i].ratio && t <= ratioMultipliers[i + 1].ratio)
+                {
+                    double distance = (t - ratioMultipliers[i].ratio) / (ratioMultipliers[i + 1].ratio - ratioMultipliers[i].ratio);
+                    return Interpolation.Lerp(ratioMultipliers[i].multiplier, ratioMultipliers[i + 1].multiplier, distance);
+                }
+            }
+
+            return 0;
         }
     }
 }

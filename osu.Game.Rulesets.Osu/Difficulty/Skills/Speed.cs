@@ -41,7 +41,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
             const double skill_multiplier = 1.16;
 
-            const double rhythm_multiplier = 0.675;
+            const double rhythm_multiplier = 16.25;
 
             if (Mods.Any(m => m is OsuModRelax))
                 return 0;
