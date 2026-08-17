@@ -30,12 +30,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
-        protected override double TimeThresholdMinutes => 4080;
+        protected override double TimeThresholdMinutes => 12188;
 
         private double skillMultiplierSnap => 355.0;
         private double skillMultiplierAgility => 11.0;
         private double skillMultiplierFlow => 1100;
-        private double skillMultiplierTotal => 1.25;
+        private double skillMultiplierTotal => 1.025;
         private double meanExponent => 1.2;
 
         private readonly List<double> sliderStrains = new List<double>();
@@ -45,7 +45,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (difficulty <= 0) return 1;
             if (skill <= 0) return 0;
 
-            return DiffUtils.Erf(skill / (Math.Sqrt(2) * difficulty));
+            double baseDeviation = difficulty / skill;
+            // at what point does the player lose the ability to aim normally
+            // increasing this will like high misscount scores more than ringtone maps, and vice versa
+            const double limit_of_proportion = 0.727;
+            // how quickly does the player lose the ability to aim normally at the limit of proportion
+            // increasing this has a similar effect as increasing the limit of proportion, but it changes how significant the effect is across maps
+            const double breakdown_rate = 8;
+            double adjustedDeviation = baseDeviation + Math.Exp(breakdown_rate * (baseDeviation - limit_of_proportion));
+
+            const double contamination_rate = 18e-3;
+
+            const double contamination_scale = 2.75;
+
+            double cleanProbability = DiffUtils.Erf(1 / (Math.Sqrt(2) * adjustedDeviation));
+            double contaminatedProbability = DiffUtils.Erf(1 / (Math.Sqrt(2) * contamination_scale * adjustedDeviation));
+
+            return (1 - contamination_rate) * cleanProbability + contamination_rate * contaminatedProbability;
         }
 
         private double strainDecay(double ms) => Math.Pow(0.15, ms / 1000);
