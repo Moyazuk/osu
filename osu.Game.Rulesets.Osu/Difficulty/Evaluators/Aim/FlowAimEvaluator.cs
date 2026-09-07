@@ -20,6 +20,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
         {
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuLastObj = (OsuDifficultyHitObject)current.Previous();
+            var osuNextObj = (OsuDifficultyHitObject?)current.Next(0);
+            if (osuNextObj == null)
+                return 0;
 
             if (current.BaseObject is Spinner || current.Index <= 1 || osuLastObj.BaseObject is Spinner)
                 return 0;
@@ -31,8 +34,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
             double currDistance = withSliderTravelDistance ? osuCurrObj.LazyJumpDistance : osuCurrObj.JumpDistance;
             double prevDistance = withSliderTravelDistance ? osuLastObj.LazyJumpDistance : osuLastObj.JumpDistance;
+            double nextDistance = withSliderTravelDistance ? osuNextObj.LazyJumpDistance : osuNextObj.JumpDistance;
 
             double currVelocity = currDistance / osuCurrObj.AdjustedDeltaTime;
+
+            double nextVelocity = nextDistance / osuNextObj.AdjustedDeltaTime;
 
             if (osuLastObj.BaseObject is Slider && withSliderTravelDistance)
             {
@@ -63,27 +69,52 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
                 // Low angular velocity flow (angles are consistent) is easier to follow than erratic flow
                 flowContinuationDifficulty *= 0.8 + Math.Sqrt(angularVelocity / 270.0);
-                flowTransitionDifficulty *= 0.8;
+            }
+
+            if (osuCurrObj.Angle != null && osuNextObj.Angle != null)
+            {
+                double angleDifference = Math.Abs(osuCurrObj.Angle.Value - osuNextObj.Angle.Value);
+                double angleDifferenceAdjusted = Math.Sin(angleDifference / 2) * 180.0;
+                double angularVelocity = angleDifferenceAdjusted / (osuCurrObj.AdjustedDeltaTime * 0.1);
+
+                // Low angular velocity flow (angles are consistent) is easier to follow than erratic flow
+                flowTransitionDifficulty *= 0.8 + Math.Sqrt(angularVelocity / 270.0);
             }
 
             // If all three notes are overlapping - don't reward bonuses as you don't have to do additional movement
-            double overlappedNotesWeight = 1;
+            double overlappedNotesWeightPrev = 1;
+            double overlappedNotesWeightNext = 1;
 
             if (current.Index > 2)
             {
-                double o1 = calculateOverlapFactor(osuCurrObj, osuLastObj);
-                double o2 = calculateOverlapFactor(osuCurrObj, osuLastLastObj);
-                double o3 = calculateOverlapFactor(osuLastObj, osuLastLastObj);
+                double op1 = calculateOverlapFactor(osuCurrObj, osuLastObj);
+                double op2 = calculateOverlapFactor(osuCurrObj, osuLastLastObj);
+                double op3 = calculateOverlapFactor(osuLastObj, osuLastLastObj);
 
-                overlappedNotesWeight = 1 - o1 * o2 * o3;
+                overlappedNotesWeightPrev = 1 - op1 * op2 * op3;
             }
+
+
+            double on1 = calculateOverlapFactor(osuNextObj, osuCurrObj);
+            double on2 = calculateOverlapFactor(osuNextObj, osuLastObj);
+            double on3 = calculateOverlapFactor(osuCurrObj, osuLastObj);
+
+            overlappedNotesWeightNext = 1 - on1 * on2 * on3;
 
             if (osuCurrObj.Angle != null)
             {
                 // Acute angles are also hard to flow
                 flowContinuationDifficulty += currVelocity *
                                               AngleUtils.CalculateAcuteness(osuCurrObj.Angle.Value) *
-                                              overlappedNotesWeight;
+                                              overlappedNotesWeightPrev * 0.65;
+            }
+
+            if (osuNextObj.Angle != null)
+            {
+                // Acute angles are also hard to flow
+                flowTransitionDifficulty += currVelocity *
+                                            AngleUtils.CalculateAcuteness(osuNextObj.Angle.Value) *
+                                            overlappedNotesWeightNext * 0.9;
             }
 
             if (Math.Max(prevVelocity, currVelocity) != 0)
@@ -102,9 +133,31 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
                 flowContinuationDifficulty += overlapVelocityBuff *
                                               distRatio *
-                                              overlappedNotesWeight *
-                                              velocity_change_multiplier;
+                                              overlappedNotesWeightPrev *
+                                              3;
             }
+
+            if (Math.Max(nextVelocity, currVelocity) != 0)
+            {
+                if (withSliderTravelDistance)
+                {
+                    currVelocity = currDistance / osuCurrObj.AdjustedDeltaTime;
+                }
+
+                // Scale with ratio of difference compared to 0.5 * max dist.
+                double distRatio = DiffUtils.Smoothstep(Math.Abs(nextVelocity - currVelocity) / Math.Max(nextVelocity, currVelocity), 0, 1);
+
+                // Reward for % distance up to 125 / strainTime for overlaps where velocity is still changing.
+                double overlapVelocityBuff = Math.Min(OsuDifficultyHitObject.NORMALISED_DIAMETER * 1.25 / Math.Min(osuCurrObj.AdjustedDeltaTime, osuNextObj.AdjustedDeltaTime),
+                    Math.Abs(nextVelocity - currVelocity));
+
+                flowTransitionDifficulty += overlapVelocityBuff *
+                                  distRatio *
+                                  overlappedNotesWeightNext *
+                                  1;
+            }
+
+
 
             flowTransitionDifficulty *= 1 - previousPFlow;
 

@@ -29,6 +29,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             IncludeSliders = includeSliders;
         }
 
+        public const double SkillMultiplierSnap = 72.2;
+        public const double SkillMultiplierAgility = 175.0 * 1_000_000;
+        public const double SkillMultiplierFlow = 237.0;
+        public const double CombinedSnapNormExponent = 1.2;
+        public const double SnapFlowProbabilityK = 7.27;
+
         private double currentStrain;
 
         private double previousPFlow;
@@ -58,13 +64,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double calculateAdjustedDifficulty(DifficultyHitObject current)
         {
-            const double skill_multiplier_snap = 72.2;
-            const double skill_multiplier_agility = 175.0 * 1_000_000;
-            const double skill_multiplier_flow = 237.0;
 
-            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skill_multiplier_snap;
-            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skill_multiplier_agility;
-            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, previousPFlow) * skill_multiplier_flow;
+            double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, previousPFlow) * SkillMultiplierSnap;
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * SkillMultiplierAgility;
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, previousPFlow) * SkillMultiplierFlow;
 
             double totalDifficulty = calculateTotalValue(snapDifficulty, agilityDifficulty, flowDifficulty);
 
@@ -82,12 +85,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private double calculateTotalValue(double snapDifficulty, double agilityDifficulty, double flowDifficulty)
         {
             const double skill_multiplier_total = 1.12;
-            const double combined_snap_norm_exponent = 1.2;
 
             // We compare flow to combined snap and agility because snap by itself doesn't have enough difficulty to be above flow on streams
             // Agility on the other hand is supposed to measure the rate of cursor velocity changes while snapping
             // So snapping every circle on a stream requires an enormous amount of agility at which point it's easier to flow
-            double combinedSnapDifficulty = DiffUtils.Norm(combined_snap_norm_exponent, snapDifficulty, agilityDifficulty);
+            double combinedSnapDifficulty = DiffUtils.Norm(CombinedSnapNormExponent, snapDifficulty, agilityDifficulty);
 
             double pSnap = calculateSnapFlowProbability(flowDifficulty / combinedSnapDifficulty);
             double pFlow = 1 - pSnap;
@@ -97,7 +99,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             {
                 // we don't adjust agility here since agility represents TD difficulty in a decent enough way
                 snapDifficulty = DiffUtils.Pow(snapDifficulty, 0.89);
-                combinedSnapDifficulty = DiffUtils.Norm(combined_snap_norm_exponent, snapDifficulty, agilityDifficulty);
+                combinedSnapDifficulty = DiffUtils.Norm(CombinedSnapNormExponent, snapDifficulty, agilityDifficulty);
             }
 
             if (Mods.Any(m => m is OsuModRelax))

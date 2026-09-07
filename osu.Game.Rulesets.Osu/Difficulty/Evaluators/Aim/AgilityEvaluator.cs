@@ -29,6 +29,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             {
                 // angle switching bonus
                 numerator += 0.5 * (1 - Math.Min(AngleUtils.CalculateAcuteness(osuCurrObj.Angle.Value), DiffUtils.Pow(AngleUtils.CalculateAcuteness(osuPrevObj.Angle.Value), 3)));
+                // wide angle bonus
+                numerator += 0.5 * AngleUtils.CalculateWideness(osuCurrObj.Angle.Value) * 1.5;
             }
 
             double agilityDifficulty = numerator / DiffUtils.Pow(osuCurrObj.AdjustedDeltaTime, 3);
