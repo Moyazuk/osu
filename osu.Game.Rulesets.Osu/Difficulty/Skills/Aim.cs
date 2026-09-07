@@ -22,11 +22,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public class Aim : VariableLengthStrainSkill
     {
         public readonly bool IncludeSliders;
+        public readonly bool AimCheese;
 
-        public Aim(Mod[] mods, bool includeSliders)
+        public Aim(Mod[] mods, bool includeSliders, bool aimCheese)
             : base(mods)
         {
             IncludeSliders = includeSliders;
+            AimCheese = aimCheese;
         }
 
         public const double SkillMultiplierSnap = 72.2;
