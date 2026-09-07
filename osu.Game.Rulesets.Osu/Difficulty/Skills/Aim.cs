@@ -31,6 +31,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double currentStrain;
 
+        private double previousPFlow;
+
         private readonly List<double> sliderStrains = new List<double>();
 
         private double strainDecay(double ms) => DiffUtils.Pow(0.2, ms / 1000);
@@ -62,7 +64,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skill_multiplier_snap;
             double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * skill_multiplier_agility;
-            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders) * skill_multiplier_flow;
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, previousPFlow) * skill_multiplier_flow;
 
             double totalDifficulty = calculateTotalValue(snapDifficulty, agilityDifficulty, flowDifficulty);
 
@@ -89,6 +91,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             double pSnap = calculateSnapFlowProbability(flowDifficulty / combinedSnapDifficulty);
             double pFlow = 1 - pSnap;
+            previousPFlow = pFlow;
 
             if (Mods.Any(m => m is OsuModTouchDevice))
             {
