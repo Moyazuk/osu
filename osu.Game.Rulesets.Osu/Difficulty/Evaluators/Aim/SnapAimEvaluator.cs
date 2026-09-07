@@ -40,13 +40,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             // Penalize angle repetition.
             snapDifficulty *= vectorAngleRepetition(osuCurrObj, osuLastObj);
 
-            double acuteAngleBonus = calculateAcuteAngleBonus(osuCurrObj, osuLastObj, currDistance, currVelocity, prevVelocity);
+            //double acuteAngleBonus = calculateAcuteAngleBonus(osuCurrObj, osuLastObj, currDistance, currVelocity, prevVelocity);
             double wideAngleBonus = calculateWideAngleBonus(osuCurrObj, osuLastObj, currDistance, prevDistance, withSliderTravelDistance);
 
             // Add in acute angle bonus or wide angle bonus, whichever is larger.
-            snapDifficulty += Math.Max(acuteAngleBonus, wideAngleBonus);
+            //snapDifficulty += Math.Max(acuteAngleBonus, wideAngleBonus);
+            snapDifficulty += wideAngleBonus;
 
-            snapDifficulty += calculateWiggleBonus(osuCurrObj, osuLastObj, currVelocity, prevVelocity, currDistance, prevDistance);
+            //snapDifficulty += calculateWiggleBonus(osuCurrObj, osuLastObj, currVelocity, prevVelocity, currDistance, prevDistance);
             snapDifficulty += calculateVelocityChangeBonus(withSliderTravelDistance, prevVelocity, currVelocity, currDistance, osuCurrObj, osuLastObj);
 
             if (osuCurrObj.BaseObject is Slider && withSliderTravelDistance)
@@ -148,6 +149,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 // We want to use just the object jump without slider velocity when awarding differences
                 currVelocity = currDistance / osuCurrObj.AdjustedDeltaTime;
             }
+
+            // cap velocity to at least 1 radius distance to only award snap patterns
+            currVelocity = Math.Max(currVelocity, OsuDifficultyHitObject.NORMALISED_RADIUS / osuCurrObj.AdjustedDeltaTime);
+            prevVelocity = Math.Max(prevVelocity, OsuDifficultyHitObject.NORMALISED_RADIUS / osuLastObj.AdjustedDeltaTime);
 
             // Scale with ratio of difference compared to 0.5 * max dist.
             double distRatio = DiffUtils.Smoothstep(Math.Abs(prevVelocity - currVelocity) / Math.Max(prevVelocity, currVelocity), 0, 1);
