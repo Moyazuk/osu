@@ -235,7 +235,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
 
             double baseNerf = 1 - DiffUtils.Smootherstep(cheeseFactor, 1, 0.9);
 
-            double cheeseNerf = baseNerf + (1 - baseNerf) * DiffUtils.Pow(DiffUtils.Erf(16.0 / totalDeviation.Value), 4);
+            double cheeseNerf = baseNerf + (1 - baseNerf) * DiffUtils.Pow(DiffUtils.Erf(19.0 / totalDeviation.Value), 4);
 
             aimValue *= accuracy * cheeseNerf;
 

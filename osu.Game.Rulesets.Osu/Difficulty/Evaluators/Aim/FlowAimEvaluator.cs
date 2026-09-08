@@ -95,11 +95,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             }
 
 
-            double on1 = calculateOverlapFactor(osuNextObj, osuCurrObj);
-            double on2 = calculateOverlapFactor(osuNextObj, osuLastObj);
-            double on3 = calculateOverlapFactor(osuCurrObj, osuLastObj);
 
-            overlappedNotesWeightNext = 1 - on1 * on2 * on3;
+            double currDistanceOverlapFactor = DiffUtils.Smootherstep(currDistance, 0, OsuDifficultyHitObject.NORMALISED_DIAMETER);
+
+            double nextDistanceOverlapFactor = DiffUtils.Smootherstep(nextDistance, 0, OsuDifficultyHitObject.NORMALISED_DIAMETER);
+
 
             if (osuCurrObj.Angle != null)
             {
@@ -114,7 +114,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 // Acute angles are also hard to flow
                 flowTransitionDifficulty += currVelocity *
                                             AngleUtils.CalculateAcuteness(osuNextObj.Angle.Value) *
-                                            overlappedNotesWeightNext * 0.9;
+                                            currDistanceOverlapFactor * nextDistanceOverlapFactor;
             }
 
             if (Math.Max(prevVelocity, currVelocity) != 0)
@@ -133,8 +133,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
                 flowContinuationDifficulty += overlapVelocityBuff *
                                               distRatio *
-                                              overlappedNotesWeightPrev *
-                                              3;
+                                              overlappedNotesWeightPrev * 3;
             }
 
             if (Math.Max(nextVelocity, currVelocity) != 0)
@@ -153,8 +152,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
                 flowTransitionDifficulty += overlapVelocityBuff *
                                   distRatio *
-                                  overlappedNotesWeightNext *
-                                  1;
+                                  currDistanceOverlapFactor * nextDistanceOverlapFactor *
+                                  3;
             }
 
 
@@ -172,7 +171,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             }
 
             // Final velocity is being raised to a power because flow difficulty scales harder with both high distance and time, and we want to account for that
-            flowDifficulty = DiffUtils.Pow(flowDifficulty, 1.45);
+            flowDifficulty = DiffUtils.Pow(flowDifficulty, 1.5);
 
             // Check how much of the difficulty relies on small distances that can be cheesed by playing them improperly
             if (aimCheese)

@@ -28,7 +28,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             if (aimCheese && current.Index >= 2)
             {
                 double prevDistance = osuPrevObj.LazyJumpDistance;
-                effectiveDeltaTime += osuPrevObj.AdjustedDeltaTime *  (1 - DiffUtils.Smootherstep(prevDistance, 0, OsuDifficultyHitObject.NORMALISED_DIAMETER));
+                effectiveDeltaTime += osuPrevObj.AdjustedDeltaTime * (1 - DiffUtils.Smootherstep(prevDistance, 0, OsuDifficultyHitObject.NORMALISED_DIAMETER));
             }
 
             double numerator = 1;
