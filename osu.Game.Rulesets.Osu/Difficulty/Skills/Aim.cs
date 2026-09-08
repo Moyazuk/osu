@@ -68,8 +68,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         {
 
             double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, previousPFlow) * SkillMultiplierSnap;
-            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * SkillMultiplierAgility;
-            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, previousPFlow) * SkillMultiplierFlow;
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current, AimCheese) * SkillMultiplierAgility;
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, previousPFlow, AimCheese) * SkillMultiplierFlow;
 
             double totalDifficulty = calculateTotalValue(snapDifficulty, agilityDifficulty, flowDifficulty);
 
