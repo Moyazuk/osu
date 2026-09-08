@@ -133,7 +133,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
                 flowContinuationDifficulty += overlapVelocityBuff *
                                               distRatio *
-                                              overlappedNotesWeightPrev * 3;
+                                              overlappedNotesWeightPrev * 1.25;
             }
 
             if (Math.Max(nextVelocity, currVelocity) != 0)
