@@ -16,7 +16,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
         /// <summary>
         /// Evaluates difficulty of "flow aim" - aiming pattern where player doesn't stop their cursor on every object and instead "flows" through them.
         /// </summary>
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance, double previousPFlow, bool aimCheese)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance, double previousPFlow)
         {
             var osuCurrObj = (OsuDifficultyHitObject)current;
             var osuLastObj = (OsuDifficultyHitObject)current.Previous();
@@ -94,12 +94,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 overlappedNotesWeightPrev = 1 - op1 * op2 * op3;
             }
 
-
-
             double currDistanceOverlapFactor = DiffUtils.Smootherstep(currDistance, 0, OsuDifficultyHitObject.NORMALISED_DIAMETER);
 
             double nextDistanceOverlapFactor = DiffUtils.Smootherstep(nextDistance, 0, OsuDifficultyHitObject.NORMALISED_DIAMETER);
-
 
             if (osuCurrObj.Angle != null)
             {
@@ -151,12 +148,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                     Math.Abs(nextVelocity - currVelocity));
 
                 flowTransitionDifficulty += overlapVelocityBuff *
-                                  distRatio *
-                                  currDistanceOverlapFactor * nextDistanceOverlapFactor *
-                                  1;
+                                            distRatio *
+                                            currDistanceOverlapFactor * nextDistanceOverlapFactor *
+                                            1;
             }
-
-
 
             flowTransitionDifficulty *= 1 - previousPFlow;
 
@@ -172,10 +167,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
             // Final velocity is being raised to a power because flow difficulty scales harder with both high distance and time, and we want to account for that
             flowDifficulty = DiffUtils.Pow(flowDifficulty, 1.5);
-
-            // Check how much of the difficulty relies on small distances that can be cheesed by playing them improperly
-            //if (aimCheese)
-                //flowDifficulty *= DiffUtils.Smootherstep(currDistance, 0, OsuDifficultyHitObject.NORMALISED_DIAMETER);
 
             return flowDifficulty;
         }

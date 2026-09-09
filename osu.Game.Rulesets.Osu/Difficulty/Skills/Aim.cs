@@ -22,13 +22,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     public class Aim : VariableLengthStrainSkill
     {
         public readonly bool IncludeSliders;
-        public readonly bool AimCheese;
 
-        public Aim(Mod[] mods, bool includeSliders, bool aimCheese)
+        public Aim(Mod[] mods, bool includeSliders)
             : base(mods)
         {
             IncludeSliders = includeSliders;
-            AimCheese = aimCheese;
         }
 
         public const double SkillMultiplierSnap = 72.2;
@@ -66,10 +64,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double calculateAdjustedDifficulty(DifficultyHitObject current)
         {
-
             double snapDifficulty = SnapAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, previousPFlow) * SkillMultiplierSnap;
-            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current, AimCheese) * SkillMultiplierAgility;
-            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, previousPFlow, AimCheese) * SkillMultiplierFlow;
+            double agilityDifficulty = AgilityEvaluator.EvaluateDifficultyOf(current) * SkillMultiplierAgility;
+            double flowDifficulty = FlowAimEvaluator.EvaluateDifficultyOf(current, IncludeSliders, previousPFlow) * SkillMultiplierFlow;
 
             double totalDifficulty = calculateTotalValue(snapDifficulty, agilityDifficulty, flowDifficulty);
 

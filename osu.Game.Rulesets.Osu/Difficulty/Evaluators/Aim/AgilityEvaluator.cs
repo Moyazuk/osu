@@ -15,7 +15,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
         /// <summary>
         /// Evaluates the difficulty of fast aiming
         /// </summary>
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool aimCheese)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current)
         {
             if (current.BaseObject is Spinner)
                 return 0;
@@ -24,17 +24,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             var osuPrevObj = current.Index > 0 ? (OsuDifficultyHitObject)current.Previous(0) : null;
 
             double effectiveDeltaTime = osuCurrObj.AdjustedDeltaTime;
-
-            if (current.Index >= 2)
-            {
-                double prevDistance = osuPrevObj.LazyJumpDistance;
-                if (aimCheese)
-                    effectiveDeltaTime += osuPrevObj.AdjustedDeltaTime * 1 - DiffUtils.Smootherstep(prevDistance, 0, OsuDifficultyHitObject.NORMALISED_DIAMETER);
-                else
-                    effectiveDeltaTime += osuPrevObj.AdjustedDeltaTime * Math.Max(0, 0.5 - DiffUtils.Smootherstep(prevDistance, 0, OsuDifficultyHitObject.NORMALISED_DIAMETER));
-
-
-            }
 
             double numerator = 1;
 
