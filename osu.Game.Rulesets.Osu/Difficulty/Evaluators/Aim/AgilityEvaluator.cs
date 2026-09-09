@@ -25,10 +25,15 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
             double effectiveDeltaTime = osuCurrObj.AdjustedDeltaTime;
 
-            if (aimCheese && current.Index >= 2)
+            if (current.Index >= 2)
             {
                 double prevDistance = osuPrevObj.LazyJumpDistance;
-                effectiveDeltaTime += osuPrevObj.AdjustedDeltaTime * (1 - DiffUtils.Smootherstep(prevDistance, 0, OsuDifficultyHitObject.NORMALISED_DIAMETER));
+                if (aimCheese)
+                    effectiveDeltaTime += osuPrevObj.AdjustedDeltaTime * 1 - DiffUtils.Smootherstep(prevDistance, 0, OsuDifficultyHitObject.NORMALISED_DIAMETER);
+                else
+                    effectiveDeltaTime += osuPrevObj.AdjustedDeltaTime * Math.Max(0, 0.5 - DiffUtils.Smootherstep(prevDistance, 0, OsuDifficultyHitObject.NORMALISED_DIAMETER));
+
+
             }
 
             double numerator = 1;
@@ -38,7 +43,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 // angle switching bonus
                 numerator += 0.5 * (1 - Math.Min(AngleUtils.CalculateAcuteness(osuCurrObj.Angle.Value), DiffUtils.Pow(AngleUtils.CalculateAcuteness(osuPrevObj.Angle.Value), 3)));
                 // wide angle bonus
-                numerator += 0.5 * AngleUtils.CalculateWideness(osuCurrObj.Angle.Value) * 1.5;
+                numerator += 0.5 * AngleUtils.CalculateWideness(osuCurrObj.Angle.Value) * 2;
             }
 
             double agilityDifficulty = numerator / DiffUtils.Pow(effectiveDeltaTime, 3);

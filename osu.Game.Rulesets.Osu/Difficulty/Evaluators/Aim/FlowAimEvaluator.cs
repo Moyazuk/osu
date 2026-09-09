@@ -114,7 +114,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 // Acute angles are also hard to flow
                 flowTransitionDifficulty += currVelocity *
                                             AngleUtils.CalculateAcuteness(osuNextObj.Angle.Value) *
-                                            currDistanceOverlapFactor * nextDistanceOverlapFactor;
+                                            currDistanceOverlapFactor * nextDistanceOverlapFactor * 0.75;
             }
 
             if (Math.Max(prevVelocity, currVelocity) != 0)
@@ -153,7 +153,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 flowTransitionDifficulty += overlapVelocityBuff *
                                   distRatio *
                                   currDistanceOverlapFactor * nextDistanceOverlapFactor *
-                                  3;
+                                  1;
             }
 
 
@@ -174,8 +174,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             flowDifficulty = DiffUtils.Pow(flowDifficulty, 1.5);
 
             // Check how much of the difficulty relies on small distances that can be cheesed by playing them improperly
-            if (aimCheese)
-                flowDifficulty *= DiffUtils.Smootherstep(currDistance, 0, OsuDifficultyHitObject.NORMALISED_DIAMETER);
+            //if (aimCheese)
+                //flowDifficulty *= DiffUtils.Smootherstep(currDistance, 0, OsuDifficultyHitObject.NORMALISED_DIAMETER);
 
             return flowDifficulty;
         }
