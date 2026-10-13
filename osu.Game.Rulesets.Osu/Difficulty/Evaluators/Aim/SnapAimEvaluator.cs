@@ -57,15 +57,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             // Apply high circle size bonus
             snapDifficulty *= osuCurrObj.SmallCircleBonus;
 
-            snapDifficulty *= highBpmBonus(osuCurrObj.AdjustedDeltaTime);
-
             return snapDifficulty;
         }
 
         private static double calculateWideAngleBonus(OsuDifficultyHitObject osuCurrObj, OsuDifficultyHitObject osuLastObj,
                                                       double currDistance, double prevDistance, bool withSliderTravelDistance)
         {
-            const double wide_angle_multiplier = 2.15;
+            const double wide_angle_multiplier = 0.7;
 
             if (osuCurrObj.Angle == null || osuLastObj.Angle == null)
                 return 0;

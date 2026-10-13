@@ -89,7 +89,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                     currVelocity,
                     nextVelocity,
                     currDistance,
-                    calculateOverlapWeight(osuCurrObj, osuLastObj, osuLastLastObj),
                     withSliderTravelDistance);
             }
 
@@ -225,7 +224,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             double currVelocity,
             double nextVelocity,
             double currDistance,
-            double overlappedNotesWeight,
             bool withSliderTravelDistance)
         {
             const double velocity_change_multiplier = 1.9;
@@ -239,6 +237,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             double velocityChangeBonus = Math.Pow(Math.Abs(nextVelocity - currVelocity), 1);
 
             velocityChangeBonus *= DiffUtils.Pow(Math.Min(current.AdjustedDeltaTime, previous.AdjustedDeltaTime) / Math.Max(current.AdjustedDeltaTime, previous.AdjustedDeltaTime), 3);
+
+            double overlappedNotesWeight = DiffUtils.ReverseLerp(currDistance, OsuDifficultyHitObject.NORMALISED_RADIUS, 0);
 
             return velocityChangeBonus *
                    overlappedNotesWeight *

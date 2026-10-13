@@ -42,7 +42,14 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
             double angleSwitchingBonus = calculateAngleSwitchingBonus(osuCurrObj, osuPrevObj);
 
-            double agilityDifficulty = (1 + angleSwitchingBonus) * 10_000_000 / DiffUtils.Pow(combinedDelta, 3.1);
+            double wideAngleBonus = 0;
+
+            if (osuCurrObj.Angle != null)
+            {
+                wideAngleBonus = AngleUtils.CalculateWideness(osuCurrObj.Angle.Value) * 1;
+            }
+
+            double agilityDifficulty = (1 + angleSwitchingBonus + wideAngleBonus) * 10_000_000 / DiffUtils.Pow(combinedDelta, 3.1);
 
             agilityDifficulty *= osuCurrObj.SmallCircleBonus;
 
