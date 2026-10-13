@@ -21,7 +21,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
         /// <item><description>and slider difficulty.</description></item>
         /// </list>
         /// </summary>
-        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance)
+        public static double EvaluateDifficultyOf(DifficultyHitObject current, bool withSliderTravelDistance, double previousPFlow)
         {
             if (current.Index <= 1 || current.BaseObject is Spinner)
                 return 0;
@@ -35,17 +35,24 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             double prevDistance = withSliderTravelDistance ? osuLastObj.LazyJumpDistance : osuLastObj.JumpDistance;
             double prevVelocity = prevDistance / osuLastObj.AdjustedDeltaTime;
 
-            double snapDifficulty = currVelocity; // Start difficulty with regular velocity.
+            double snapContinuationDifficulty = currVelocity; // difficulty if snap -> snap
+            double snapTransitionDifficulty = currVelocity; // difficulty  if flow -> snap
 
             // Penalize angle repetition.
-            snapDifficulty *= vectorAngleRepetition(osuCurrObj, osuLastObj);
-            snapDifficulty += calculateWideAngleBonus(osuCurrObj, osuLastObj, currDistance, prevDistance, withSliderTravelDistance);
-            snapDifficulty += calculateVelocityChangeBonus(withSliderTravelDistance, prevVelocity, currVelocity, currDistance, osuCurrObj, osuLastObj);
+            snapContinuationDifficulty *= vectorAngleRepetition(osuCurrObj, osuLastObj);
+            snapContinuationDifficulty += calculateWideAngleBonus(osuCurrObj, osuLastObj, currDistance, prevDistance, withSliderTravelDistance);
+            snapContinuationDifficulty += calculateVelocityChangeBonus(withSliderTravelDistance, prevVelocity, currVelocity, currDistance, osuCurrObj, osuLastObj);
 
             if (osuCurrObj.BaseObject is Slider && withSliderTravelDistance)
             {
-                snapDifficulty += calculateSliderBonus(osuCurrObj);
+                snapContinuationDifficulty += calculateSliderBonus(osuCurrObj);
             }
+
+            snapTransitionDifficulty *= previousPFlow;
+
+            snapContinuationDifficulty *= 1 - previousPFlow;
+
+            double snapDifficulty = snapTransitionDifficulty + snapContinuationDifficulty;
 
             // Apply high circle size bonus
             snapDifficulty *= osuCurrObj.SmallCircleBonus;
@@ -66,7 +73,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             double wideAngleBonus = AngleUtils.CalculateWideness(osuCurrObj.Angle.Value);
 
             // Penalize angle repetition. It is important to do it _before_ multiplying by velocity because we compare raw wideness here
-            wideAngleBonus *= 0.25 + 0.75 * (1 - Math.Min(wideAngleBonus, DiffUtils.Pow(AngleUtils.CalculateWideness(osuLastObj.Angle.Value), 3)));
+            //wideAngleBonus *= 0.25 + 0.75 * (1 - Math.Min(wideAngleBonus, DiffUtils.Pow(AngleUtils.CalculateWideness(osuLastObj.Angle.Value), 3)));
 
             // Rescaling velocity for the wide angle bonus
             const double wide_angle_time_scale = 1.2;
@@ -105,7 +112,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
         private static double calculateVelocityChangeBonus(bool withSliderTravelDistance, double prevVelocity, double currVelocity,
                                                            double currDistance, OsuDifficultyHitObject osuCurrObj, OsuDifficultyHitObject osuLastObj)
         {
-            const double velocity_change_multiplier = 0.85;
+            const double velocity_change_multiplier = 0.3;
 
             if (Math.Max(prevVelocity, currVelocity) == 0)
                 return 0;
@@ -116,20 +123,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 currVelocity = currDistance / osuCurrObj.AdjustedDeltaTime;
             }
 
-            // cap velocity to at least 1 radius distance to only award snap patterns
-            currVelocity = Math.Max(currVelocity, OsuDifficultyHitObject.NORMALISED_DIAMETER / osuCurrObj.AdjustedDeltaTime);
-            prevVelocity = Math.Max(prevVelocity, OsuDifficultyHitObject.NORMALISED_DIAMETER / osuLastObj.AdjustedDeltaTime);
-
             // Scale with ratio of difference compared to 0.5 * max dist.
             double distRatio = DiffUtils.Smoothstep(Math.Abs(prevVelocity - currVelocity) / Math.Max(prevVelocity, currVelocity), 0, 1);
 
             // Reward for % distance up to 125 / strainTime for overlaps where velocity is still changing.
-            double overlapVelocityBuff = Math.Min(OsuDifficultyHitObject.NORMALISED_DIAMETER * 1.25 / Math.Min(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime), Math.Abs(prevVelocity - currVelocity));
+            double overlapVelocityBuff = Math.Abs(prevVelocity - currVelocity);
 
             double velocityChangeBonus = overlapVelocityBuff * distRatio;
-
-            // Penalize for rhythm changes.
-            velocityChangeBonus *= DiffUtils.Pow(Math.Min(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime) / Math.Max(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime), 3);
 
             return velocityChangeBonus * velocity_change_multiplier;
         }
@@ -169,7 +169,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 return 1;
 
             const double note_limit = 6;
-            const double maximum_repetition_nerf = 0.15;
+            const double maximum_repetition_nerf = 0.2;
             const double maximum_vector_influence = 0.5;
 
             double constantAngleCount = 0;
