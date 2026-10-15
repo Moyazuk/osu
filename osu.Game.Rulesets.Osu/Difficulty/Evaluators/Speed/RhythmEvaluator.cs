@@ -149,7 +149,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
             // If the current island is long we don't want the sum to have as big of an effect
             rhythmComplexitySum *= DiffUtils.ReverseLerp(osuCurrObj.Island?.DeltaCount ?? 1, 22, 3);
 
-            return Math.Sqrt(4 + rhythmComplexitySum * rhythm_overall_multiplier) / 2.0; // produces multiplier that can be applied to strain. range [1, infinity) (not really though)
+            return rhythmComplexitySum; // produces multiplier that can be applied to strain. range [1, infinity) (not really though)
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -161,6 +161,30 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
             double deltaDifferenceFraction = deltaDifferenceRatio - Math.Truncate(deltaDifferenceRatio);
 
             return 1.0 + rhythm_ratio_difficulty_multiplier * Math.Min(0.5, DiffUtils.SmoothstepBellCurve(deltaDifferenceFraction));
+        }
+
+        public static double CalculateStartOfFastPatternBonus(DifficultyHitObject current)
+        {
+            var osuCurrObj = (OsuDifficultyHitObject)current;
+            var osuLastObj = (OsuDifficultyHitObject)current.Previous(0);
+
+            if (osuLastObj == null)
+                return 0.0;
+
+            // how much faster is this note than the previous one
+            double speedupRatio = osuLastObj.AdjustedDeltaTime / osuCurrObj.AdjustedDeltaTime;
+
+            const double speedupThreshold = 1.15;
+            const double bonusStrength = 80000;
+
+            if (speedupRatio <= speedupThreshold)
+                return 0;
+
+            double result = ((bonusStrength * (speedupRatio - speedupThreshold) / speedupThreshold) / osuLastObj.AdjustedDeltaTime) / Math.Max(osuCurrObj.AdjustedDeltaTime, 35);
+
+            double doubleTapFeasibility = 1.0 - osuCurrObj.CalculateDoubleTapFeasibility((OsuDifficultyHitObject?)osuCurrObj.Next(0));
+
+            return result * doubleTapFeasibility;
         }
     }
 }

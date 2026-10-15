@@ -43,10 +43,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             currentStrain *= decay;
             currentStrain += calculateAdjustedDifficulty(current) * (1 - decay) * skill_multiplier;
+            currentStrain += RhythmEvaluator.CalculateStartOfFastPatternBonus(current);
 
             double currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
 
-            double totalStrain = currentStrain * currentRhythm;
+            double totalStrain = currentStrain + currentRhythm * 7;
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(totalStrain);
