@@ -22,8 +22,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
         private static double repeated_length_multiplier => 0.5;
         private static double repeated_polarity_multiplier => 0.5;
         private static double slider_boundary_multiplier => 0.6;
+        private static double repeated_island_ratio_tolerance => 1.15; // max/min ratio for deltaTime and gap to count as "the same"
 
-        private static double gap_speed_multiplier => 1080; // tune this to bring the divided bonus back to a comparable scale
+        private static double gap_speed_multiplier => 60; // tune this to bring the divided bonus back to a comparable scale
 
         /// <summary>
         /// Calculates a rhythm multiplier for the difficulty of the tap associated with historic data of the current <see cref="OsuDifficultyHitObject"/>.
@@ -121,9 +122,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
 
             // Scale the gap's contribution inversely with the gap itself - a fast (small) gap
             // produces a larger divisor result, i.e. more difficulty; a slow (large) gap shrinks it.
-            gapBonus *= gap_speed_multiplier / Math.Pow(gap, 1);
+            gapBonus *= gap_speed_multiplier;
 
-            double difficulty = 1.0 + ratioBonus * 1 + gapBonus;
+            double difficulty = 1.0 + ratioBonus * 1 + Math.Pow(gapBonus, 2);
 
             // reduce bonus for deltas that are large multiples of each other (1/1 -> 1/8 is different, not hard)
             difficulty *= Math.Clamp(2.0 - islandRatio / 8.0, 0.0, 1.0);
@@ -159,13 +160,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
             // scale down if the transition is double-tappable
             difficulty *= 1 - previous.LastObject.CalculateDoubleTapFeasibility(island.FirstObject) * 0.75;
 
-            // repeated identical islands in recent history get progressively less credit
+            // repeated identical islands (same length, internal deltaTime and gap) in recent history get progressively less credit
             int occurrences = 1;
             var scan = previous;
 
             for (int j = 0; j < history_islands_max && scan != null; j++)
             {
-                if (scan.Length == island.Length)
+                if (isSameIsland(scan, island))
                     occurrences++;
 
                 scan = scan.Previous(0);
@@ -177,7 +178,35 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
                 difficulty *= Math.Min(3.0 / occurrences, DiffUtils.Pow(1.0 / occurrences, power));
             }
 
-            return difficulty;
+            return Math.Max(Math.Log(difficulty), 0);
+        }
+
+        /// <summary>
+        /// Whether two islands are rhythmically identical: same note count, similar internal deltaTime and similar gap leading into them.
+        /// Uses a relative tolerance so the comparison behaves the same at every speed.
+        /// </summary>
+        private static bool isSameIsland(OsuDifficultyHitIsland a, OsuDifficultyHitIsland b)
+        {
+            if (a.Length != b.Length)
+                return false;
+
+            if (!isSimilarDelta(a.DeltaTime, b.DeltaTime))
+                return false;
+
+            // Islands without a preceding gap (start of map / after spinner) can't be matched on gap.
+            if (a.StartDeltaTime == null || b.StartDeltaTime == null)
+                return false;
+
+            return isSimilarDelta(a.StartDeltaTime.Value, b.StartDeltaTime.Value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool isSimilarDelta(double a, double b)
+        {
+            a = Math.Max(a, OsuDifficultyHitObject.MIN_DELTA_TIME);
+            b = Math.Max(b, OsuDifficultyHitObject.MIN_DELTA_TIME);
+
+            return Math.Max(a, b) / Math.Min(a, b) <= repeated_island_ratio_tolerance;
         }
 
         public static double CalculateStartOfFastPatternBonus(DifficultyHitObject current)
@@ -192,7 +221,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
             double speedupRatio = osuLastObj.AdjustedDeltaTime / osuCurrObj.AdjustedDeltaTime;
 
             const double speedupThreshold = 1.15;
-            const double bonusStrength = 140000;
+            const double bonusStrength = 220000;
 
             if (speedupRatio <= speedupThreshold)
                 return 0;
@@ -201,13 +230,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed
 
             double doubleTapFeasibility = 1.0 - osuCurrObj.CalculateDoubleTapFeasibility((OsuDifficultyHitObject?)osuCurrObj.Next(0));
 
-            return result * doubleTapFeasibility;
+            return Math.Sqrt(result) * doubleTapFeasibility;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static double getEffectiveDifficulty(double deltaDifferenceRatio)
         {
-            const double rhythm_ratio_difficulty_multiplier = 126.0;
+            const double rhythm_ratio_difficulty_multiplier = 1.0;
 
             // Take only the fractional part of the value since we're only interested in punishing multiples
             double deltaDifferenceFraction = deltaDifferenceRatio - Math.Truncate(deltaDifferenceRatio);

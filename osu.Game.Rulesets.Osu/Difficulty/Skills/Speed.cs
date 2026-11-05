@@ -23,6 +23,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         private readonly List<double> sliderStrains = new List<double>();
 
         private double currentStrain;
+        private double currentRhythm;
         private double harmonicWeightSum;
 
         public Speed(Mod[] mods)
@@ -31,6 +32,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         }
 
         private double strainDecay(double ms) => DiffUtils.Pow(0.3, ms / 1000);
+
+        private double rhythmStrainDecay(double ms) => DiffUtils.Pow(0.65, ms / 1000);
 
         protected override double ProcessInternal(DifficultyHitObject current)
         {
@@ -41,12 +44,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             double decay = strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
 
+            double rhythmDecay = rhythmStrainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
+
             currentStrain *= decay;
             currentStrain += calculateAdjustedDifficulty(current) * (1 - decay) * skill_multiplier;
+            currentStrain += RhythmEvaluator.CalculateStartOfFastPatternBonus(current);
 
-            double currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
+            currentRhythm *= rhythmDecay;
+            currentRhythm += RhythmEvaluator.EvaluateDifficultyOf(current) * 0.75;
 
-            double totalStrain = currentStrain * currentRhythm;
+            double totalStrain = currentStrain + currentRhythm;
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(totalStrain);
