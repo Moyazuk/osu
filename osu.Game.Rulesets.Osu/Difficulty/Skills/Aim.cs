@@ -20,10 +20,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Aim : TimeSkill
     {
-        private const double horizontal_aim_dev_mult = 1.0;
-        private const double contamination_factor = 3.0;
-        private const double contamination_percent = 0.005;
-
         public readonly bool IncludeSliders;
 
         public Aim(Mod[] mods, bool includeSliders)
@@ -41,11 +37,24 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (difficulty <= 0) return 1;
             if (skill <= 0) return 0;
 
-            double d = Math.Sqrt(2) * difficulty;
-            double baseProbability = DiffUtils.Erf(skill / d) * // Overshoot aim error
-                                     DiffUtils.Erf(skill / (d * horizontal_aim_dev_mult)); // Sideways aim error
+            double baseDeviation = Math.Pow(difficulty, 1.25) / skill;
 
-            double contaminatedProbability = DiffUtils.Erf(skill / (d * contamination_factor));
+            const double horizontal_aim_dev_mult = 1.0;
+            const double contamination_factor = 2.5;
+            const double contamination_percent = 0.0125;
+
+            // at what point does the player lose the ability to aim normally
+            const double limit_of_proportion = 0.4;
+            // how quickly does the player lose the ability to aim normally at the limit of proportion
+            const double breakdown_rate = 5.5;
+            double adjustedDeviation = baseDeviation + Math.Exp(breakdown_rate * (baseDeviation - limit_of_proportion));
+
+            double d = Math.Sqrt(2) * adjustedDeviation;
+
+            double baseProbability = DiffUtils.Erf(1 / d) * // Overshoot aim error
+                                     DiffUtils.Erf(1 / (d * horizontal_aim_dev_mult)); // Sideways aim error
+
+            double contaminatedProbability = DiffUtils.Erf(1 / (d * contamination_factor));
 
             return baseProbability * (1 - contamination_percent) + contaminatedProbability * contamination_percent;
         }
@@ -97,7 +106,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double calculateTotalValue(double snapDifficulty, double agilityDifficulty, double flowDifficulty)
         {
-            const double skill_multiplier_total = 5.07;
+            const double skill_multiplier_total = 2.9;
             const double combined_snap_norm_exponent = 1.5;
 
             // We compare flow to combined snap and agility because snap by itself doesn't have enough difficulty to be above flow on streams
