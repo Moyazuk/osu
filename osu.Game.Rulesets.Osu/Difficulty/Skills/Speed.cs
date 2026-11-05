@@ -1,9 +1,9 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
+using osu.Game.Rulesets.Difficulty.Aggregation;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Difficulty.Utils;
@@ -18,16 +18,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// <summary>
     /// Represents the skill required to press keys with regards to keeping up with the speed at which objects need to be hit.
     /// </summary>
-    public class Speed : HarmonicSkill
+    public class Speed : Skill
     {
         private readonly List<double> sliderStrains = new List<double>();
 
         private double currentStrain;
-
-        private double currentRhythmStrain;
-
-        protected override double HarmonicScale => 20;
-        protected override double DecayExponent => 0.9;
+        private double harmonicWeightSum;
 
         public Speed(Mod[] mods)
             : base(mods)
@@ -36,29 +32,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         private double strainDecay(double ms) => DiffUtils.Pow(0.3, ms / 1000);
 
-        private double rhythmStrainDecay(double ms) => DiffUtils.Pow(0.75, ms / 1000);
-
-        protected override double ObjectDifficultyOf(DifficultyHitObject current)
+        protected override double ProcessInternal(DifficultyHitObject current)
         {
-            const double skill_multiplier = 1.16;
-
-            const double rhythm_multiplier = 1.95;
+            const double skill_multiplier = 66.2;
 
             if (Mods.Any(m => m is OsuModRelax))
                 return 0;
 
             double decay = strainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
 
-            double rhythmDecay = rhythmStrainDecay(((OsuDifficultyHitObject)current).AdjustedDeltaTime);
-
             currentStrain *= decay;
             currentStrain += calculateAdjustedDifficulty(current) * (1 - decay) * skill_multiplier;
-            currentStrain += RhythmEvaluator.CalculateStartOfFastPatternBonus(current);
 
-            currentRhythmStrain *= decay;
-            currentRhythmStrain += RhythmEvaluator.EvaluateDifficultyOf(current) * (1 - rhythmDecay) * rhythm_multiplier;
+            double currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
 
-            double totalStrain = currentStrain + currentRhythmStrain;
+            double totalStrain = currentStrain * currentRhythm;
 
             if (current.BaseObject is Slider)
                 sliderStrains.Add(totalStrain);
@@ -76,6 +64,16 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return difficulty;
         }
 
+        public override double DifficultyValue()
+        {
+            if (ObjectDifficulties.Count == 0)
+                return 0;
+
+            (double difficulty, harmonicWeightSum) = HarmonicSeries.Aggregate(ObjectDifficulties, harmonicScale: 20);
+
+            return difficulty;
+        }
+
         public double RelevantObjectCount()
         {
             if (ObjectDifficulties.Count == 0)
@@ -86,7 +84,23 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (maxStrain == 0)
                 return 0;
 
-            return ObjectDifficulties.Sum(strain => 1.0 / (1.0 + Math.Exp(-(strain / maxStrain * 12.0 - 6.0))));
+            return ObjectDifficulties.Sum(strain => DiffUtils.Logistic(strain / maxStrain, 0.5, 12.0));
+        }
+
+        public virtual double CountTopWeightedObjectDifficulties(double difficultyValue)
+        {
+            if (ObjectDifficulties.Count == 0)
+                return 0.0;
+
+            if (harmonicWeightSum == 0)
+                return 0.0;
+
+            double consistentTopObject = difficultyValue / harmonicWeightSum; // What would the top difficulty be if all object difficulties were identical
+
+            if (consistentTopObject == 0)
+                return 0;
+
+            return ObjectDifficulties.Sum(d => DiffUtils.Logistic(d / consistentTopObject, 0.88, 10, 1.1));
         }
 
         public double CountTopWeightedSliders(double difficultyValue)
@@ -94,10 +108,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             if (sliderStrains.Count == 0)
                 return 0;
 
-            if (ObjectWeightSum == 0)
+            if (harmonicWeightSum == 0)
                 return 0.0;
 
-            double consistentTopObject = difficultyValue / ObjectWeightSum; // What would the top note be if all note values were identical
+            double consistentTopObject = difficultyValue / harmonicWeightSum; // What would the top note be if all note values were identical
 
             if (consistentTopObject == 0)
                 return 0;
