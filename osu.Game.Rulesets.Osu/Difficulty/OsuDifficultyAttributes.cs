@@ -24,6 +24,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         public double AimDifficultSliderCount { get; set; }
 
         /// <summary>
+        /// The number of objects weighted by difficulty.
+        /// Related to <see cref="AimDifficulty"/>
+        /// </summary>
+        [JsonProperty("aim_note_count")]
+        public double AimNoteCount { get; set; }
+
+        /// <summary>
         /// The difficulty corresponding to the speed skill.
         /// </summary>
         [JsonProperty("speed_difficulty")]
@@ -47,6 +54,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         /// </summary>
         [JsonProperty("reading_difficulty")]
         public double ReadingDifficulty { get; set; }
+
+        /// <summary>
+        /// The number of objects weighted by difficulty.
+        /// Related to <see cref="ReadingDifficulty"/>
+        /// </summary>
+        [JsonProperty("reading_note_count")]
+        public double ReadingNoteCount { get; set; }
 
         /// <summary>
         /// Describes how much of <see cref="AimDifficulty"/> is contributed to by hitcircles or sliders.
@@ -130,6 +144,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             yield return (ATTRIB_ID_LEGACY_SCORE_BASE_MULTIPLIER, LegacyScoreBaseMultiplier);
             yield return (ATTRIB_ID_MAXIMUM_LEGACY_COMBO_SCORE, MaximumLegacyComboScore);
             yield return (ATTRIB_ID_READING_DIFFICULT_NOTE_COUNT, ReadingDifficultNoteCount);
+            yield return (ATTRIB_ID_AIM_NOTE_COUNT, AimNoteCount);
+            yield return (ATTRIB_ID_READING_NOTE_COUNT, ReadingNoteCount);
         }
 
         public override void FromDatabaseAttributes(IReadOnlyDictionary<int, double> values, IBeatmapOnlineInfo onlineInfo)
@@ -155,6 +171,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             LegacyScoreBaseMultiplier = values[ATTRIB_ID_LEGACY_SCORE_BASE_MULTIPLIER];
             MaximumLegacyComboScore = values[ATTRIB_ID_MAXIMUM_LEGACY_COMBO_SCORE];
             ReadingDifficultNoteCount = values[ATTRIB_ID_READING_DIFFICULT_NOTE_COUNT];
+            AimNoteCount = values[ATTRIB_ID_AIM_NOTE_COUNT];
+            ReadingNoteCount = values[ATTRIB_ID_READING_NOTE_COUNT];
             HitCircleCount = onlineInfo.CircleCount;
             SliderCount = onlineInfo.SliderCount;
             SpinnerCount = onlineInfo.SpinnerCount;

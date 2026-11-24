@@ -30,6 +30,18 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         [JsonProperty("speed_deviation")]
         public double? SpeedDeviation { get; set; }
 
+        [JsonProperty("aim_judgements")]
+        public SkillJudgements AimJudgements { get; set; }
+
+        [JsonProperty("speed_judgements")]
+        public SkillJudgements SpeedJudgements { get; set; }
+
+        [JsonProperty("reading_judgements")]
+        public SkillJudgements ReadingJudgements { get; set; }
+
+        [JsonProperty("accuracy_judgements")]
+        public SkillJudgements AccuracyJudgements { get; set; }
+
         [JsonProperty("combo_based_estimated_miss_count")]
         public double ComboBasedEstimatedMissCount { get; set; }
 

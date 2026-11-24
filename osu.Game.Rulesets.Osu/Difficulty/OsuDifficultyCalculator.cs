@@ -48,7 +48,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double speedDifficultStrainCount = speed.CountTopWeightedObjectDifficulties(speedDifficultyValue);
             double readingDifficultNoteCount = reading.CountTopWeightedObjectDifficulties(readingDifficultyValue);
 
+            double aimNotes = aim.RelevantObjectCount();
             double speedNotes = speed.RelevantObjectCount();
+            double readingNotes = reading.RelevantObjectCount();
 
             double aimNoSlidersTopWeightedSliderCount = aimWithoutSliders.CountTopWeightedSliders(aimNoSlidersDifficultyValue);
             double aimNoSlidersDifficultStrainCount = aimWithoutSliders.CountTopWeightedStrains(aimNoSlidersDifficultyValue);
@@ -106,10 +108,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 Mods = mods,
                 AimDifficulty = aimRating,
                 AimDifficultSliderCount = difficultSliders,
+                AimNoteCount = aimNotes,
                 SpeedDifficulty = speedRating,
                 SpeedNoteCount = speedNotes,
                 FlashlightDifficulty = flashlightRating,
                 ReadingDifficulty = readingRating,
+                ReadingNoteCount = readingNotes,
                 SliderFactor = sliderFactor,
                 AimDifficultStrainCount = aimDifficultStrainCount,
                 SpeedDifficultStrainCount = speedDifficultStrainCount,

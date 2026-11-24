@@ -59,7 +59,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         private double approachRate;
         private double drainRate;
 
+        private double? deviation;
         private double? speedDeviation;
+
+        private SkillJudgements aimJudgements;
+        private SkillJudgements speedJudgements;
+        private SkillJudgements readingJudgements;
+        private SkillJudgements accuracyJudgements;
 
         private double aimEstimatedSliderBreaks;
         private double speedEstimatedSliderBreaks;
@@ -151,14 +157,17 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 effectiveMissCount = Math.Min(effectiveMissCount + countOk * okMultiplier + countMeh * mehMultiplier, totalHits);
             }
 
-            speedDeviation = calculateSpeedDeviation(osuAttributes);
-
-            double aimValue = computeAimValue(score, osuAttributes);
-            double speedValue = computeSpeedValue(score, osuAttributes);
-            double accuracyValue = computeAccuracyValue(score, osuAttributes);
-
-            double readingValue = computeReadingValue(osuAttributes);
             double flashlightValue = computeFlashlightValue(score, osuAttributes);
+
+            assignJudgements(score, osuAttributes, flashlightValue);
+
+            speedDeviation = calculateDeviation(speedJudgements);
+            deviation = calculateAccuracyDeviation(accuracyJudgements);
+
+            double aimValue = computeAimValue(score, osuAttributes, aimJudgements);
+            double speedValue = computeSpeedValue(score, osuAttributes, speedJudgements);
+            double accuracyValue = computeAccuracyValue(score, osuAttributes, accuracyJudgements);
+            double readingValue = computeReadingValue(osuAttributes, readingJudgements);
             double cognitionValue = OsuDifficultyCalculator.SumCognitionDifficulty(readingValue, flashlightValue);
 
             double totalValue = DiffUtils.Norm(PERFORMANCE_NORM_EXPONENT, aimValue, speedValue, accuracyValue, cognitionValue) * multiplier;
@@ -176,11 +185,212 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 AimEstimatedSliderBreaks = aimEstimatedSliderBreaks,
                 SpeedEstimatedSliderBreaks = speedEstimatedSliderBreaks,
                 SpeedDeviation = speedDeviation,
+                AimJudgements = aimJudgements,
+                SpeedJudgements = speedJudgements,
+                ReadingJudgements = readingJudgements,
+                AccuracyJudgements = accuracyJudgements,
                 Total = totalValue
             };
         }
 
-        private double computeAimValue(ScoreInfo score, OsuDifficultyAttributes attributes)
+        private const int judgement_ok = 0;
+        private const int judgement_meh = 1;
+        private const int judgement_miss = 2;
+        private const int judgement_type_count = 3;
+
+        private const int skill_aim = 0;
+        private const int skill_speed = 1;
+        private const int skill_reading = 2;
+        private const int skill_accuracy = 3;
+        private const int skill_count = 4;
+
+        /// <summary>
+        /// Maximum number of chunks each judgement type is split into during the greedy assignment.
+        /// </summary>
+        private const int max_assignment_chunks = 20;
+
+        /// <summary>
+        /// Number of times the step size is halved during local refinement.
+        /// </summary>
+        private const int refinement_levels = 4;
+
+        private const int max_refinement_iterations = 50;
+
+        private const double epsilon = 1e-9;
+
+        /// <summary>
+        /// Distributes the score's oks, mehs and (effective) misses between aim, speed, reading and accuracy
+        /// such that the resulting total performance is minimised. Each judgement is attributed to exactly one skill (fractionally),
+        /// and a skill cannot receive more judgements than its relevant note count. Remaining capacity of each skill is filled with greats.
+        /// </summary>
+        /// <remarks>
+        /// The objective is not convex, so this is a heuristic: a greedy pass (misses, then mehs, then oks) which assigns each chunk
+        /// to the skill where it reduces total performance the most, followed by a local search which moves judgements between skills
+        /// with progressively smaller step sizes while doing so keeps reducing total performance.
+        /// </remarks>
+        private void assignJudgements(ScoreInfo score, OsuDifficultyAttributes attributes, double flashlightValue)
+        {
+            double[] capacities = new double[skill_count];
+            capacities[skill_aim] = paddedRelevantNoteCount(attributes.AimNoteCount);
+            capacities[skill_speed] = paddedRelevantNoteCount(attributes.SpeedNoteCount);
+            capacities[skill_reading] = paddedRelevantNoteCount(attributes.ReadingNoteCount);
+            capacities[skill_accuracy] = accuracyObjectCount(attributes);
+
+            double[] budgets = new double[judgement_type_count];
+            budgets[judgement_ok] = countOk;
+            budgets[judgement_meh] = countMeh;
+            budgets[judgement_miss] = effectiveMissCount;
+
+            double[,] allocation = new double[skill_count, judgement_type_count];
+            double[] chunkSizes = new double[judgement_type_count];
+
+            // Greedy pass, most impactful judgements first so that they get first pick of skill capacity.
+            for (int type = judgement_type_count - 1; type >= 0; type--)
+            {
+                double remaining = budgets[type];
+
+                if (remaining <= epsilon)
+                    continue;
+
+                int chunks = (int)Math.Ceiling(Math.Min(remaining, max_assignment_chunks));
+                double chunkSize = remaining / chunks;
+                chunkSizes[type] = chunkSize;
+
+                while (remaining > epsilon)
+                {
+                    double amount = Math.Min(chunkSize, remaining);
+
+                    int bestSkill = -1;
+                    double bestPlaced = 0;
+                    double bestTotal = double.PositiveInfinity;
+
+                    for (int skill = 0; skill < skill_count; skill++)
+                    {
+                        double placed = Math.Min(amount, freeCapacity(skill));
+
+                        if (placed <= epsilon)
+                            continue;
+
+                        allocation[skill, type] += placed;
+                        double total = evaluate();
+                        allocation[skill, type] -= placed;
+
+                        if (total < bestTotal)
+                        {
+                            bestTotal = total;
+                            bestSkill = skill;
+                            bestPlaced = placed;
+                        }
+                    }
+
+                    // No skill has any capacity left; the remaining judgements cannot be attributed anywhere.
+                    if (bestSkill < 0)
+                        break;
+
+                    allocation[bestSkill, type] += bestPlaced;
+                    remaining -= bestPlaced;
+                }
+            }
+
+            // Local refinement: move judgements between skills while it lowers total performance.
+            double currentTotal = evaluate();
+
+            for (int level = 0; level < refinement_levels; level++)
+            {
+                bool improved = true;
+
+                for (int iteration = 0; improved && iteration < max_refinement_iterations; iteration++)
+                {
+                    improved = false;
+
+                    for (int type = 0; type < judgement_type_count; type++)
+                    {
+                        double delta = chunkSizes[type] / (1 << level);
+
+                        if (delta <= epsilon)
+                            continue;
+
+                        for (int from = 0; from < skill_count; from++)
+                        {
+                            for (int to = 0; to < skill_count; to++)
+                            {
+                                if (from == to)
+                                    continue;
+
+                                double moved = Math.Min(delta, Math.Min(allocation[from, type], freeCapacity(to)));
+
+                                if (moved <= epsilon)
+                                    continue;
+
+                                allocation[from, type] -= moved;
+                                allocation[to, type] += moved;
+
+                                double total = evaluate();
+
+                                if (total < currentTotal - epsilon)
+                                {
+                                    currentTotal = total;
+                                    improved = true;
+                                }
+                                else
+                                {
+                                    allocation[from, type] += moved;
+                                    allocation[to, type] -= moved;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            aimJudgements = judgementsFor(skill_aim);
+            speedJudgements = judgementsFor(skill_speed);
+            readingJudgements = judgementsFor(skill_reading);
+            accuracyJudgements = judgementsFor(skill_accuracy);
+
+            double assigned(int skill) => allocation[skill, judgement_ok] + allocation[skill, judgement_meh] + allocation[skill, judgement_miss];
+
+            double freeCapacity(int skill) => capacities[skill] - assigned(skill);
+
+            SkillJudgements judgementsFor(int skill) => new SkillJudgements(
+                Math.Max(0, capacities[skill] - assigned(skill)),
+                allocation[skill, judgement_ok],
+                allocation[skill, judgement_meh],
+                allocation[skill, judgement_miss]);
+
+            // The global multiplier is a positive constant, so it does not affect which assignment is minimal.
+            double evaluate()
+            {
+                double aimValue = computeAimValue(score, attributes, judgementsFor(skill_aim));
+                double speedValue = computeSpeedValue(score, attributes, judgementsFor(skill_speed));
+                double accuracyValue = computeAccuracyValue(score, attributes, judgementsFor(skill_accuracy));
+                double readingValue = computeReadingValue(attributes, judgementsFor(skill_reading));
+                double cognitionValue = OsuDifficultyCalculator.SumCognitionDifficulty(readingValue, flashlightValue);
+
+                return DiffUtils.Norm(PERFORMANCE_NORM_EXPONENT, aimValue, speedValue, accuracyValue, cognitionValue);
+            }
+        }
+
+        /// <summary>
+        /// The amount of objects judgements can be attributed to for a skill. Objects which aren't relevant to the skill
+        /// still count for a tenth, so that skills with very few relevant notes can't be fully escaped.
+        /// </summary>
+        private double paddedRelevantNoteCount(double relevantNoteCount) => Math.Min(totalHits, relevantNoteCount);
+
+        /// <summary>
+        /// The amount of objects which are judged on timing.
+        /// </summary>
+        private int accuracyObjectCount(OsuDifficultyAttributes attributes)
+        {
+            int count = attributes.HitCircleCount;
+
+            if (!usingClassicSliderAccuracy || usingScoreV2)
+                count += attributes.SliderCount;
+
+            return count;
+        }
+
+        private double computeAimValue(ScoreInfo score, OsuDifficultyAttributes attributes, SkillJudgements judgements)
         {
             if (score.Mods.Any(h => h is OsuModAutopilot))
                 return 0.0;
@@ -214,12 +424,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                                  (totalHits > 2000 ? Math.Log10(totalHits / 2000.0) * 0.5 : 0.0);
             aimValue *= lengthBonus;
 
-            if (effectiveMissCount > 0)
-            {
-                double relevantMissCount = Math.Min(effectiveMissCount + aimEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
+            double aimRelevantMissCount = Math.Min(judgements.Miss + aimEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
 
-                aimValue *= calculateMissPenalty(relevantMissCount, attributes.AimDifficultStrainCount);
-            }
+            if (aimRelevantMissCount > 0)
+                aimValue *= calculateMissPenalty(aimRelevantMissCount, attributes.AimDifficultStrainCount);
 
             // TC bonuses are excluded when blinds is present as the increased visual difficulty is unimportant when notes cannot be seen.
             if (score.Mods.Any(m => m is OsuModBlinds))
@@ -229,26 +437,30 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 aimValue *= 1.0 + calculateTraceableBonus(attributes.SliderFactor);
             }
 
-            aimValue *= accuracy;
+            // Scale aim value by the deviation of the judgements attributed to aim.
+            aimValue *= calculateDeviationScaling(calculateDeviation(judgements), 3);
 
             return aimValue;
         }
 
-        private double computeSpeedValue(ScoreInfo score, OsuDifficultyAttributes attributes)
+        private double computeSpeedValue(ScoreInfo score, OsuDifficultyAttributes attributes, SkillJudgements judgements)
         {
-            if (score.Mods.Any(h => h is OsuModRelax) || speedDeviation == null)
+            if (score.Mods.Any(h => h is OsuModRelax))
                 return 0.0;
 
-            double speedDifficulty = attributes.SpeedDifficulty * calculateSpeedHighDeviationNerf(attributes);
+            double? deviationOnSpeedNotes = calculateDeviation(judgements);
+
+            if (deviationOnSpeedNotes == null)
+                return 0.0;
+
+            double speedDifficulty = attributes.SpeedDifficulty * calculateSpeedHighDeviationNerf(attributes, deviationOnSpeedNotes.Value);
 
             double speedValue = DifficultyToPerformance(speedDifficulty);
 
-            if (effectiveMissCount > 0)
-            {
-                double relevantMissCount = Math.Min(effectiveMissCount + speedEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
+            double speedRelevantMissCount = Math.Min(judgements.Miss + speedEstimatedSliderBreaks, totalImperfectHits + countSliderTickMiss);
 
-                speedValue *= calculateMissPenalty(relevantMissCount, attributes.SpeedDifficultStrainCount);
-            }
+            if (speedRelevantMissCount > 0)
+                speedValue *= calculateMissPenalty(speedRelevantMissCount, attributes.SpeedDifficultStrainCount);
 
             if (score.Mods.Any(m => m is OsuModBlinds))
             {
@@ -256,47 +468,29 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 speedValue *= 1.12;
             }
 
-            // An effective hit window is created based on the speed SR. The higher the speed difficulty, the shorter the hit window.
-            // For example, a speed SR of 4.0 leads to an effective hit window of 20ms, which is OD 10.
-            double effectiveHitWindow = 20 * DiffUtils.Pow(4 / speedDifficulty, 0.35);
-
-            // Find the proportion of 300s on speed notes assuming the hit window was the effective hit window.
-            double effectiveAccuracy = DiffUtils.Erf(effectiveHitWindow / (double)speedDeviation);
-
             // Scale speed value by normalized accuracy.
-            speedValue *= DiffUtils.Pow(effectiveAccuracy, 2);
+            speedValue *= calculateDeviationScaling(calculateDeviation(judgements), 3);
 
             return speedValue;
         }
 
-        private double computeAccuracyValue(ScoreInfo score, OsuDifficultyAttributes attributes)
+        private double computeAccuracyValue(ScoreInfo score, OsuDifficultyAttributes attributes, SkillJudgements judgements)
         {
             if (score.Mods.Any(h => h is OsuModRelax))
                 return 0.0;
 
-            // This percentage only considers HitCircles of any value - in this part of the calculation we focus on hitting the timing hit window.
-            double betterAccuracyPercentage;
-            int amountHitObjectsWithAccuracy = attributes.HitCircleCount;
-            if (!usingClassicSliderAccuracy || usingScoreV2)
-                amountHitObjectsWithAccuracy += attributes.SliderCount;
+            double? accuracyDeviation = calculateAccuracyDeviation(judgements);
 
-            if (amountHitObjectsWithAccuracy > 0)
-                betterAccuracyPercentage = ((countGreat - Math.Max(totalHits - amountHitObjectsWithAccuracy, 0)) * 6 + countOk * 2 + countMeh) / (double)(amountHitObjectsWithAccuracy * 6);
-            else
-                betterAccuracyPercentage = 0;
+            if (accuracyDeviation == null)
+                return 0.0;
 
-            // It is possible to reach a negative accuracy with this formula. Cap it at zero - zero points.
-            if (betterAccuracyPercentage < 0)
-                betterAccuracyPercentage = 0;
+            // Only objects judged on timing are considered - in this part of the calculation we focus on hitting the timing hit window.
+            int amountHitObjectsWithAccuracy = accuracyObjectCount(attributes);
 
-            // Lots of arbitrary values from testing.
-            // Considering to use derivation from perfect accuracy in a probabilistic manner - assume normal distribution.
-            double accuracyValue = DiffUtils.Pow(1.52163, overallDifficulty) * DiffUtils.Pow(betterAccuracyPercentage, 24) * 2.83;
+            double accuracyValue = 170 * Math.Pow(7.5 / accuracyDeviation.Value, 1.4);
 
-            // Bonus for many hitcircles - it's harder to keep good accuracy up for longer.
-            accuracyValue *= amountHitObjectsWithAccuracy < 1000
-                ? DiffUtils.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.3)
-                : DiffUtils.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.1);
+            // reduce acc pp for short maps
+            accuracyValue *= Math.Min(1.0, Math.Pow(amountHitObjectsWithAccuracy / 1000.0, 0.3));
 
             // Increasing the accuracy value by object count for Blinds isn't ideal, so the minimum buff is given.
             if (score.Mods.Any(m => m is OsuModBlinds))
@@ -306,6 +500,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
                 // Decrease bonus for AR > 10
                 accuracyValue *= 1 + 0.08 * DiffUtils.ReverseLerp(approachRate, 11.5, 10);
             }
+
+            if (score.Mods.Any(m => m is OsuModFlashlight))
+                accuracyValue *= 1.02;
 
             return accuracyValue;
         }
@@ -331,17 +528,44 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             return flashlightValue;
         }
 
-        private double computeReadingValue(OsuDifficultyAttributes attributes)
+        private double computeReadingValue(OsuDifficultyAttributes attributes, SkillJudgements judgements)
         {
             double readingValue = DifficultyToPerformance(attributes.ReadingDifficulty);
 
-            if (effectiveMissCount > 0)
-                readingValue *= calculateMissPenalty(effectiveMissCount + aimEstimatedSliderBreaks, attributes.ReadingDifficultNoteCount);
+            double readingRelevantMissCount = judgements.Miss + aimEstimatedSliderBreaks;
 
-            // Scale the reading value with accuracy _harshly_.
-            readingValue *= DiffUtils.Pow(accuracy, 3);
+            if (readingRelevantMissCount > 0)
+                readingValue *= calculateMissPenalty(readingRelevantMissCount, attributes.ReadingDifficultNoteCount);
+
+            // Scale the reading value with the deviation of the judgements attributed to reading _harshly_.
+            readingValue *= calculateDeviationScaling(calculateDeviation(judgements), 8);
 
             return readingValue;
+        }
+
+        /// <summary>
+        /// The hit window deviation scaling is measured against, in milliseconds. This is the great hit window at OD10.
+        /// </summary>
+        /// <remarks>
+        /// This intentionally does not depend on the beatmap's OD. Deviation is estimated from the map's own great hit window,
+        /// so measuring against that same window would only give back the proportion of greats and OD would not be accounted for.
+        /// </remarks>
+        private const double deviation_scaling_hit_window = 20;
+
+        /// <summary>
+        /// Scales a skill's value by the proportion of greats a player with the given deviation would hit on a fixed hit window,
+        /// assuming normally distributed hit errors with a mean of zero.
+        /// </summary>
+        /// <param name="deviation">The deviation on the skill's notes, or null if none of its notes were hit.</param>
+        /// <param name="exponent">How harshly the value is scaled.</param>
+        private static double calculateDeviationScaling(double? deviation, double exponent)
+        {
+            if (deviation == null)
+                return 0;
+
+            double proportionOfGreats = DiffUtils.Erf(deviation_scaling_hit_window / (Math.Sqrt(2) * deviation.Value));
+
+            return DiffUtils.Pow(proportionOfGreats, exponent);
         }
 
         private double calculateComboBasedEstimatedMissCount(OsuDifficultyAttributes attributes)
@@ -413,33 +637,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         }
 
         /// <summary>
-        /// Estimates player's deviation on speed notes using <see cref="calculateDeviation"/>, assuming worst-case.
-        /// Treats all speed notes as hit circles.
-        /// </summary>
-        private double? calculateSpeedDeviation(OsuDifficultyAttributes attributes)
-        {
-            if (totalSuccessfulHits == 0)
-                return null;
-
-            // Calculate accuracy assuming the worst case scenario
-            double speedNoteCount = attributes.SpeedNoteCount;
-            speedNoteCount += (totalHits - attributes.SpeedNoteCount) * 0.1;
-
-            // Assume worst case: all mistakes were on speed notes
-            double relevantCountMiss = Math.Min(countMiss, speedNoteCount);
-            double relevantCountMeh = Math.Min(countMeh, speedNoteCount - relevantCountMiss);
-            double relevantCountOk = Math.Min(countOk, speedNoteCount - relevantCountMiss - relevantCountMeh);
-            double relevantCountGreat = Math.Max(0, speedNoteCount - relevantCountMiss - relevantCountMeh - relevantCountOk);
-
-            return calculateDeviation(relevantCountGreat, relevantCountOk, relevantCountMeh);
-        }
-
-        /// <summary>
         /// Estimates the player's tap deviation based on the OD, given number of greats, oks, mehs and misses,
         /// assuming the player's mean hit error is 0. The estimation is consistent in that two SS scores on the same map with the same settings
         /// will always return the same deviation. Misses are ignored because they are usually due to misaiming.
         /// Greats and oks are assumed to follow a normal distribution, whereas mehs are assumed to follow a uniform distribution.
         /// </summary>
+        private double? calculateDeviation(SkillJudgements judgements) => calculateDeviation(judgements.Great, judgements.Ok, judgements.Meh);
+
         private double? calculateDeviation(double relevantCountGreat, double relevantCountOk, double relevantCountMeh)
         {
             if (relevantCountGreat + relevantCountOk + relevantCountMeh <= 0)
@@ -461,12 +665,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             if (pLowerBound > 0.01)
             {
                 // Compute deviation assuming greats and oks are normally distributed.
-                deviation = greatHitWindow / (DiffUtils.SQRT2 * DiffUtils.ErfInv(pLowerBound));
+                deviation = greatHitWindow / (Math.Sqrt(2) * DiffUtils.ErfInv(pLowerBound));
 
                 // Subtract the deviation provided by tails that land outside the ok hit window from the deviation computed above.
                 // This is equivalent to calculating the deviation of a normal distribution truncated at +-okHitWindow.
-                double okHitWindowTailAmount = Math.Sqrt(2 / Math.PI) * okHitWindow * Math.Exp(-0.5 * DiffUtils.Pow(okHitWindow / deviation, 2))
-                                               / (deviation * DiffUtils.Erf(okHitWindow / (DiffUtils.SQRT2 * deviation)));
+                double okHitWindowTailAmount = Math.Sqrt(2 / Math.PI) * okHitWindow * Math.Exp(-0.5 * Math.Pow(okHitWindow / deviation, 2))
+                                               / (deviation * DiffUtils.Erf(okHitWindow / (Math.Sqrt(2) * deviation)));
 
                 deviation *= Math.Sqrt(1 - okHitWindowTailAmount);
             }
@@ -479,22 +683,19 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             // Compute and add the variance for mehs, assuming that they are uniformly distributed.
             double mehVariance = (mehHitWindow * mehHitWindow + okHitWindow * mehHitWindow + okHitWindow * okHitWindow) / 3;
 
-            deviation = Math.Sqrt(((relevantCountGreat + relevantCountOk) * DiffUtils.Pow(deviation, 2) + relevantCountMeh * mehVariance) / (relevantCountGreat + relevantCountOk + relevantCountMeh));
+            deviation = Math.Sqrt(((relevantCountGreat + relevantCountOk) * Math.Pow(deviation, 2) + relevantCountMeh * mehVariance) / (relevantCountGreat + relevantCountOk + relevantCountMeh));
 
             return deviation;
         }
 
         // Calculates multiplier for speed to account for improper tapping based on the deviation and speed difficulty
         // https://www.desmos.com/calculator/dmogdhzofn
-        private double calculateSpeedHighDeviationNerf(OsuDifficultyAttributes attributes)
+        private double calculateSpeedHighDeviationNerf(OsuDifficultyAttributes attributes, double speedDeviation)
         {
-            if (speedDeviation == null)
-                return 0;
-
             // Decides a point where the difficulty played compared to the speed deviation is assumed to be tapped improperly.
             // Any difficulty above this point is considered "excess" speed difficulty.
             // This is used to cause difficulty above the cutoff to scale logarithmically towards the original speed value thus nerfing the value.
-            double excessSpeedDifficultyCutoff = 2.9 + 1.45 * DiffUtils.Pow(22 / speedDeviation.Value, 5);
+            double excessSpeedDifficultyCutoff = 2.9 + 1.45 * DiffUtils.Pow(22 / speedDeviation, 5);
 
             if (attributes.SpeedDifficulty <= excessSpeedDifficultyCutoff)
                 return 1.0;
@@ -503,7 +704,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
             double adjustedSpeedDifficulty = scale * (Math.Log((attributes.SpeedDifficulty - excessSpeedDifficultyCutoff) / scale + 1) + excessSpeedDifficultyCutoff / scale);
 
             // 220 UR and less are considered tapped correctly to ensure that normal scores will be punished as little as possible
-            double lerp = 1 - DiffUtils.ReverseLerp(speedDeviation.Value, 22.0, 27.0);
+            double lerp = 1 - DiffUtils.ReverseLerp(speedDeviation, 22.0, 27.0);
             adjustedSpeedDifficulty = double.Lerp(adjustedSpeedDifficulty, attributes.SpeedDifficulty, lerp);
 
             return adjustedSpeedDifficulty / attributes.SpeedDifficulty;
@@ -536,7 +737,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         // Miss penalty assumes that a player will miss on the hardest parts of a map,
         // so we use the amount of relatively difficult sections to adjust miss penalty
         // to make it more punishing on maps with lower amount of hard sections.
-        private double calculateMissPenalty(double missCount, double difficultStrainCount) => 0.93 / (missCount / (4 * Math.Log(Math.Max(1, difficultStrainCount))) + 1);
+        private double calculateMissPenalty(double missCount, double difficultStrainCount) => 0.93 / (missCount / (3 * Math.Log(Math.Max(1, difficultStrainCount))) + 1);
         private double getComboScalingFactor(OsuDifficultyAttributes attributes) => attributes.MaxCombo <= 0 ? 1.0 : Math.Min(DiffUtils.Pow(scoreMaxCombo, 0.8) / DiffUtils.Pow(attributes.MaxCombo, 0.8), 1.0);
 
         private double calculateRateAdjustedApproachRate(double approachRate, double clockRate)
@@ -548,5 +749,47 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         private int totalHits => countGreat + countOk + countMeh + countMiss;
         private int totalSuccessfulHits => countGreat + countOk + countMeh;
         private int totalImperfectHits => countOk + countMeh + countMiss;
+
+        /// <summary>
+        /// Estimates the player's deviation on the objects attributed to accuracy.
+        /// Greats and oks are assumed to follow a normal distribution, whereas mehs are assumed to follow a uniform distribution.
+        /// </summary>
+        private double? calculateAccuracyDeviation(SkillJudgements judgements, double z = 2.32634787404)
+        {
+            double n = judgements.Great + judgements.Ok;
+
+            if (n <= 0)
+                return null;
+
+            if (judgements.Great == n && z == 0)
+                return 0;
+
+            // Proportion of greats, ignoring misses and 50s.
+            double p = judgements.Great / n;
+
+            // We can be 99% confident that p is at least this value.
+            double pLowerBound = (n * p + z * z / 2) / (n + z * z) - z / (n + z * z) * Math.Sqrt(n * p * (1 - p) + z * z / 4);
+
+            // Compute the deviation assuming 300s and 100s are normally distributed, and 50s are uniformly distributed.
+            // Begin with 300s and 100s first. Ignoring 50s, we can be 99% confident that the deviation is not higher than:
+            double result = greatHitWindow / (Math.Sqrt(2) * DiffUtils.ErfInv(pLowerBound));
+            double adjustFor100 = Math.Sqrt(2 / Math.PI) * okHitWindow * Math.Exp(-0.5 * Math.Pow(okHitWindow / result, 2))
+                                  / (result * DiffUtils.Erf(okHitWindow / (Math.Sqrt(2) * result)));
+
+            result *= Math.Sqrt(1 - adjustFor100);
+
+            // Value deviation approach as greatCount approaches 0
+            double limitValue = okHitWindow / Math.Sqrt(3);
+
+            // If precision is not enough to compute true deviation - use limit value
+            if (pLowerBound <= 0 || adjustFor100 >= 1 || double.IsNaN(result) || result > limitValue)
+                result = limitValue;
+
+            // Then compute the variance for 50s.
+            double mehVariance = (mehHitWindow * mehHitWindow + okHitWindow * mehHitWindow + okHitWindow * okHitWindow) / 3;
+
+            // Find the total deviation.
+            return Math.Sqrt((n * Math.Pow(result, 2) + judgements.Meh * mehVariance) / (n + judgements.Meh));
+        }
     }
 }

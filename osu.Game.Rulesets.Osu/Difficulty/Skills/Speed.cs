@@ -10,6 +10,7 @@ using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Osu.Objects;
 
@@ -34,7 +35,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
         protected override double ProcessInternal(DifficultyHitObject current)
         {
-            const double skill_multiplier = 66.2;
+            const double skill_multiplier = 63.2;
 
             if (Mods.Any(m => m is OsuModRelax))
                 return 0;
@@ -74,18 +75,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
             return difficulty;
         }
 
-        public double RelevantObjectCount()
-        {
-            if (ObjectDifficulties.Count == 0)
-                return 0;
-
-            double maxStrain = ObjectDifficulties.Max();
-
-            if (maxStrain == 0)
-                return 0;
-
-            return ObjectDifficulties.Sum(strain => DiffUtils.Logistic(strain / maxStrain, 0.5, 12.0));
-        }
+        public double RelevantObjectCount() => ObjectCountUtils.CountRelevantObjects(ObjectDifficulties);
 
         public virtual double CountTopWeightedObjectDifficulties(double difficultyValue)
         {

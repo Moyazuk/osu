@@ -10,6 +10,7 @@ using osu.Game.Rulesets.Difficulty.Utils;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Osu.Difficulty.Utils;
 using osu.Game.Rulesets.Osu.Mods;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
@@ -91,6 +92,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             return difficulty;
         }
+
+        public double RelevantObjectCount() => ObjectCountUtils.CountRelevantObjects(ObjectDifficulties);
 
         public double CountTopWeightedObjectDifficulties(double difficultyValue)
         {
