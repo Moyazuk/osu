@@ -162,7 +162,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             OsuDifficultyHitObject? next,
             double currVelocity)
         {
-            const double acute_angle_multiplier = 0.95;
+            const double acute_angle_multiplier = 0.15;
 
             if (current.Angle == null)
                 return 0;
@@ -171,7 +171,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
             double overlapWeight = calculateOverlapWeight(current, last, lastLast);
 
-            return currVelocity * currAcuteness * overlapWeight * acute_angle_multiplier;
+            return Math.Pow(currVelocity, 3) * currAcuteness * overlapWeight * acute_angle_multiplier;
         }
 
         private static double calculateTransitionAcuteAngleBonus(
@@ -190,7 +190,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
             double overlapWeight = calculateOverlapWeight(next, current, last);
 
-            return currVelocity * currAcuteness * overlapWeight * acute_angle_multiplier;
+            return Math.Pow(currVelocity, 3) * currAcuteness * overlapWeight * acute_angle_multiplier;
         }
 
         private static double calculateVelocityChangeBonus(

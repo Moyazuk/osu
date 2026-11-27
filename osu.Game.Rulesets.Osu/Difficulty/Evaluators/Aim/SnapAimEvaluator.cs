@@ -55,7 +55,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             double snapDifficulty = snapTransitionDifficulty + snapContinuationDifficulty;
 
             // Apply high circle size bonus
-            snapDifficulty += osuCurrObj.SmallCircleBonus;
+            snapDifficulty += osuCurrObj.SmallCircleBonus * 3.25;
 
             snapDifficulty *= highBpmBonus(osuCurrObj.AdjustedDeltaTime);
 
@@ -112,7 +112,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
         private static double calculateVelocityChangeBonus(bool withSliderTravelDistance, double prevVelocity, double currVelocity,
                                                            double currDistance, OsuDifficultyHitObject osuCurrObj, OsuDifficultyHitObject osuLastObj)
         {
-            const double velocity_change_multiplier = 0.3;
+            const double velocity_change_multiplier = 0.65;
 
             if (Math.Max(prevVelocity, currVelocity) == 0)
                 return 0;
@@ -123,13 +123,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
                 currVelocity = currDistance / osuCurrObj.AdjustedDeltaTime;
             }
 
+            // cap velocity to at least 1 radius distance to only award snap patterns
+            currVelocity = Math.Max(currVelocity, OsuDifficultyHitObject.NORMALISED_DIAMETER / osuCurrObj.AdjustedDeltaTime);
+            prevVelocity = Math.Max(prevVelocity, OsuDifficultyHitObject.NORMALISED_DIAMETER / osuLastObj.AdjustedDeltaTime);
+
             // Scale with ratio of difference compared to 0.5 * max dist.
             double distRatio = DiffUtils.Smoothstep(Math.Abs(prevVelocity - currVelocity) / Math.Max(prevVelocity, currVelocity), 0, 1);
 
             // Reward for % distance up to 125 / strainTime for overlaps where velocity is still changing.
-            double overlapVelocityBuff = Math.Abs(prevVelocity - currVelocity);
+            double overlapVelocityBuff = Math.Min(OsuDifficultyHitObject.NORMALISED_DIAMETER * 1.25 / Math.Min(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime), Math.Abs(prevVelocity - currVelocity));
 
             double velocityChangeBonus = overlapVelocityBuff * distRatio;
+
+            // Penalize for rhythm changes.
+            velocityChangeBonus *= DiffUtils.Pow(Math.Min(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime) / Math.Max(osuCurrObj.AdjustedDeltaTime, osuLastObj.AdjustedDeltaTime), 3);
 
             return velocityChangeBonus * velocity_change_multiplier;
         }
@@ -161,22 +168,21 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
         private static double vectorAngleRepetition(OsuDifficultyHitObject current, OsuDifficultyHitObject previous)
         {
-            if (
-                current.Angle == null ||
+            if (current.Angle == null ||
                 previous.Angle == null ||
                 previous.BaseObject is Spinner ||
-                previous.Previous(0).BaseObject is Spinner)
+                previous.Previous()?.BaseObject is Spinner)
                 return 1;
 
             const double note_limit = 6;
-            const double maximum_repetition_nerf = 0.2;
+            const double maximum_repetition_nerf = 0.18;
             const double maximum_vector_influence = 0.5;
 
             double constantAngleCount = 0;
 
             for (int index = 0; index < note_limit; index++)
             {
-                OsuDifficultyHitObject? prevObj = (OsuDifficultyHitObject)current.Previous(index);
+                var prevObj = (OsuDifficultyHitObject?)current.Previous(index);
 
                 if (prevObj == null || prevObj.BaseObject is Spinner)
                     break;
@@ -204,7 +210,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
 
             double angleDifferenceAdjusted = Math.Cos(2 * Math.Min(double.DegreesToRadians(45), Math.Abs(currAngle - lastAngle) * stackFactor));
 
-            double baseNerf = 1 - maximum_repetition_nerf * AngleUtils.CalculateAcuteness(lastAngle) * angleDifferenceAdjusted;
+            double baseNerf = 1 - maximum_repetition_nerf * DiffUtils.ReverseLerp(lastAngle, double.DegreesToRadians(180), double.DegreesToRadians(0)) * angleDifferenceAdjusted;
 
             return DiffUtils.Pow(baseNerf + (1 - baseNerf) * vectorRepetition * maximum_vector_influence * stackFactor, 2);
         }
