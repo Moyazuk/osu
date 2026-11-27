@@ -162,7 +162,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             OsuDifficultyHitObject? next,
             double currVelocity)
         {
-            const double acute_angle_multiplier = 0.15;
+            const double acute_angle_multiplier = 0.35;
 
             if (current.Angle == null)
                 return 0;
@@ -181,7 +181,7 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             OsuDifficultyHitObject? next,
             double currVelocity)
         {
-            const double acute_angle_multiplier = 0.9;
+            const double acute_angle_multiplier = 0.15;
 
             if (next?.Angle == null)
                 return 0;
