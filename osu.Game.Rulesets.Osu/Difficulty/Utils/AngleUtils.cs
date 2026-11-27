@@ -12,5 +12,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Utils
 
         public static double CalculateAcuteness(double angle)
             => DiffUtils.Smoothstep(angle, double.DegreesToRadians(140), double.DegreesToRadians(40));
+
+        public static double CalculateFlowAcuteness(double angle)
+            => DiffUtils.Smoothstep(angle, double.DegreesToRadians(100), double.DegreesToRadians(15));
     }
 }

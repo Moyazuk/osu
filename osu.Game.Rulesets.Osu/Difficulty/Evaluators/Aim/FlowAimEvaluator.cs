@@ -162,12 +162,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             OsuDifficultyHitObject? next,
             double currVelocity)
         {
-            const double acute_angle_multiplier = 0.35;
+            const double acute_angle_multiplier = 0.85;
 
             if (current.Angle == null)
                 return 0;
 
-            double currAcuteness = AngleUtils.CalculateAcuteness(current.Angle.Value);
+            double currAcuteness = AngleUtils.CalculateFlowAcuteness(current.Angle.Value);
 
             double overlapWeight = calculateOverlapWeight(current, last, lastLast);
 
@@ -181,12 +181,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators.Aim
             OsuDifficultyHitObject? next,
             double currVelocity)
         {
-            const double acute_angle_multiplier = 0.15;
+            const double acute_angle_multiplier = 0.45;
 
             if (next?.Angle == null)
                 return 0;
 
-            double currAcuteness = AngleUtils.CalculateAcuteness(next.Angle.Value);
+            double currAcuteness = AngleUtils.CalculateFlowAcuteness(next.Angle.Value);
 
             double overlapWeight = calculateOverlapWeight(next, current, last);
 
