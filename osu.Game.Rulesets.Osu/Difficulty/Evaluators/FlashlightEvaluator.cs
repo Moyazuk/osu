@@ -27,6 +27,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
         /// </summary>
         public static double EvaluateDifficultyOf(DifficultyHitObject current, IReadOnlyList<Mod> mods)
         {
+            if (current.BaseObject is Spinner)
+                return 0;
+
             const double max_opacity_bonus = 0.4;
             const double hidden_bonus = 0.2;
 
@@ -51,8 +54,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Evaluators
             // This is iterating backwards in time from the current object.
             for (int i = 0; i < Math.Min(current.Index, 10); i++)
             {
-                var currentObj = (OsuDifficultyHitObject)current.Previous(i);
-                var currentHitObject = (OsuHitObject)(currentObj.BaseObject);
+                var currentObj = (OsuDifficultyHitObject)current.Previous(i)!;
+                var currentHitObject = (OsuHitObject)currentObj.BaseObject;
 
                 cumulativeStrainTime += lastObj.AdjustedDeltaTime;
 
